@@ -399,45 +399,77 @@
         }
         .original-problem-display strong { color: var(--primary-color); font-weight:600; }
 
-        /* Styles for Processing Overlay */
+        /* Styles for Processing Notification - Less Intrusive */
         #processing-overlay {
             position: fixed; 
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(248, 249, 250, 0.95); /* Use bg-color with opacity */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            max-width: 90vw;
+            background-color: var(--panel-bg);
+            border: 2px solid var(--secondary-color);
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--shadow-lg);
+            padding: 20px;
             z-index: 10000; 
             text-align: center;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            transform: translateX(100%);
+            transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
         }
         #processing-overlay.visible {
             opacity: 1;
             visibility: visible;
+            transform: translateX(0);
         }
         #processing-overlay h2 {
             color: var(--primary-darker);
-            font-size: 2.2em; /* Larger */
-            margin-bottom: 25px;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            margin-top: 0;
+        }
+        #processing-overlay p {
+            margin: 10px 0 0 0;
+            font-size: 0.9em;
+            color: var(--light-text-color);
         }
         /* Simple Spinner - updated colors */
         .spinner {
-            border: 10px solid var(--hover-bg-color); /* Lighter teal base */
-            border-top: 10px solid var(--accent-orange); /* Orange for spinner top */
+            border: 4px solid var(--hover-bg-color);
+            border-top: 4px solid var(--accent-orange);
             border-radius: 50%;
-            width: 70px; /* Larger */
-            height: 70px; /* Larger */
+            width: 30px;
+            height: 30px;
             animation: spin 1s linear infinite;
+            margin: 0 auto 10px auto;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Close button for processing notification */
+        .processing-close {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            background: none;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            color: var(--light-text-color);
+            padding: 0;
+            margin: 0;
+            width: auto;
+            height: auto;
+            box-shadow: none;
+        }
+        .processing-close:hover {
+            color: var(--accent-coral);
+            transform: none;
+            background: none;
+            box-shadow: none;
         }
 
     </style>
@@ -476,9 +508,10 @@
     </div>
 
     <div id="processing-overlay">
-        <h2>Generating Your AI Expert Panel Report...</h2>
+        <button class="processing-close" onclick="hideProcessingNotification()" title="Close">&times;</button>
+        <h2>Generating Report...</h2>
         <div class="spinner"></div>
-        <p style="margin-top: 20px; font-size: 1.1em; color: var(--light-text-color);">Please wait, this may take a moment.</p>
+        <p>AI experts are analyzing your problem.</p>
     </div>
 
     <script>
@@ -506,6 +539,13 @@
         let globalReportData = null;
         let activeContentId = null;
         let allProcessedItemNames = [];
+
+        function hideProcessingNotification() {
+            const processingOverlay = document.getElementById('processing-overlay');
+            if (processingOverlay) {
+                processingOverlay.classList.remove('visible');
+            }
+        }
 
         function getNavIcon(itemName) {
             itemName = itemName.toLowerCase();
