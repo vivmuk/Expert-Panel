@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Expert Panel - Synthesis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs -->
+    <!-- Use type="module" for modern SDKs that support import/export -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-analytics.js";
+        // Add Firebase Auth SDK
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        const firebaseConfig = {
+            apiKey: "AIzaSyDZ187x3wfdFzg2jeHcnSWtvPNoQ44UxZs",
+            authDomain: "expert-panel-1000b.firebaseapp.com",
+            projectId: "expert-panel-1000b",
+            storageBucket: "expert-panel-1000b.firebasestorage.app",
+            messagingSenderId: "862036046606",
+            appId: "1:862036046606:web:a855003b0c8103967cdd5f",
+            measurementId: "G-XX3NV9VYTW"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        // Get Firebase Auth instance
+        const auth = getAuth(app);
+
+        // Make firebase app instance globally available for other scripts if needed, or pass it around.
+        window.firebaseApp = app;
+        window.firebaseAnalytics = analytics;
+        window.firebaseAuth = auth; // Make auth instance global
+
+        console.log("Firebase Initialized with Project ID:", firebaseConfig.projectId);
+
+        // --- Authentication UI and Logic ---
+        const signInButton = document.getElementById('signInButton');
+        const signOutButton = document.getElementById('signOutButton');
+        const userDetailsDiv = document.getElementById('userDetails');
+        const userDisplayName = document.getElementById('userDisplayName');
+        const userEmail = document.getElementById('userEmail');
+        const businessProblemSection = document.querySelector('.input-section'); // To hide/show problem submission
+
+        // Google Sign-In
+        async function signInWithGoogle() {
+            const provider = new GoogleAuthProvider();
+            try {
+                const result = await signInWithPopup(auth, provider);
+                // This gives you a Google Access Token. You can use it to access the Google API.
+                const credential = GoogleAuthProvider.credentialFromResult(result);
+                const token = credential.accessToken;
+                // The signed-in user info.
+                const user = result.user;
+                console.log("User signed in: ", user);
+            } catch (error) {
+                // Handle Errors here.
+                const errorCode = error.code;
+                const errorMessage = error.message;
+                // The email of the user's account used.
+                const email = error.customData ? error.customData.email : 'N/A';
+                // The AuthCredential type that was used.
+                const credential = GoogleAuthProvider.credentialFromError(error);
+                console.error("Google Sign-In Error:", errorCode, errorMessage, email, credential);
+                alert(`Error signing in: ${errorMessage}`);
+            }
+        }
+        window.signInWithGoogle = signInWithGoogle; // Make it callable from HTML onclick
+
+        // Sign-Out
+        async function signOutUser() {
+            try {
+                await signOut(auth);
+                console.log("User signed out.");
+            } catch (error) {
+                console.error("Sign Out Error:", error);
+                alert(`Error signing out: ${error.message}`);
+            }
+        }
+        window.signOutUser = signOutUser; // Make it callable from HTML onclick
+
+        // Listen for auth state changes
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in
+                if (userDetailsDiv) userDetailsDiv.style.display = 'block';
+                if (signInButton) signInButton.style.display = 'none';
+                if (signOutButton) signOutButton.style.display = 'inline-block';
+                if (userDisplayName) userDisplayName.textContent = user.displayName || 'N/A';
+                if (userEmail) userEmail.textContent = user.email || 'N/A';
+                if (businessProblemSection) businessProblemSection.style.display = 'block'; // Show problem input
+                addCoreNavItems(); // Add "New Report" and "Previous Reports" (if applicable)
+                // Show save button if a report exists
+                const saveReportButton = document.getElementById('saveReportButton');
+                if (saveReportButton && globalReportData) {
+                    saveReportButton.style.display = 'inline-block';
+                }
+            } else {
+                // User is signed out
+                if (userDetailsDiv) userDetailsDiv.style.display = 'none';
+                if (signInButton) signInButton.style.display = 'inline-block';
+                if (signOutButton) signOutButton.style.display = 'none';
+                if (businessProblemSection) businessProblemSection.style.display = 'none'; // Hide problem input until login
+                // Hide save button on sign out
+                const saveReportButton = document.getElementById('saveReportButton');
+                if (saveReportButton) saveReportButton.style.display = 'none';
+                removePreviousRunsNav(); // Remove "Previous Runs" nav item
+                // Also remove "New Report" nav item if we want to clear all nav on logout, or just leave it.
+                // For now, let's clear all dynamic nav items:
+                const navigationList = document.getElementById('navigationList');
+                if(navigationList) navigationList.innerHTML = ''; // Clear all nav on logout
+            }
+        });
+
+    </script>
+
+    <style>
+        :root {
+            /* New Color Palette & Modern Look Variables */
+            --primary-color: #205072; /* Dark Teal - Primary */
+            --primary-darker: #103A52; /* Darker shade of primary */
+            --secondary-color: #329D9C; /* Medium Teal - Secondary/Accent */
+            --accent-orange: #F9A03F;   /* Accent Orange */
+            --accent-coral: #ED553B;    /* Accent Coral/Red */
+            --accent-yellow: #FFCB05;   /* Accent Yellow (from image) */
+            --light-green-bg: #E0F2F1; /* Light Teal/Greenish - for subtle backgrounds */
+
+            --text-color: #263238; /* Dark Slate Grey - for better contrast */
+            --light-text-color: #546E7A; /* Lighter Slate Grey */
+            --bg-color: #F8F9FA; /* Light Grey - General page background */
+            --panel-bg: #FFFFFF;         /* White - For content panels */
+            --border-color: #CFD8DC;     /* Lighter Grey Blue - for borders */
+            
+            --hover-bg-color: #B2DFDB; /* Light teal for general hovers */
+            --active-nav-bg: var(--accent-coral);
+            --active-nav-text: #FFFFFF;
+
+            /* Left Panel Specifics for Pronounced Look */
+            --left-panel-bg: #205072; /* Dark Teal background for left panel */
+            --left-panel-text: #E0F2F1; /* Very light teal/white for text on dark panel */
+            --left-panel-header-text: #C4E8C2; /* Light Green for "Navigation" header */
+            --left-panel-nav-item-hover-bg: #329D9C; /* Medium Teal for nav item hover */
+            --left-panel-nav-item-hover-text: #FFFFFF;
+            --left-panel-nav-item-active-bg: var(--accent-orange); /* Orange for active nav items in left panel */
+            --left-panel-nav-item-active-text: #000000; /* Black text on orange for contrast */
+            --left-panel-border-color: #103A52; /* Darker border for left panel */
+
+            --shadow-sm: 0 2px 5px rgba(0,0,0,0.07);
+            --shadow-md: 0 5px 12px rgba(0,0,0,0.09);
+            --shadow-lg: 0 8px 20px rgba(0,0,0,0.12);
+            --font-family: 'Roboto', sans-serif;
+            --border-radius-sm: 6px;
+            --border-radius-md: 10px;
+            --border-radius-lg: 15px;
+        }
+
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .header {
+            background: var(--panel-bg);
+            color: var(--primary-color);
+            padding: 20px 40px; /* Increased padding */
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.4em; /* Slightly larger */
+            font-weight: 500;
+        }
+
+        .main-content-wrapper {
+            display: flex;
+            flex-grow: 1;
+            max-width: 1800px; /* Wider */
+            width: 100%;
+            margin: 30px auto; /* Increased margin */
+            gap: 30px; /* Increased gap */
+        }
+
+        #left-panel-nav {
+            width: 280px; /* Wider left panel */
+            background-color: var(--left-panel-bg); /* Pronounced background */
+            color: var(--left-panel-text); /* Text color for the panel */
+            padding: 20px;
+            border-right: 1px solid var(--left-panel-border-color);
+            box-shadow: var(--shadow-lg); /* More pronounced shadow */
+            display: flex;
+            flex-direction: column;
+            border-radius: var(--border-radius-md);
+            transition: box-shadow 0.3s ease;
+        }
+        #left-panel-nav:hover {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); /* Enhanced hover shadow */
+        }
+
+        #left-panel-nav h3 {
+            color: var(--left-panel-header-text); /* Contrasting header text */
+            border-bottom: 1px solid var(--secondary-color); /* Use secondary for border */
+            padding-bottom: 15px;
+            margin-top: 0; /* Adjusted margin */
+            margin-bottom: 20px;
+            font-size: 1.25em; /* Larger font */
+            font-weight: 700; /* Bolder */
+            padding-left: 5px;
+        }
+        #left-panel-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+        }
+        #left-panel-nav li a {
+            display: flex; 
+            align-items: center; 
+            padding: 12px 15px; /* Increased padding */
+            text-decoration: none;
+            color: var(--left-panel-text); /* Text color for nav items */
+            border-radius: var(--border-radius-sm);
+            margin-bottom: 8px; /* Increased margin */
+            transition: background-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            font-size: 0.95em; 
+            font-weight: 500; /* Slightly bolder */
+        }
+        #left-panel-nav li a .nav-icon {
+            margin-right: 12px; /* Increased margin */
+            font-size: 1.2em; 
+            width: 20px; 
+            text-align: center;
+            opacity: 0.8; /* Slightly more visible */
+            transition: opacity 0.25s ease;
+        }
+
+        #left-panel-nav li a:hover {
+            background-color: var(--left-panel-nav-item-hover-bg); /* Hover background */
+            color: var(--left-panel-nav-item-hover-text); /* Hover text */
+            transform: translateX(4px);
+            box-shadow: var(--shadow-sm);
+        }
+        #left-panel-nav li a:hover .nav-icon {
+            opacity: 1;
+        }
+
+        #left-panel-nav li a.active,
+        #left-panel-nav li a.processing-nav-item {
+            background-color: var(--left-panel-nav-item-active-bg); /* Active background */
+            color: var(--left-panel-nav-item-active-text); /* Active text */
+            font-weight: 700; /* Bolder for active */
+            box-shadow: var(--shadow-md);
+        }
+        #left-panel-nav li a.active .nav-icon, 
+        #left-panel-nav li a.processing-nav-item .nav-icon {
+             opacity: 1;
+             color: var(--left-panel-nav-item-active-text); /* Ensure icon color matches */
+        }
+
+        #left-panel-nav li a.processing-nav-item {
+            animation: navPulse 1.3s infinite ease-in-out;
+        }
+        @keyframes navPulse { /* Pulse with panel's active colors */
+            0% { background-color: var(--left-panel-nav-item-active-bg); opacity: 1; }
+            50% { background-color: color-mix(in srgb, var(--left-panel-nav-item-active-bg) 80%, black); opacity: 0.85; }
+            100% { background-color: var(--left-panel-nav-item-active-bg); opacity: 1; }
+        }
+
+        .container { 
+            flex-grow: 1;
+            padding: 0; 
+            background: transparent; 
+            overflow-y: auto;
+        }
+
+        .input-section {
+            background-color: var(--panel-bg);
+            padding: 25px 30px; /* Increased padding */
+            border-radius: var(--border-radius-md); /* Rounded edges */
+            margin-bottom: 30px; /* Increased margin */
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+        }
+         .input-section p {
+            font-size: 1em; /* Slightly larger */
+            color: var(--light-text-color);
+            margin-bottom: 18px;
+        }
+
+        textarea {
+            width: calc(100% - 24px); /* Adjusted for padding */
+            min-height: 120px; /* Taller */
+            padding: 12px;
+            margin-bottom: 18px;
+            border-radius: var(--border-radius-sm); /* Rounded edges */
+            border: 1px solid var(--border-color);
+            background-color: #fff;
+            color: var(--text-color);
+            font-size: 1em;
+            font-family: var(--font-family);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        textarea:focus {
+            border-color: var(--secondary-color); /* Use secondary for focus */
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--secondary-color) 25%, transparent); /* Modern focus ring */
+        }
+
+        button {
+            display: inline-block;
+            padding: 12px 25px; /* Larger buttons */
+            background-color: var(--secondary-color); /* Use secondary for default buttons */
+            color: white;
+            border: none;
+            border-radius: var(--border-radius-sm); /* Rounded edges */
+            font-size: 1em; /* Larger font */
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease, box-shadow 0.2s ease;
+            margin-right: 12px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+        button:hover {
+            background-color: color-mix(in srgb, var(--secondary-color) 85%, black); /* Darken secondary */
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        button:disabled {
+            background-color: #B0BEC5; /* Muted color for disabled */
+            color: #78909C;
+            cursor: not-allowed;
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: auto; 
+            padding: 18px 12px; /* Increased padding */
+            background-color: var(--left-panel-bg); /* Match panel background */
+            border-radius: 0 0 var(--border-radius-md) var(--border-radius-md); /* Rounded bottom corners */
+            border-top: 1px solid var(--left-panel-border-color); /* Match panel border */
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: color-mix(in srgb, var(--left-panel-text) 20%, transparent); /* Lighter bar background */
+            border-radius: var(--border-radius-sm);
+            padding: 3px; /* Increased padding */
+        }
+        .progress-bar-inner {
+            display: block;
+            height: 20px; /* Taller bar */
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-orange), var(--accent-yellow)); /* Use accent gradient */
+            border-radius: var(--border-radius-sm); /* Match outer radius */
+            text-align: center;
+            line-height: 20px;
+            color: var(--text-color); /* Darker text for visibility on yellow/orange */
+            font-weight: 600; /* Bolder */
+            font-size: 0.85em;
+            transition: width 0.4s ease-in-out;
+        }
+        #statusMessage {
+            font-style: italic;
+            color: var(--left-panel-text); /* Match panel text */
+            margin-top: 12px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        #results-content .content-section {
+            display: none;
+            background-color: var(--panel-bg);
+            padding: 30px 35px; /* Increased padding */
+            border-radius: var(--border-radius-md); /* Rounded edges */
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            opacity: 0;
+            transform: translateY(15px); /* Slightly more pronounced animation */
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+        #results-content .content-section.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0px);
+        }
+
+        #results-content h2, #results-content h3, #results-content h4 {
+            color: var(--primary-color); /* Use primary for headers */
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        #results-content h2 { font-size: 1.8em; } /* Larger */
+        #results-content h3 { font-size: 1.5em; } /* Larger */
+        #results-content h4 { font-size: 1.2em; margin-bottom: 15px; border-bottom: none; color: var(--text-color); } /* Larger */
+
+        .error {
+            color: #b71c1c; /* Darker red */
+            font-weight: 500;
+            padding: 18px; /* Increased padding */
+            background-color: #FFEBEE; /* Lighter red background */
+            border: 1px solid #FFCDD2; /* Lighter red border */
+            border-left: 6px solid var(--accent-coral); /* Coral accent border */
+            border-radius: var(--border-radius-sm);
+            margin-bottom:25px;
+        }
+        .error strong { color: #c62828; } /* Slightly darker red for strong text */
+
+        .icon-placeholder {
+            font-size: 1.5em; /* Larger */
+            float: right;
+            color: var(--secondary-color); /* Use secondary for icons */
+            margin-left: 15px;
+            opacity: 0.9;
+        }
+
+        .persona-definition p, .search-persona-intro p {
+            font-size: 0.95em;
+            color: var(--light-text-color);
+            margin-bottom: 10px;
+        }
+        .persona-definition hr, .search-persona-intro hr {
+             border: 0;
+             border-top: 1px solid color-mix(in srgb, var(--primary-color) 15%, transparent); /* Subtle hr */
+             margin: 25px 0;
+        }
+
+        .insight-block, .key-finding-block {
+            border-left: 5px solid; /* Thicker border */
+            padding: 18px 20px; /* Increased padding */
+            margin-bottom: 22px;
+            background-color: #FDFEFE; /* Very light, almost white */
+            border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+            box-shadow: var(--shadow-sm);
+        }
+        .insight-block { border-left-color: var(--accent-orange); } 
+        .key-finding-block { border-left-color: var(--secondary-color); } /* Using secondary for this */
+
+        .insight-block p, .key-finding-block p {
+            margin: 8px 0;
+            font-size: 0.95em;
+            color: var(--light-text-color);
+        }
+        .insight-block p:first-of-type, .key-finding-block p:first-of-type {
+            margin-top: 0;
+        }
+        .insight-block strong, .key-finding-block strong {
+             color: var(--text-color);
+             font-weight: 600; /* Bolder */
+        }
+         .insight-block p strong:first-child, .key-finding-block p strong:first-child {
+            color: var(--primary-darker);
+         }
+
+        .action-step {
+            background-color: var(--light-green-bg); /* Use light green from palette */
+            padding: 15px 18px;
+            margin-bottom: 15px;
+            border-radius: var(--border-radius-sm);
+            border: 1px solid color-mix(in srgb, var(--secondary-color) 50%, transparent); /* Border from secondary */
+            box-shadow: var(--shadow-sm);
+        }
+        .action-step p { font-size: 0.95em; }
+
+        .priority-High { color: var(--accent-coral); font-weight: 700; } /* Use coral */
+        .priority-Medium { color: var(--accent-orange); font-weight: 700; } /* Use orange */
+        .priority-Low { color: var(--secondary-color); font-weight: 700; } /* Use secondary/teal */
+
+        ul { list-style-type: none; padding-left: 0; }
+        #results-content ul li {
+            background-color: var(--bg-color); /* Consistent with page bg */
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: var(--border-radius-sm);
+            border: 1px solid var(--border-color);
+            font-size: 0.95em;
+        }
+
+        button#downloadPdfButton {
+            background-color: var(--accent-orange); /* Use accent orange */
+        }
+        button#downloadPdfButton:hover {
+            background-color: color-mix(in srgb, var(--accent-orange) 85%, black); /* Darken orange */
+        }
+        button#saveReportButton { 
+            background-color: #4CAF50; /* Keep green for save - universally understood */
+        }
+        button#saveReportButton:hover {
+            background-color: #388E3C; 
+        }
+        
+        button.view-report-button {
+            background-color: var(--primary-color); /* Use primary */
+            font-size: 0.9em; /* Slightly larger */
+            padding: 8px 15px; /* Increased padding */
+            margin-top: 8px;
+            border-radius: var(--border-radius-sm);
+        }
+        button.view-report-button:hover {
+            background-color: var(--primary-darker);
+        }
+        .previous-run-item {
+            border-bottom: 1px solid var(--border-color);
+            padding: 18px 0;
+            margin-bottom: 18px;
+        }
+        .previous-run-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .previous-run-item h4 {
+            margin: 0 0 10px 0;
+            font-size: 1.15em;
+            color: var(--primary-color); /* Use primary color */
+        }
+        .previous-run-item p {
+            font-size: 0.92em;
+            color: var(--light-text-color);
+            margin: 5px 0;
+        }
+
+        .original-problem-display {
+            font-size: 1em;
+            margin-bottom: 25px;
+            padding: 15px 18px;
+            background-color: var(--light-green-bg); /* Use light green */
+            border-radius: var(--border-radius-sm);
+            border-left: 5px solid var(--secondary-color); /* Use secondary */
+            color: var(--text-color); /* Darker text for readability */
+        }
+        .original-problem-display strong { color: var(--primary-color); font-weight:600; }
+
+        .search-result-item {
+            margin-bottom: 18px;
+            padding-bottom: 18px;
+            border-bottom: 1px dashed var(--border-color);
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .search-result-item h4 {
+            margin-bottom: 8px;
+            font-size: 1.1em; /* Larger */
+        }
+        .search-result-item a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600; /* Bolder */
+            transition: color 0.2s ease;
+        }
+        .search-result-item a:hover {
+            color: var(--accent-orange); /* Use orange for hover */
+            text-decoration: underline;
+        }
+        .search-result-item p {
+            font-size: 0.9em;
+            color: var(--light-text-color);
+        }
+
+        /* Styles for Auth */
+        #auth-container {
+            padding: 10px 0px; /* Reduced padding as it's inside header */
+            background-color: transparent; /* No separate background */
+            border-radius: var(--border-radius-sm);
+            /* box-shadow: var(--shadow-sm); */ /* Removed shadow, part of header */
+            /* margin-bottom: 20px; */ /* Removed, part of header */
+            text-align: right; 
+            position: absolute; /* Position it within the header */
+            top: 20px;
+            right: 40px;
+        }
+        #userDetails {
+            display: none; 
+            font-size: 0.9em;
+            color: var(--light-text-color); /* Text color consistent with header light text */
+            text-align: right;
+             margin-bottom: 5px;
+        }
+        #userDetails p {
+            margin: 0 0 5px 0;
+        }
+         #signInButton, #signOutButton {
+            background-color: var(--accent-coral); /* Coral for sign in/out */
+            color: white;
+            padding: 8px 18px; /* Adjusted padding */
+            font-size: 0.9em;
+            margin-left: 10px;
+            border-radius: var(--border-radius-sm);
+         }
+         #signInButton:hover, #signOutButton:hover {
+             background-color: color-mix(in srgb, var(--accent-coral) 85%, black); /* Darken coral */
+         }
+
+        /* Styles for Processing Overlay */
+        #processing-overlay {
+            position: fixed; 
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(248, 249, 250, 0.95); /* Use bg-color with opacity */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000; 
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        #processing-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        #processing-overlay h2 {
+            color: var(--primary-darker);
+            font-size: 2.2em; /* Larger */
+            margin-bottom: 25px;
+        }
+        /* Simple Spinner - updated colors */
+        .spinner {
+            border: 10px solid var(--hover-bg-color); /* Lighter teal base */
+            border-top: 10px solid var(--accent-orange); /* Orange for spinner top */
+            border-radius: 50%;
+            width: 70px; /* Larger */
+            height: 70px; /* Larger */
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>AI Expert Panel</h1>
+        <div id="auth-container">
+            <div id="userDetails">
+                <p>Welcome, <span id="userDisplayName"></span> (<span id="userEmail"></span>)</p>
+                <button id="signOutButton" onclick="signOutUser()" style="display:none;">Sign Out</button>
+            </div>
+            <button id="signInButton" onclick="signInWithGoogle()">Sign in with Google</button>
+        </div>
+    </header>
+
+    <div class="main-content-wrapper">
+        <nav id="left-panel-nav">
+            <h3>Navigation</h3>
+            <ul id="navigationList">
+                <!-- Nav items: <li><a href="#"><span class="nav-icon">ICON</span>Text</a></li> -->
+                <!-- Placeholder for Previous Runs, will be populated if user is logged in -->
+            </ul>
+             <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <span class="progress-bar-inner" id="progressBarInner">0%</span>
+                </div>
+                <div id="statusMessage">Initializing...</div>
+            </div>
+        </nav>
+
+        <main class="container" id="right-panel-container">
+            <div class="input-section">
+                <p>Enter your business problem. The system will orchestrate AI experts for insights and an action plan.</p>
+                <textarea id="businessProblem" placeholder="Describe your business problem here..."></textarea>
+                <button id="submitButton" onclick="submitProblem()">Get Expert Insights</button>
+                <button id="downloadPdfButton" onclick="downloadPDF()" style="display:none;">Download PDF</button>
+                <button id="saveReportButton" onclick="saveReportToFirebase()" style="display:none;">Save Report</button>
+            </div>
+            
+            <div id="results-content">
+                <!-- Content sections will be dynamically inserted here -->
+                <div class="content-section" id="previous-runs-content">
+                    <h2><span class="icon-placeholder">&#128193;</span> Previous Reports</h2>
+                    <div id="previous-runs-list">
+                        <!-- Saved reports will be listed here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="processing-overlay">
+        <h2>Generating Your AI Expert Panel Report...</h2>
+        <div class="spinner"></div>
+        <p style="margin-top: 20px; font-size: 1.1em; color: var(--light-text-color);">Please wait, this may take a moment.</p>
+    </div>
+
+    <script>
+        // Configuration for backend URL - will be updated for production
+        const BACKEND_URL = window.location.hostname === 'localhost' ? 
+            'http://127.0.0.1:5000' : 
+            'https://YOUR_BACKEND_URL_HERE'; // Replace with your deployed backend URL
+
+        const STAGE_IDLE = -1;
+        const STAGE_INIT = 0;
+        const STAGE_PERSONA_GENERATION_START = 1;
+        const STAGE_PERSONA_GENERATION_COMPLETE = 2;
+        const STAGE_BACKEND_PROCESSING_COMPLETE = 3; // New stage after main backend call returns
+        const STAGE_PERSONA_INSIGHT_COLLECTION_START = 4; 
+        const MAX_EXPECTED_PERSONAS_FOR_PROGRESS = 10;
+        const STAGE_SEARCH_ASSISTANT_START = STAGE_PERSONA_INSIGHT_COLLECTION_START + MAX_EXPECTED_PERSONAS_FOR_PROGRESS; // 4 + 10 = 14
+        const STAGE_SEARCH_ASSISTANT_COMPLETE = STAGE_SEARCH_ASSISTANT_START + 1; // 15
+        const STAGE_SYNTHESIS_START = STAGE_SEARCH_ASSISTANT_COMPLETE + 1; // 16
+        const STAGE_SYNTHESIS_COMPLETE = STAGE_SYNTHESIS_START + 1; // 17
+        const STAGE_DISPLAY_RESULTS = STAGE_SYNTHESIS_COMPLETE + 1; // 18 (Finalizing results)
+        const STAGE_ALL_COMPLETE = STAGE_DISPLAY_RESULTS + 1; // 19 (Ensures 100% can be reached)
+        const TOTAL_PROGRESS_STAGES = STAGE_ALL_COMPLETE; // Total is now 19
+
+        let currentProgressNumericStage = STAGE_IDLE;
+        let globalReportData = null;
+        let activeContentId = null;
+        let allProcessedItemNames = []; // Stores names of personas and report for nav highlighting
+
+        function getNavIcon(itemName) {
+            itemName = itemName.toLowerCase();
+            if (itemName.includes('report')) return '&#128221;'; // Document
+            if (itemName.includes('search') || itemName.includes('research')) return '&#128269;'; // Magnifying glass
+            if (itemName.includes('analyst')) return '&#128202;'; // Chart
+            if (itemName.includes('strategist')) return '&#127919;'; // Target
+            if (itemName.includes('technologist') || itemName.includes('tech')) return '&#128187;'; // Laptop
+            if (itemName.includes('customer') || itemName.includes('user')) return '&#128101;'; // Group of users
+            if (itemName.includes('risk')) return '&#9888;&#65039;'; // Warning
+            if (itemName.includes('ethicist')) return '&#9878;&#65039;'; // Scales
+            if (itemName.includes('futurist')) return '&#128302;'; // Crystal ball
+            if (itemName.includes('financial') || itemName.includes('finance')) return '&#128176;'; // Money bag
+            if (itemName.includes('legal')) return '&#128206;'; // Books/ledger
+            if (itemName.includes('marketing')) return '&#128227;'; // Loudspeaker
+            return '&#128100;'; // Default user icon
+        }
+
+        function updateProgress(message, numericStage) {
+            currentProgressNumericStage = numericStage;
+            const progressBarInner = document.getElementById('progressBarInner');
+            const statusMessage = document.getElementById('statusMessage');
+            const percentage = Math.min(100, Math.round((currentProgressNumericStage / TOTAL_PROGRESS_STAGES) * 100));
+            
+            if (progressBarInner) {
+                 progressBarInner.style.width = percentage + '%';
+                 progressBarInner.textContent = percentage + '%';
+            }
+            if (statusMessage) statusMessage.textContent = message;
+
+            document.querySelectorAll('#navigationList li a.processing-nav-item').forEach(nav => nav.classList.remove('processing-nav-item'));
+            
+            let currentProcessingItemName = null;
+            if (numericStage >= STAGE_PERSONA_INSIGHT_COLLECTION_START && numericStage < STAGE_SEARCH_ASSISTANT_START) {
+                const personaIndex = numericStage - STAGE_PERSONA_INSIGHT_COLLECTION_START;
+                currentProcessingItemName = allProcessedItemNames.find(name => 
+                    globalReportData && globalReportData.expert_insights && 
+                    globalReportData.expert_insights[personaIndex] && 
+                    name === globalReportData.expert_insights[personaIndex].persona_name
+                );
+            } else if (numericStage === STAGE_SEARCH_ASSISTANT_START && globalReportData && globalReportData.search_findings) {
+                currentProcessingItemName = globalReportData.search_findings.persona_name;
+            } else if (numericStage === STAGE_SYNTHESIS_START) {
+                currentProcessingItemName = "Synthesis Report";
+            }
+
+            if (currentProcessingItemName) {
+                const navItemId = `nav-${currentProcessingItemName.replace(/[^a-zA-Z0-9_]/g, '-')}`;
+                const activeNavItem = document.getElementById(navItemId);
+                if (activeNavItem) {
+                    activeNavItem.classList.add('processing-nav-item');
+                    statusMessage.textContent = `Processing: ${currentProcessingItemName}...`;
+                    activeNavItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        }
+
+        async function submitProblem() {
+            const problemText = document.getElementById('businessProblem').value;
+            const resultsContentDiv = document.getElementById('results-content');
+            const navigationList = document.getElementById('navigationList');
+            const progressContainer = document.getElementById('progressContainer');
+            const submitButton = document.getElementById('submitButton');
+            const downloadButton = document.getElementById('downloadPdfButton');
+            const saveReportButton = document.getElementById('saveReportButton');
+            const processingOverlay = document.getElementById('processing-overlay'); // Get overlay
+
+            globalReportData = null;
+            allProcessedItemNames = []; 
+            if (!problemText.trim()) {
+                resultsContentDiv.innerHTML = '<div class="error content-section active">Please enter a business problem.</div>';
+                if (!activeContentId) switchContent('error-problem-missing'); // Assuming such an ID if you create one
+                return;
+            }
+
+            resultsContentDiv.innerHTML = ''; 
+            navigationList.innerHTML = ''; 
+            submitButton.disabled = true;
+            downloadButton.style.display = 'none';
+            if (saveReportButton) saveReportButton.style.display = 'none';
+            if (processingOverlay) processingOverlay.classList.add('visible'); // Show overlay
+            progressContainer.style.display = 'block';
+            updateProgress('Initializing...', STAGE_IDLE);
+
+            try {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                updateProgress('Generating Expert Personas...', STAGE_PERSONA_GENERATION_START);
+                
+                const response = await fetch(`${BACKEND_URL}/process_problem`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', },
+                    body: JSON.stringify({ business_problem: problemText }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: "Failed to parse error from server." }));
+                    throw new Error(`HTTP error! Status: ${response.status} - ${errorData.error || response.statusText}`);
+                }
+                
+                const data = await response.json();
+                globalReportData = data;
+
+                // New: Update progress after backend call is complete and data is received
+                updateProgress('Main processing complete. Visualizing insights...', STAGE_BACKEND_PROCESSING_COMPLETE);
+                await new Promise(resolve => setTimeout(resolve, 300)); // Short delay for message to be visible
+
+                // Prepare names for navigation highlighting (personas first, then search, then report)
+                if (data.expert_insights) {
+                    allProcessedItemNames = [...allProcessedItemNames, ...data.expert_insights.map(p => p.persona_name)];
+                }
+                if (data.search_findings && data.search_findings.persona_name) {
+                    allProcessedItemNames.push(data.search_findings.persona_name);
+                }
+                if (data.synthesis_report) {
+                    allProcessedItemNames.push("Synthesis Report");
+                }
+                
+                updateProgress(`Personas generated. Collecting insights...`, STAGE_PERSONA_GENERATION_COMPLETE);
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                if (data.expert_insights) {
+                    for (let i = 0; i < data.expert_insights.length; i++) {
+                        updateProgress(`Insights: ${data.expert_insights[i].persona_name}...`, STAGE_PERSONA_INSIGHT_COLLECTION_START + i);
+                        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500)); // Varied delay
+                    }
+                }
+                
+                if (data.search_findings) {
+                    updateProgress(`Processing: ${data.search_findings.persona_name}...`, STAGE_SEARCH_ASSISTANT_START);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+
+                updateProgress('Synthesizing report...', STAGE_SYNTHESIS_START);
+                await new Promise(resolve => setTimeout(resolve, 1200)); 
+
+                updateProgress('Finalizing results...', STAGE_DISPLAY_RESULTS);
+                displayResults(data);
+
+                if (data.synthesis_report || data.expert_insights || data.search_findings) {
+                    downloadButton.style.display = 'inline-block';
+                    // Show save button if user is logged in and report is generated
+                    if (saveReportButton && window.firebaseAuth && window.firebaseAuth.currentUser) {
+                         saveReportButton.style.display = 'inline-block';
+                    }
+                }
+
+                // Explicitly set to 100% on full success
+                updateProgress("Processing complete!", STAGE_ALL_COMPLETE);
+
+            } catch (error) {
+                console.error('Error submitting problem:', error);
+                resultsContentDiv.innerHTML = `<div class="error content-section active" id="global-error-content"><strong>Error:</strong> ${error.message}<br>Please ensure the backend server is running and responding correctly.</div>`;
+                switchContent('global-error-content');
+                updateProgress('Error occurred.', STAGE_ALL_COMPLETE); // Use STAGE_ALL_COMPLETE for error too, but message indicates error
+            } finally {
+                submitButton.disabled = false;
+                if (processingOverlay) processingOverlay.classList.remove('visible'); // Hide overlay
+                
+                // Keep progress bar visible for a bit with final status, then optionally hide.
+                // The message and percentage are already set by the try/catch block.
+                setTimeout(() => {
+                    document.querySelectorAll('#navigationList li a.processing-nav-item').forEach(nav => nav.classList.remove('processing-nav-item'));
+                    // Optionally hide progress bar after some more time or on next action
+                     setTimeout(() => {
+                        if(progressContainer.style.display === 'block' && !submitButton.disabled) { 
+                           // progressContainer.style.display = 'none'; // User might want to see final % so leave it
+                        }
+                    }, 5000);
+                }, 300);
+            }
+        }
+
+        function switchContent(targetId) {
+            console.log("Switching content to:", targetId); // Log which content section is being activated
+
+            document.querySelectorAll('#results-content .content-section.active').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            const targetElement = document.getElementById(targetId);
+            if (targetElement) {
+                console.log("Target element for switchContent BEFORE classList.add:", targetElement, "Classes:", targetElement.classList.toString());
+                // Timeout to allow the removal of 'active' to render, then add 'active' for transition
+                setTimeout(() => { 
+                    targetElement.classList.add('active'); 
+                    console.log("Target element for switchContent AFTER classList.add:", targetElement, "Classes:", targetElement.classList.toString());
+                    console.log(`Computed display style for #${targetId} after active:`, window.getComputedStyle(targetElement).display);
+                }, 10); 
+            } else {
+                // Fallback if targetId doesn't exist, show the first available or an error message.
+                const firstSection = document.querySelector('#results-content .content-section');
+                if (firstSection) {
+                    setTimeout(() => { firstSection.classList.add('active'); }, 10);
+                    activeContentId = firstSection.id;
+                } else {
+                    document.getElementById('results-content').innerHTML = '<div class="content-section active"><p>Content not found.</p></div>';
+                }
+            }
+
+            document.querySelectorAll('#navigationList li a').forEach(navLink => {
+                navLink.classList.remove('active');
+                if(navLink.id === `nav-${targetId.replace('-content','').replace(/[^a-zA-Z0-9_]/g, '-')}` ){
+                    navLink.classList.add('active');
+                }
+            });
+            activeContentId = targetId;
+        }
+
+        function displayResults(data) {
+            const resultsContentDiv = document.getElementById('results-content');
+            const navigationList = document.getElementById('navigationList');
+            resultsContentDiv.innerHTML = ''; 
+            navigationList.innerHTML = ''; 
+
+            let firstItemIdToDisplay = null;
+            const navOrder = [];
+
+            // 1. Synthesis Report
+            if (data.synthesis_report) {
+                const itemName = "Synthesis Report";
+                const safeName = itemName.replace(/[^a-zA-Z0-9_]/g, '-');
+                const contentId = `${safeName}-content`;
+                navOrder.push({name: itemName, id: contentId, type: 'report'});
+
+                if (data.synthesis_report.error) {
+                     resultsContentDiv.innerHTML += `<div class="content-section error" id="${contentId}"><h3>Synthesis Report Error</h3><p>${data.synthesis_report.error}</p></div>`;
+                } else {
+                    const synthesis = data.synthesis_report;
+                    let actionsHTML = '';
+                    if (synthesis.actionable_next_steps && synthesis.actionable_next_steps.length > 0) {
+                        synthesis.actionable_next_steps.forEach(action => {
+                            actionsHTML += `
+                                <div class="action-step">
+                                    <p><strong>Step:</strong> ${action.step_description}</p>
+                                    <p><strong>Priority:</strong> <span class="priority-${action.priority || 'Medium'}">${action.priority || 'Medium'}</span></p>
+                                    ${action.suggested_rationale ? `<p><strong>Rationale:</strong> ${action.suggested_rationale}</p>` : ''}
+                                </div>`;
+                        });
+                    } else { actionsHTML = '<p>No specific actionable steps provided.</p>'; }
+                    
+                    resultsContentDiv.innerHTML += `
+                        <div class="content-section" id="${contentId}">
+                            <h2><span class="icon-placeholder">${getNavIcon(itemName)}</span> ${itemName}</h2>
+                            <div class="original-problem-display">
+                                <p><strong>Original Problem:</strong> ${data.original_problem || 'N/A'}</p>
+                            </div>
+                            <h3>Cohesive Summary:</h3>
+                            <p>${synthesis.cohesive_summary || 'Not available.'}</p>
+                            <h3>Key Themes:</h3>
+                            <ul>${(synthesis.key_themes || []).map(theme => `<li>${theme}</li>`).join('') || '<li>Not available.</li>'}</ul>
+                            <h3>Potential Blind Spots:</h3>
+                            <ul>${(synthesis.potential_blind_spots || []).map(spot => `<li>${spot}</li>`).join('') || '<li>Not available.</li>'}</ul>
+                            <h3>Actionable Next Steps:</h3>
+                            ${actionsHTML}
+                        </div>`;
+                }
+            }
+            
+            // 2. Search Findings Panel
+            if (data.search_findings) {
+                const searchData = data.search_findings;
+                const itemName = searchData.persona_name || "Research Assistant";
+                const safeName = itemName.replace(/[^a-zA-Z0-9_]/g, '-');
+                const contentId = `search-${safeName}-content`;
+                navOrder.push({name: itemName, id: contentId, type: 'search'});
+
+                let findingsHTML = '';
+                if (searchData.error) {
+                    findingsHTML = `<div class="error"><p><strong>Error during search:</strong> ${searchData.error}</p></div>`;
+                } else if (searchData.findings && searchData.findings.length > 0) {
+                    searchData.findings.forEach(item => {
+                        findingsHTML += `
+                            <div class="search-result-item">
+                                ${item.link ? `<h4><a href="${item.link}" target="_blank">${item.title || 'Untitled Finding'}</a></h4>` : `<h4>${item.title || 'Untitled Finding'}</h4>`}
+                                <p>${item.snippet || 'No snippet available.'}</p>
+                            </div>`;
+                    });
+                } else {
+                    findingsHTML = "<p>No key findings were returned from the search.</p>";
+                }
+
+                resultsContentDiv.innerHTML += `
+                    <div class="content-section" id="${contentId}">
+                        <h2><span class="icon-placeholder">${getNavIcon(itemName)}</span> ${itemName}</h2>
+                        <div class="search-persona-intro">
+                             <p>Automated research findings related to the business problem.</p>
+                             <hr>
+                        </div>
+                        ${findingsHTML}
+                    </div>`;
+            }
+
+            // 3. Expert Personas
+            if (data.expert_insights && data.expert_insights.length > 0) {
+                data.expert_insights.forEach(personaPackage => {
+                    const itemName = personaPackage.persona_name || 'Unnamed Persona';
+                    const safeName = itemName.replace(/[^a-zA-Z0-9_]/g, '-');
+                    const contentId = `persona-${safeName}-content`;
+                    navOrder.push({name: itemName, id: contentId, type: 'persona'});
+                    
+                    let personaDefinitionHTML = '';
+                    if(data.persona_definitions) {
+                        const definition = data.persona_definitions.find(p => p.name === itemName);
+                        if(definition) {
+                            personaDefinitionHTML = `
+                                <div class="persona-definition">
+                                    <p><strong>Role:</strong> ${definition.description || 'N/A'}</p>
+                                    <p><strong>Focus:</strong> ${(definition.focus_areas || []).join(', ') || 'N/A'}</p>
+                                    <hr>
+                                </div>`;
+                        }
+                    }
+
+                    let insightsContentHTML = '';
+                    if (personaPackage.error) {
+                         insightsContentHTML += `<div class="error"><p><strong>Error:</strong> ${personaPackage.error}</p></div>`;
+                    } else {
+                        if (personaPackage.insights_and_analysis && personaPackage.insights_and_analysis.length > 0) {
+                            personaPackage.insights_and_analysis.forEach(item => {
+                                insightsContentHTML += `
+                                    <div class="insight-block">
+                                        <p><strong>Insight:</strong> ${item.insight}</p>
+                                        <p><strong>Reasoning:</strong> ${item.supporting_reasoning || 'N/A'}</p>
+                                        <p><strong>Confidence:</strong> ${item.confidence_level || 'N/A'}</p>
+                                        ${item.identified_risks && item.identified_risks.length > 0 ? `<p><strong>Risks:</strong> <span style="color: #D9534F;">${item.identified_risks.join(', ')}</span></p>` : ''}
+                                        ${item.identified_opportunities && item.identified_opportunities.length > 0 ? `<p><strong>Opportunities:</strong> <span style="color: #5CB85C;">${item.identified_opportunities.join(', ')}</span></p>` : ''}
+                                    </div>`;
+                            });
+                        } else {
+                            insightsContentHTML += '<p>No specific insights provided by this persona.</p>';
+                        }
+                    }
+                    resultsContentDiv.innerHTML += `
+                        <div class="content-section" id="${contentId}">
+                            <h2><span class="icon-placeholder">${getNavIcon(itemName)}</span> ${itemName}</h2>
+                            ${personaDefinitionHTML}
+                            ${insightsContentHTML}
+                        </div>`;
+                });
+            }
+            
+            // Populate Navigation List based on navOrder
+            navOrder.forEach(item => {
+                 const navItemId = `nav-${item.name.replace(/[^a-zA-Z0-9_]/g, '-')}`;
+                 navigationList.innerHTML += `<li><a href="#" id="${navItemId}" onclick="switchContent('${item.id}'); return false;"><span class="nav-icon">${getNavIcon(item.name)}</span> ${item.name}</a></li>`;
+                 if (!firstItemIdToDisplay) firstItemIdToDisplay = item.id;
+            });
+
+
+            if (!firstItemIdToDisplay && data.error) { 
+                 const errorContentId = 'global-error-content-final';
+                 resultsContentDiv.innerHTML += `<div class="content-section error active" id="${errorContentId}"><strong>Backend Error:</strong> ${data.error} ${data.details ? '<br>Details: '+JSON.stringify(data.details) : ''}</div>`;
+                 firstItemIdToDisplay = errorContentId;
+            } else if (!firstItemIdToDisplay) {
+                 const noResultsId = 'no-results-content-final';
+                 resultsContentDiv.innerHTML += `<div class="content-section active" id="${noResultsId}"><p>No results to display. Please submit a problem.</p></div>`;
+                 firstItemIdToDisplay = noResultsId;
+            }
+
+            if (firstItemIdToDisplay) {
+                switchContent(firstItemIdToDisplay);
+            }
+        }
+
+        function downloadPDF() {
+            if (!globalReportData) {
+                alert("No report data available to download.");
+                return;
+            }
+
+            const data = globalReportData;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+
+            let yPosition = 40;
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 40;
+            const usableWidth = pageWidth - (2 * margin);
+            
+            // Helper to add text and manage paging, font, color
+            function addFormattedText(text, x, y, options = {}) {
+                const { fontSize = 10, fontStyle = 'normal', color = '#333333', maxWidth = usableWidth, lineHeightFactor = 1.4, isTitle = false } = options;
+                doc.setFontSize(fontSize);
+                doc.setFont("helvetica", fontStyle);
+                doc.setTextColor(color.startsWith('#') ? color.substring(1) : color); // Remove # if present for jsPDF
+
+                const lines = doc.splitTextToSize(text, maxWidth);
+                let localY = y;
+                lines.forEach((line, index) => {
+                    if (index > 0) localY += fontSize * lineHeightFactor;
+                    localY = checkAndAddPage(localY, fontSize * lineHeightFactor);
+                    doc.text(line, x, localY);
+                });
+                return localY + ( (lines.length > 0 && !isTitle) ? (fontSize * lineHeightFactor * 0.5) : 0); // Add some space after block unless it's a title
+            }
+
+            function checkAndAddPage(currentY, spaceNeeded = 20) {
+                if (currentY + spaceNeeded > pageHeight - margin) {
+                    doc.addPage();
+                    return margin;
+                }
+                return currentY;
+            }
+
+            // ---- PDF Content Generation ----
+
+            // Title Page
+            yPosition = addFormattedText("AI Expert Panel Report", pageWidth / 2, yPosition, { fontSize: 20, fontStyle: 'bold', color: '#0056b3', align: 'center', isTitle: true });
+            yPosition += 20; // Extra space after title
+            
+            // Original Problem
+            yPosition = checkAndAddPage(yPosition, 40);
+            yPosition = addFormattedText("Original Business Problem:", margin, yPosition, { fontSize: 14, fontStyle: 'bold', color: '#007bff', isTitle: true });
+            yPosition = addFormattedText(data.original_problem || 'N/A', margin, yPosition, { fontSize: 10, lineHeightFactor: 1.5 });
+            yPosition += 15;
+
+            // Synthesis Report
+            if (data.synthesis_report && !data.synthesis_report.error) {
+                const synthesis = data.synthesis_report;
+                yPosition = checkAndAddPage(yPosition, 50);
+                yPosition = addFormattedText("Synthesis Report & Action Plan", margin, yPosition, { fontSize: 16, fontStyle: 'bold', color: '#0056b3', isTitle: true });
+                
+                yPosition = addFormattedText("Cohesive Summary:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
+                yPosition = addFormattedText(synthesis.cohesive_summary || 'N/A', margin, yPosition, { fontSize: 10 });
+
+                yPosition = addFormattedText("Key Themes:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
+                (synthesis.key_themes || []).forEach(theme => {
+                    yPosition = addFormattedText("• " + theme, margin + 10, yPosition, { fontSize: 10 });
+                });
+                yPosition += 5;
+
+                yPosition = addFormattedText("Potential Blind Spots:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
+                (synthesis.potential_blind_spots || []).forEach(spot => {
+                    yPosition = addFormattedText("• " + spot, margin + 10, yPosition, { fontSize: 10 });
+                });
+                yPosition += 5;
+
+                yPosition = addFormattedText("Actionable Next Steps:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
+                (synthesis.actionable_next_steps || []).forEach(action => {
+                    yPosition = checkAndAddPage(yPosition, 40);
+                    yPosition = addFormattedText(`Step: ${action.step_description}`, margin + 10, yPosition, { fontSize: 10, fontStyle: 'bold'});
+                    yPosition = addFormattedText(`Priority: ${action.priority}`, margin + 20, yPosition, { fontSize: 10 });
+                    if (action.suggested_rationale) {
+                        yPosition = addFormattedText(`Rationale: ${action.suggested_rationale}`, margin + 20, yPosition, { fontSize: 10, maxWidth: usableWidth - 30 });
+                    }
+                    yPosition += 5; // Space between actions
+                });
+                 yPosition += 10;
+            }
+            
+            // Search Findings
+            if (data.search_findings && !data.search_findings.error && data.search_findings.findings && data.search_findings.findings.length > 0) {
+                doc.addPage();
+                yPosition = margin;
+                const searchData = data.search_findings;
+                yPosition = addFormattedText(`${searchData.persona_name || "Research Assistant"} - Key Findings`, margin, yPosition, { fontSize: 16, fontStyle: 'bold', color: '#0056b3', isTitle: true });
+
+                (searchData.findings || []).forEach(item => {
+                    yPosition = checkAndAddPage(yPosition, 40);
+                    yPosition = addFormattedText(item.title || "Untitled Finding", margin, yPosition, { fontSize: 11, fontStyle: 'bold', color: '#007bff' });
+                    if (item.link) {
+                         yPosition = addFormattedText(`Source: ${item.link}`, margin, yPosition, { fontSize: 9, color: '#007bff' });
+                    }
+                    yPosition = addFormattedText(item.snippet || 'N/A', margin, yPosition, { fontSize: 10, maxWidth: usableWidth });
+                    yPosition += 10;
+                });
+            }
+
+            // Detailed Expert Insights
+            if (data.expert_insights && data.expert_insights.length > 0) {
+                data.expert_insights.forEach(personaPackage => {
+                    doc.addPage();
+                    yPosition = margin;
+                    yPosition = addFormattedText(`Expert Persona: ${personaPackage.persona_name || 'Unknown Persona'}`, margin, yPosition, { fontSize: 16, fontStyle: 'bold', color: '#0056b3', isTitle: true });
+                    
+                    const definition = (data.persona_definitions || []).find(p => p.name === personaPackage.persona_name);
+                    if (definition) {
+                        yPosition = addFormattedText("Role & Focus:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
+                        yPosition = addFormattedText(`${definition.description || 'N/A'}. Focus areas: ${(definition.focus_areas || []).join(', ') || 'N/A'}`, margin, yPosition, { fontSize: 10 });
+                        yPosition += 5;
+                    }
+
+                    if (personaPackage.error) {
+                        yPosition = addFormattedText(`Error: ${personaPackage.error}`, margin, yPosition, { fontSize: 10, color: '#D9534F', fontStyle:'bold' });
+                    } else {
+                        yPosition = addFormattedText("Detailed Analysis & Insights:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
+                        (personaPackage.insights_and_analysis || []).forEach(item => {
+                            yPosition = checkAndAddPage(yPosition, 50); 
+                            yPosition = addFormattedText(`Insight: ${item.insight || 'N/A'}`, margin + 10, yPosition, { fontSize: 10, fontStyle:'bold' });
+                            yPosition = addFormattedText(`Reasoning: ${item.supporting_reasoning || 'N/A'}`, margin + 10, yPosition, { fontSize: 10, maxWidth: usableWidth - 20 });
+                            yPosition = addFormattedText(`Confidence: ${item.confidence_level || 'N/A'}`, margin + 10, yPosition, { fontSize: 10 });
+                            if (item.identified_risks && item.identified_risks.length > 0) {
+                                yPosition = addFormattedText(`Risks: ${item.identified_risks.join(', ')}`, margin + 10, yPosition, { fontSize: 10, color: '#D9534F' });
+                            }
+                            if (item.identified_opportunities && item.identified_opportunities.length > 0) {
+                                yPosition = addFormattedText(`Opportunities: ${item.identified_opportunities.join(', ')}`, margin + 10, yPosition, { fontSize: 10, color: '#5CB85C' });
+                            }
+                            yPosition += 10; 
+                        });
+                    }
+                });
+            }
+            doc.save('AI_Expert_Panel_Report_v3.pdf');
+        }
+
+        async function saveReportToFirebase() {
+            const saveReportButton = document.getElementById('saveReportButton');
+            const statusMessage = document.getElementById('statusMessage'); // For user feedback
+
+            if (!globalReportData) {
+                alert("No report data available to save.");
+                return;
+            }
+            if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+                alert("Please sign in to save your report.");
+                // Optionally, trigger sign-in flow
+                // signInWithGoogle(); 
+                return;
+            }
+
+            saveReportButton.disabled = true;
+            saveReportButton.textContent = "Saving...";
+            if (statusMessage) statusMessage.textContent = "Saving report to cloud...";
+
+
+            try {
+                const idToken = await window.firebaseAuth.currentUser.getIdToken();
+                const functionUrl = "https://savereport-ai2shg6ouq-uc.a.run.app"; // Updated URL
+
+                const response = await fetch(functionUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({ report: globalReportData })  // Ensure this matches what the function expects
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log("Report saved successfully:", result);
+                    alert(`Report saved successfully! Report ID: ${result.reportId}`);
+                    saveReportButton.textContent = "Saved!";
+                    // Keep button disabled after successful save, or change its function
+                    if (statusMessage) statusMessage.textContent = "Report saved successfully!";
+                } else {
+                    const errorData = await response.json().catch(() => ({ message: "Unknown error saving report." }));
+                    console.error("Error saving report:", response.status, errorData);
+                    alert(`Error saving report: ${errorData.message || response.statusText}`);
+                    saveReportButton.disabled = false;
+                    saveReportButton.textContent = "Save Report";
+                    if (statusMessage) statusMessage.textContent = `Error saving report: ${errorData.message || response.statusText}`;
+                }
+            } catch (error) {
+                console.error("Exception while saving report:", error);
+                alert(`An exception occurred while trying to save the report: ${error.message}`);
+                saveReportButton.disabled = false;
+                saveReportButton.textContent = "Save Report";
+                if (statusMessage) statusMessage.textContent = "Exception during save.";
+            }
+        }
+
+        function addPreviousRunsNav() {
+            const navigationList = document.getElementById('navigationList');
+            const previousRunsNavItem = document.getElementById('nav-previous-runs');
+            
+            if (window.firebaseAuth && window.firebaseAuth.currentUser && !previousRunsNavItem) {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `<a href="#" id="nav-previous-runs" onclick="showPreviousRuns(); return false;"><span class="nav-icon">&#128193;</span> Previous Reports</a>`;
+                
+                // Try to insert it after "New Report" if "New Report" exists
+                const newReportNavItem = document.getElementById('nav-new-report');
+                if (newReportNavItem && newReportNavItem.parentElement && newReportNavItem.parentElement.nextSibling) {
+                    navigationList.insertBefore(listItem, newReportNavItem.parentElement.nextSibling);
+                } else if (newReportNavItem && newReportNavItem.parentElement) {
+                    navigationList.appendChild(listItem); // Append if "New Report" is last
+                }
+                 else if (navigationList.firstChild) { // If no "New Report", add after first generic item or at top
+                    navigationList.insertBefore(listItem, navigationList.firstChild.nextSibling); // Attempt to place not first
+                } else {
+                    navigationList.appendChild(listItem);
+                }
+            }
+        }
+
+        function removePreviousRunsNav() {
+            const navItem = document.getElementById('nav-previous-runs');
+            if (navItem && navItem.parentElement) {
+                navItem.parentElement.remove();
+            }
+        }
+
+        async function showPreviousRuns() {
+            console.log('--- TEST: Executing LATEST showPreviousRuns ---'); // NEW UNIQUE LOG
+            // alert("showPreviousRuns function called!"); // Test alert - REMOVED
+
+            if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+                alert("Please sign in to view your saved reports.");
+                return;
+            }
+
+            switchContent("previous-runs-content"); // Switch to the previous runs view
+            const listContainer = document.getElementById("previous-runs-list");
+            listContainer.innerHTML = "<p>Loading your saved reports...</p>";
+
+            try {
+                const idToken = await window.firebaseAuth.currentUser.getIdToken();
+                const functionUrl = "https://us-central1-expert-panel-1000b.cloudfunctions.net/getReports";
+
+                const response = await fetch(functionUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const reports = await response.json();
+                    console.log("Fetched reports raw data (v2 log):", reports); // MODIFIED LOG
+
+                    listContainer.innerHTML = ''; // Clear loading message
+                    if (reports.length === 0) {
+                        listContainer.innerHTML = "<p>No saved reports found.</p>";
+                    } else {
+                        reports.forEach((report, index) => {
+                            try { // START of new try-catch for each report item
+                                console.log(`Processing report item ${index} for display (v2 log):`, report); 
+                                if (report && report.createdAt) { 
+                                    console.log(`Timestamp object for report item ${index} (v2 log):`, report.createdAt); 
+                                } else {
+                                    console.warn(`Report item ${index} is missing createdAt or is malformed (v2 log):`, report);
+                                }
+
+                                const itemDiv = document.createElement('div');
+                                itemDiv.classList.add('previous-run-item');
+                                
+                                let title = 'Report';
+                                if (report && report.original_problem && typeof report.original_problem === 'string') {
+                                    title = report.original_problem.substring(0, 100) + (report.original_problem.length > 100 ? "..." : "");
+                                } else if (report && report.synthesis_report && report.synthesis_report.cohesive_summary && typeof report.synthesis_report.cohesive_summary === 'string') {
+                                    title = report.synthesis_report.cohesive_summary.substring(0,100) + "...";
+                                }
+
+                                const date = (report && report.createdAt && typeof report.createdAt === 'object' && report.createdAt._seconds) ? 
+                                    new Date(report.createdAt._seconds * 1000).toLocaleDateString() : 'Date N/A';
+                                
+                                const reportId = (report && report.reportId) ? report.reportId : 'N/A';
+
+                                itemDiv.innerHTML = `
+                                    <h4>${title}</h4>
+                                    <p>Saved on: ${date}</p>
+                                    <p><small>Report ID: ${reportId}</small></p>
+                                    <button class="view-report-button" data-reportid='${reportId}'>View Report</button>
+                                `;
+                                console.log(`Appending report item ${index} (ID: ${reportId}) to listContainer (v2 log).`);
+                                listContainer.appendChild(itemDiv);
+
+                            } catch (e) { 
+                                console.error(`Error rendering report item ${index} (ID: ${(report && report.reportId) ? report.reportId : 'Unknown ID'}) (v2 log):`, report, e);
+                                const errorDiv = document.createElement('div');
+                                errorDiv.classList.add('previous-run-item', 'error');
+                                const errorReportId = (report && report.reportId) ? report.reportId : 'Unknown ID';
+                                errorDiv.innerHTML = `<p>Error displaying one report. Details in console.</p><p><small>Report ID: ${errorReportId}</small></p>`;
+                                listContainer.appendChild(errorDiv);
+                            }
+                        });
+                        
+                        console.log("Content of previous-runs-list (innerHTML) after loop:", listContainer.innerHTML);
+                        const previousRunsContentDiv = document.getElementById('previous-runs-content');
+                        if (previousRunsContentDiv) {
+                            console.log("Computed display style for #previous-runs-content after loop:", window.getComputedStyle(previousRunsContentDiv).display);
+                        }
+                        if (listContainer) {
+                             console.log("Computed display style for #previous-runs-list after loop:", window.getComputedStyle(listContainer).display);
+                        }
+
+                        listContainer.querySelectorAll('.view-report-button').forEach(button => {
+                            button.addEventListener('click', async (event) => {
+                                const reportIdToView = event.target.dataset.reportid;
+                                if (reportIdToView === 'N/A') {
+                                    alert("Cannot view report: Report ID is missing.");
+                                    return;
+                                }
+                                const reportDataToDisplay = reports.find(r => r.reportId === reportIdToView);
+                                if (reportDataToDisplay) {
+                                    globalReportData = reportDataToDisplay; 
+                                    allProcessedItemNames = []; 
+                                    if (reportDataToDisplay.expert_insights) {
+                                        allProcessedItemNames = [...allProcessedItemNames, ...reportDataToDisplay.expert_insights.map(p => p.persona_name)];
+                                    }
+                                    if (reportDataToDisplay.search_findings && reportDataToDisplay.search_findings.persona_name) {
+                                        allProcessedItemNames.push(reportDataToDisplay.search_findings.persona_name);
+                                    }
+                                    if (reportDataToDisplay.synthesis_report) {
+                                        allProcessedItemNames.push("Synthesis Report");
+                                    }
+                                    displayResults(reportDataToDisplay); 
+                                } else {
+                                    alert("Could not find the selected report data.");
+                                }
+                            });
+                        });
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({ message: "Unknown error fetching reports." }));
+                    console.error("Error fetching reports (v2 log):", response.status, errorData);
+                    listContainer.innerHTML = `<p class="error">Error fetching reports: ${errorData.message || response.statusText}</p>`;
+                }
+            } catch (error) {
+                console.error("Exception while fetching reports (v2 log):", error);
+                listContainer.innerHTML = `<p class="error">An exception occurred: ${error.message}</p>`;
+            }
+        }
+
+        function showNewReportInterface() {
+            console.log("Switching to New Report interface");
+            const resultsContentDiv = document.getElementById('results-content');
+            const navigationList = document.getElementById('navigationList');
+            const businessProblemTextarea = document.getElementById('businessProblem');
+            const submitButton = document.getElementById('submitButton');
+            const downloadButton = document.getElementById('downloadPdfButton');
+            const saveReportButton = document.getElementById('saveReportButton');
+
+            // Clear existing results and dynamic navigation
+            resultsContentDiv.innerHTML = '<div class="content-section active" id="initial-message"><p>Please enter your business problem and click "Get Expert Insights" to begin.</p></div>';
+            
+            // Rebuild main navigation, keeping "New Report" and "Previous Reports" if user is logged in
+            navigationList.innerHTML = ''; // Clear all nav
+            addCoreNavItems(); // This function will add "New Report" and, if logged in, "Previous Reports"
+
+            // Ensure the input section is visible and enabled
+            const inputSection = document.querySelector('.input-section');
+            if (inputSection) inputSection.style.display = 'block'; // Should already be block if user is logged in
+            if (businessProblemTextarea) businessProblemTextarea.value = ''; // Clear old problem
+            if (submitButton) submitButton.disabled = false;
+            if (downloadButton) downloadButton.style.display = 'none';
+            if (saveReportButton) saveReportButton.style.display = 'none';
+            
+            globalReportData = null; // Clear any loaded report data
+            allProcessedItemNames = []; // Clear processed item names
+
+            // Switch to the initial message content and set "New Report" as active nav
+            switchContent('initial-message'); 
+            // Explicitly set "New Report" nav item as active
+            const newReportNavItem = document.getElementById('nav-new-report');
+            if (newReportNavItem) {
+                document.querySelectorAll('#navigationList li a.active').forEach(nav => nav.classList.remove('active'));
+                newReportNavItem.classList.add('active');
+            }
+            activeContentId = 'initial-message'; // Ensure activeContentId reflects this state
+        }
+
+        function addCoreNavItems() {
+            const navigationList = document.getElementById('navigationList');
+            if (!document.getElementById('nav-new-report')) {
+                const newReportLi = document.createElement('li');
+                newReportLi.innerHTML = `<a href="#" id="nav-new-report" onclick="showNewReportInterface(); return false;"><span class="nav-icon">&#128195;</span> New Report</a>`; // Using a document icon, can change
+                navigationList.appendChild(newReportLi);
+            }
+            // Add "Previous Runs" if user is logged in
+            addPreviousRunsNav();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const resultsContentDiv = document.getElementById('results-content');
+            if (!resultsContentDiv.innerHTML.trim()) {
+                 resultsContentDiv.innerHTML = `<div class="content-section active" id="initial-message"><p>Please enter your business problem and click "Get Expert Insights" to begin.</p></div>`;
+            }
+            addCoreNavItems(); // Initialize core navigation items on page load
+            
+            // Check auth state to decide if "Previous Reports" should be added initially
+            if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+                // User is logged in, addPreviousRunsNav would have been called by addCoreNavItems
+            } else {
+                // User is not logged in, ensure "Previous Reports" is not there.
+                // removePreviousRunsNav(); // Already handled by onAuthStateChanged clearing navList
+            }
+
+            const newReportNavItem = document.getElementById('nav-new-report');
+            if (newReportNavItem) { // Set "New Report" as active by default on load
+                 document.querySelectorAll('#navigationList li a.active').forEach(nav => nav.classList.remove('active'));
+                 newReportNavItem.classList.add('active');
+                 activeContentId = 'initial-message';
+            }
+
+            const progressContainer = document.getElementById('progressContainer');
+            if (progressContainer) progressContainer.style.display = 'none';
+        });
+
+    </script>
+</body>
+</html> 
