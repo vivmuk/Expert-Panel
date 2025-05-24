@@ -7,122 +7,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
-    <!-- Firebase SDKs -->
-    <!-- Use type="module" for modern SDKs that support import/export -->
-    <script type="module">
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-analytics.js";
-        // Add Firebase Auth SDK
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
-
-        // Your web app's Firebase configuration
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-        const firebaseConfig = {
-            apiKey: "AIzaSyDZ187x3wfdFzg2jeHcnSWtvPNoQ44UxZs",
-            authDomain: "expert-panel-1000b.firebaseapp.com",
-            projectId: "expert-panel-1000b",
-            storageBucket: "expert-panel-1000b.firebasestorage.app",
-            messagingSenderId: "862036046606",
-            appId: "1:862036046606:web:a855003b0c8103967cdd5f",
-            measurementId: "G-XX3NV9VYTW"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-        // Get Firebase Auth instance
-        const auth = getAuth(app);
-
-        // Make firebase app instance globally available for other scripts if needed, or pass it around.
-        window.firebaseApp = app;
-        window.firebaseAnalytics = analytics;
-        window.firebaseAuth = auth; // Make auth instance global
-
-        console.log("Firebase Initialized with Project ID:", firebaseConfig.projectId);
-
-        // --- Authentication UI and Logic ---
-        const signInButton = document.getElementById('signInButton');
-        const signOutButton = document.getElementById('signOutButton');
-        const userDetailsDiv = document.getElementById('userDetails');
-        const userDisplayName = document.getElementById('userDisplayName');
-        const userEmail = document.getElementById('userEmail');
-        const businessProblemSection = document.querySelector('.input-section'); // To hide/show problem submission
-
-        // Google Sign-In
-        async function signInWithGoogle() {
-            const provider = new GoogleAuthProvider();
-            try {
-                const result = await signInWithPopup(auth, provider);
-                // This gives you a Google Access Token. You can use it to access the Google API.
-                const credential = GoogleAuthProvider.credentialFromResult(result);
-                const token = credential.accessToken;
-                // The signed-in user info.
-                const user = result.user;
-                console.log("User signed in: ", user);
-            } catch (error) {
-                // Handle Errors here.
-                const errorCode = error.code;
-                const errorMessage = error.message;
-                // The email of the user's account used.
-                const email = error.customData ? error.customData.email : 'N/A';
-                // The AuthCredential type that was used.
-                const credential = GoogleAuthProvider.credentialFromError(error);
-                console.error("Google Sign-In Error:", errorCode, errorMessage, email, credential);
-                alert(`Error signing in: ${errorMessage}`);
-            }
-        }
-        window.signInWithGoogle = signInWithGoogle; // Make it callable from HTML onclick
-
-        // Sign-Out
-        async function signOutUser() {
-            try {
-                await signOut(auth);
-                console.log("User signed out.");
-            } catch (error) {
-                console.error("Sign Out Error:", error);
-                alert(`Error signing out: ${error.message}`);
-            }
-        }
-        window.signOutUser = signOutUser; // Make it callable from HTML onclick
-
-        // Listen for auth state changes
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                // User is signed in
-                if (userDetailsDiv) userDetailsDiv.style.display = 'block';
-                if (signInButton) signInButton.style.display = 'none';
-                if (signOutButton) signOutButton.style.display = 'inline-block';
-                if (userDisplayName) userDisplayName.textContent = user.displayName || 'N/A';
-                if (userEmail) userEmail.textContent = user.email || 'N/A';
-                if (businessProblemSection) businessProblemSection.style.display = 'block'; // Show problem input
-                addCoreNavItems(); // Add "New Report" and "Previous Reports" (if applicable)
-                // Show save button if a report exists
-                const saveReportButton = document.getElementById('saveReportButton');
-                if (saveReportButton && globalReportData) {
-                    saveReportButton.style.display = 'inline-block';
-                }
-            } else {
-                // User is signed out
-                if (userDetailsDiv) userDetailsDiv.style.display = 'none';
-                if (signInButton) signInButton.style.display = 'inline-block';
-                if (signOutButton) signOutButton.style.display = 'none';
-                if (businessProblemSection) businessProblemSection.style.display = 'none'; // Hide problem input until login
-                // Hide save button on sign out
-                const saveReportButton = document.getElementById('saveReportButton');
-                if (saveReportButton) saveReportButton.style.display = 'none';
-                removePreviousRunsNav(); // Remove "Previous Runs" nav item
-                // Also remove "New Report" nav item if we want to clear all nav on logout, or just leave it.
-                // For now, let's clear all dynamic nav items:
-                const navigationList = document.getElementById('navigationList');
-                if(navigationList) navigationList.innerHTML = ''; // Clear all nav on logout
-            }
-        });
-
-    </script>
-
     <style>
         :root {
             /* New Color Palette & Modern Look Variables */
@@ -503,42 +387,6 @@
         button#downloadPdfButton:hover {
             background-color: color-mix(in srgb, var(--accent-orange) 85%, black); /* Darken orange */
         }
-        button#saveReportButton { 
-            background-color: #4CAF50; /* Keep green for save - universally understood */
-        }
-        button#saveReportButton:hover {
-            background-color: #388E3C; 
-        }
-        
-        button.view-report-button {
-            background-color: var(--primary-color); /* Use primary */
-            font-size: 0.9em; /* Slightly larger */
-            padding: 8px 15px; /* Increased padding */
-            margin-top: 8px;
-            border-radius: var(--border-radius-sm);
-        }
-        button.view-report-button:hover {
-            background-color: var(--primary-darker);
-        }
-        .previous-run-item {
-            border-bottom: 1px solid var(--border-color);
-            padding: 18px 0;
-            margin-bottom: 18px;
-        }
-        .previous-run-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-        .previous-run-item h4 {
-            margin: 0 0 10px 0;
-            font-size: 1.15em;
-            color: var(--primary-color); /* Use primary color */
-        }
-        .previous-run-item p {
-            font-size: 0.92em;
-            color: var(--light-text-color);
-            margin: 5px 0;
-        }
 
         .original-problem-display {
             font-size: 1em;
@@ -550,69 +398,6 @@
             color: var(--text-color); /* Darker text for readability */
         }
         .original-problem-display strong { color: var(--primary-color); font-weight:600; }
-
-        .search-result-item {
-            margin-bottom: 18px;
-            padding-bottom: 18px;
-            border-bottom: 1px dashed var(--border-color);
-        }
-        .search-result-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        .search-result-item h4 {
-            margin-bottom: 8px;
-            font-size: 1.1em; /* Larger */
-        }
-        .search-result-item a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 600; /* Bolder */
-            transition: color 0.2s ease;
-        }
-        .search-result-item a:hover {
-            color: var(--accent-orange); /* Use orange for hover */
-            text-decoration: underline;
-        }
-        .search-result-item p {
-            font-size: 0.9em;
-            color: var(--light-text-color);
-        }
-
-        /* Styles for Auth */
-        #auth-container {
-            padding: 10px 0px; /* Reduced padding as it's inside header */
-            background-color: transparent; /* No separate background */
-            border-radius: var(--border-radius-sm);
-            /* box-shadow: var(--shadow-sm); */ /* Removed shadow, part of header */
-            /* margin-bottom: 20px; */ /* Removed, part of header */
-            text-align: right; 
-            position: absolute; /* Position it within the header */
-            top: 20px;
-            right: 40px;
-        }
-        #userDetails {
-            display: none; 
-            font-size: 0.9em;
-            color: var(--light-text-color); /* Text color consistent with header light text */
-            text-align: right;
-             margin-bottom: 5px;
-        }
-        #userDetails p {
-            margin: 0 0 5px 0;
-        }
-         #signInButton, #signOutButton {
-            background-color: var(--accent-coral); /* Coral for sign in/out */
-            color: white;
-            padding: 8px 18px; /* Adjusted padding */
-            font-size: 0.9em;
-            margin-left: 10px;
-            border-radius: var(--border-radius-sm);
-         }
-         #signInButton:hover, #signOutButton:hover {
-             background-color: color-mix(in srgb, var(--accent-coral) 85%, black); /* Darken coral */
-         }
 
         /* Styles for Processing Overlay */
         #processing-overlay {
@@ -660,21 +445,13 @@
 <body>
     <header class="header">
         <h1>AI Expert Panel</h1>
-        <div id="auth-container">
-            <div id="userDetails">
-                <p>Welcome, <span id="userDisplayName"></span> (<span id="userEmail"></span>)</p>
-                <button id="signOutButton" onclick="signOutUser()" style="display:none;">Sign Out</button>
-            </div>
-            <button id="signInButton" onclick="signInWithGoogle()">Sign in with Google</button>
-        </div>
     </header>
 
     <div class="main-content-wrapper">
         <nav id="left-panel-nav">
             <h3>Navigation</h3>
             <ul id="navigationList">
-                <!-- Nav items: <li><a href="#"><span class="nav-icon">ICON</span>Text</a></li> -->
-                <!-- Placeholder for Previous Runs, will be populated if user is logged in -->
+                <!-- Navigation items will be populated dynamically -->
             </ul>
              <div class="progress-container" id="progressContainer">
                 <div class="progress-bar">
@@ -690,17 +467,10 @@
                 <textarea id="businessProblem" placeholder="Describe your business problem here..."></textarea>
                 <button id="submitButton" onclick="submitProblem()">Get Expert Insights</button>
                 <button id="downloadPdfButton" onclick="downloadPDF()" style="display:none;">Download PDF</button>
-                <button id="saveReportButton" onclick="saveReportToFirebase()" style="display:none;">Save Report</button>
             </div>
             
             <div id="results-content">
                 <!-- Content sections will be dynamically inserted here -->
-                <div class="content-section" id="previous-runs-content">
-                    <h2><span class="icon-placeholder">&#128193;</span> Previous Reports</h2>
-                    <div id="previous-runs-list">
-                        <!-- Saved reports will be listed here -->
-                    </div>
-                </div>
             </div>
         </main>
     </div>
@@ -712,25 +482,30 @@
     </div>
 
     <script>
+        // Configuration for backend URL
+        const BACKEND_URL = window.location.hostname === 'localhost' ? 
+            'http://127.0.0.1:5000' : 
+            'https://expert-panel.onrender.com';
+
         const STAGE_IDLE = -1;
         const STAGE_INIT = 0;
         const STAGE_PERSONA_GENERATION_START = 1;
         const STAGE_PERSONA_GENERATION_COMPLETE = 2;
-        const STAGE_BACKEND_PROCESSING_COMPLETE = 3; // New stage after main backend call returns
+        const STAGE_BACKEND_PROCESSING_COMPLETE = 3;
         const STAGE_PERSONA_INSIGHT_COLLECTION_START = 4; 
         const MAX_EXPECTED_PERSONAS_FOR_PROGRESS = 10;
-        const STAGE_SEARCH_ASSISTANT_START = STAGE_PERSONA_INSIGHT_COLLECTION_START + MAX_EXPECTED_PERSONAS_FOR_PROGRESS; // 4 + 10 = 14
-        const STAGE_SEARCH_ASSISTANT_COMPLETE = STAGE_SEARCH_ASSISTANT_START + 1; // 15
-        const STAGE_SYNTHESIS_START = STAGE_SEARCH_ASSISTANT_COMPLETE + 1; // 16
-        const STAGE_SYNTHESIS_COMPLETE = STAGE_SYNTHESIS_START + 1; // 17
-        const STAGE_DISPLAY_RESULTS = STAGE_SYNTHESIS_COMPLETE + 1; // 18 (Finalizing results)
-        const STAGE_ALL_COMPLETE = STAGE_DISPLAY_RESULTS + 1; // 19 (Ensures 100% can be reached)
-        const TOTAL_PROGRESS_STAGES = STAGE_ALL_COMPLETE; // Total is now 19
+        const STAGE_SEARCH_ASSISTANT_START = STAGE_PERSONA_INSIGHT_COLLECTION_START + MAX_EXPECTED_PERSONAS_FOR_PROGRESS;
+        const STAGE_SEARCH_ASSISTANT_COMPLETE = STAGE_SEARCH_ASSISTANT_START + 1;
+        const STAGE_SYNTHESIS_START = STAGE_SEARCH_ASSISTANT_COMPLETE + 1;
+        const STAGE_SYNTHESIS_COMPLETE = STAGE_SYNTHESIS_START + 1;
+        const STAGE_DISPLAY_RESULTS = STAGE_SYNTHESIS_COMPLETE + 1;
+        const STAGE_ALL_COMPLETE = STAGE_DISPLAY_RESULTS + 1;
+        const TOTAL_PROGRESS_STAGES = STAGE_ALL_COMPLETE;
 
         let currentProgressNumericStage = STAGE_IDLE;
         let globalReportData = null;
         let activeContentId = null;
-        let allProcessedItemNames = []; // Stores names of personas and report for nav highlighting
+        let allProcessedItemNames = [];
 
         function getNavIcon(itemName) {
             itemName = itemName.toLowerCase();
@@ -795,14 +570,12 @@
             const progressContainer = document.getElementById('progressContainer');
             const submitButton = document.getElementById('submitButton');
             const downloadButton = document.getElementById('downloadPdfButton');
-            const saveReportButton = document.getElementById('saveReportButton');
-            const processingOverlay = document.getElementById('processing-overlay'); // Get overlay
+            const processingOverlay = document.getElementById('processing-overlay');
 
             globalReportData = null;
             allProcessedItemNames = []; 
             if (!problemText.trim()) {
                 resultsContentDiv.innerHTML = '<div class="error content-section active">Please enter a business problem.</div>';
-                if (!activeContentId) switchContent('error-problem-missing'); // Assuming such an ID if you create one
                 return;
             }
 
@@ -810,8 +583,7 @@
             navigationList.innerHTML = ''; 
             submitButton.disabled = true;
             downloadButton.style.display = 'none';
-            if (saveReportButton) saveReportButton.style.display = 'none';
-            if (processingOverlay) processingOverlay.classList.add('visible'); // Show overlay
+            if (processingOverlay) processingOverlay.classList.add('visible');
             progressContainer.style.display = 'block';
             updateProgress('Initializing...', STAGE_IDLE);
 
@@ -819,7 +591,7 @@
                 await new Promise(resolve => setTimeout(resolve, 300));
                 updateProgress('Generating Expert Personas...', STAGE_PERSONA_GENERATION_START);
                 
-                const response = await fetch('http://127.0.0.1:5000/process_problem', {
+                const response = await fetch(`${BACKEND_URL}/process_problem`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', },
                     body: JSON.stringify({ business_problem: problemText }),
@@ -833,11 +605,10 @@
                 const data = await response.json();
                 globalReportData = data;
 
-                // New: Update progress after backend call is complete and data is received
                 updateProgress('Main processing complete. Visualizing insights...', STAGE_BACKEND_PROCESSING_COMPLETE);
-                await new Promise(resolve => setTimeout(resolve, 300)); // Short delay for message to be visible
+                await new Promise(resolve => setTimeout(resolve, 300));
 
-                // Prepare names for navigation highlighting (personas first, then search, then report)
+                // Prepare names for navigation highlighting
                 if (data.expert_insights) {
                     allProcessedItemNames = [...allProcessedItemNames, ...data.expert_insights.map(p => p.persona_name)];
                 }
@@ -854,7 +625,7 @@
                 if (data.expert_insights) {
                     for (let i = 0; i < data.expert_insights.length; i++) {
                         updateProgress(`Insights: ${data.expert_insights[i].persona_name}...`, STAGE_PERSONA_INSIGHT_COLLECTION_START + i);
-                        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500)); // Varied delay
+                        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
                     }
                 }
                 
@@ -871,32 +642,24 @@
 
                 if (data.synthesis_report || data.expert_insights || data.search_findings) {
                     downloadButton.style.display = 'inline-block';
-                    // Show save button if user is logged in and report is generated
-                    if (saveReportButton && window.firebaseAuth && window.firebaseAuth.currentUser) {
-                         saveReportButton.style.display = 'inline-block';
-                    }
                 }
 
-                // Explicitly set to 100% on full success
                 updateProgress("Processing complete!", STAGE_ALL_COMPLETE);
 
             } catch (error) {
                 console.error('Error submitting problem:', error);
                 resultsContentDiv.innerHTML = `<div class="error content-section active" id="global-error-content"><strong>Error:</strong> ${error.message}<br>Please ensure the backend server is running and responding correctly.</div>`;
                 switchContent('global-error-content');
-                updateProgress('Error occurred.', STAGE_ALL_COMPLETE); // Use STAGE_ALL_COMPLETE for error too, but message indicates error
+                updateProgress('Error occurred.', STAGE_ALL_COMPLETE);
             } finally {
                 submitButton.disabled = false;
-                if (processingOverlay) processingOverlay.classList.remove('visible'); // Hide overlay
+                if (processingOverlay) processingOverlay.classList.remove('visible');
                 
-                // Keep progress bar visible for a bit with final status, then optionally hide.
-                // The message and percentage are already set by the try/catch block.
                 setTimeout(() => {
                     document.querySelectorAll('#navigationList li a.processing-nav-item').forEach(nav => nav.classList.remove('processing-nav-item'));
-                    // Optionally hide progress bar after some more time or on next action
-                     setTimeout(() => {
+                    setTimeout(() => {
                         if(progressContainer.style.display === 'block' && !submitButton.disabled) { 
-                           // progressContainer.style.display = 'none'; // User might want to see final % so leave it
+                           // progressContainer.style.display = 'none';
                         }
                     }, 5000);
                 }, 300);
@@ -904,23 +667,16 @@
         }
 
         function switchContent(targetId) {
-            console.log("Switching content to:", targetId); // Log which content section is being activated
-
             document.querySelectorAll('#results-content .content-section.active').forEach(section => {
                 section.classList.remove('active');
             });
             
             const targetElement = document.getElementById(targetId);
             if (targetElement) {
-                console.log("Target element for switchContent BEFORE classList.add:", targetElement, "Classes:", targetElement.classList.toString());
-                // Timeout to allow the removal of 'active' to render, then add 'active' for transition
                 setTimeout(() => { 
                     targetElement.classList.add('active'); 
-                    console.log("Target element for switchContent AFTER classList.add:", targetElement, "Classes:", targetElement.classList.toString());
-                    console.log(`Computed display style for #${targetId} after active:`, window.getComputedStyle(targetElement).display);
                 }, 10); 
             } else {
-                // Fallback if targetId doesn't exist, show the first available or an error message.
                 const firstSection = document.querySelector('#results-content .content-section');
                 if (firstSection) {
                     setTimeout(() => { firstSection.classList.add('active'); }, 10);
@@ -1079,7 +835,6 @@
                  if (!firstItemIdToDisplay) firstItemIdToDisplay = item.id;
             });
 
-
             if (!firstItemIdToDisplay && data.error) { 
                  const errorContentId = 'global-error-content-final';
                  resultsContentDiv.innerHTML += `<div class="content-section error active" id="${errorContentId}"><strong>Backend Error:</strong> ${data.error} ${data.details ? '<br>Details: '+JSON.stringify(data.details) : ''}</div>`;
@@ -1111,12 +866,11 @@
             const margin = 40;
             const usableWidth = pageWidth - (2 * margin);
             
-            // Helper to add text and manage paging, font, color
             function addFormattedText(text, x, y, options = {}) {
                 const { fontSize = 10, fontStyle = 'normal', color = '#333333', maxWidth = usableWidth, lineHeightFactor = 1.4, isTitle = false } = options;
                 doc.setFontSize(fontSize);
                 doc.setFont("helvetica", fontStyle);
-                doc.setTextColor(color.startsWith('#') ? color.substring(1) : color); // Remove # if present for jsPDF
+                doc.setTextColor(color.startsWith('#') ? color.substring(1) : color);
 
                 const lines = doc.splitTextToSize(text, maxWidth);
                 let localY = y;
@@ -1125,7 +879,7 @@
                     localY = checkAndAddPage(localY, fontSize * lineHeightFactor);
                     doc.text(line, x, localY);
                 });
-                return localY + ( (lines.length > 0 && !isTitle) ? (fontSize * lineHeightFactor * 0.5) : 0); // Add some space after block unless it's a title
+                return localY + ( (lines.length > 0 && !isTitle) ? (fontSize * lineHeightFactor * 0.5) : 0);
             }
 
             function checkAndAddPage(currentY, spaceNeeded = 20) {
@@ -1136,11 +890,9 @@
                 return currentY;
             }
 
-            // ---- PDF Content Generation ----
-
             // Title Page
             yPosition = addFormattedText("AI Expert Panel Report", pageWidth / 2, yPosition, { fontSize: 20, fontStyle: 'bold', color: '#0056b3', align: 'center', isTitle: true });
-            yPosition += 20; // Extra space after title
+            yPosition += 20;
             
             // Original Problem
             yPosition = checkAndAddPage(yPosition, 40);
@@ -1177,7 +929,7 @@
                     if (action.suggested_rationale) {
                         yPosition = addFormattedText(`Rationale: ${action.suggested_rationale}`, margin + 20, yPosition, { fontSize: 10, maxWidth: usableWidth - 30 });
                     }
-                    yPosition += 5; // Space between actions
+                    yPosition += 5;
                 });
                  yPosition += 10;
             }
@@ -1234,289 +986,16 @@
                     }
                 });
             }
-            doc.save('AI_Expert_Panel_Report_v3.pdf');
+            doc.save('AI_Expert_Panel_Report.pdf');
         }
 
-        async function saveReportToFirebase() {
-            const saveReportButton = document.getElementById('saveReportButton');
-            const statusMessage = document.getElementById('statusMessage'); // For user feedback
-
-            if (!globalReportData) {
-                alert("No report data available to save.");
-                return;
-            }
-            if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-                alert("Please sign in to save your report.");
-                // Optionally, trigger sign-in flow
-                // signInWithGoogle(); 
-                return;
-            }
-
-            saveReportButton.disabled = true;
-            saveReportButton.textContent = "Saving...";
-            if (statusMessage) statusMessage.textContent = "Saving report to cloud...";
-
-
-            try {
-                const idToken = await window.firebaseAuth.currentUser.getIdToken();
-                const functionUrl = "https://savereport-ai2shg6ouq-uc.a.run.app"; // Updated URL
-
-                const response = await fetch(functionUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${idToken}`
-                    },
-                    body: JSON.stringify({ report: globalReportData })  // Ensure this matches what the function expects
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log("Report saved successfully:", result);
-                    alert(`Report saved successfully! Report ID: ${result.reportId}`);
-                    saveReportButton.textContent = "Saved!";
-                    // Keep button disabled after successful save, or change its function
-                    if (statusMessage) statusMessage.textContent = "Report saved successfully!";
-                } else {
-                    const errorData = await response.json().catch(() => ({ message: "Unknown error saving report." }));
-                    console.error("Error saving report:", response.status, errorData);
-                    alert(`Error saving report: ${errorData.message || response.statusText}`);
-                    saveReportButton.disabled = false;
-                    saveReportButton.textContent = "Save Report";
-                    if (statusMessage) statusMessage.textContent = `Error saving report: ${errorData.message || response.statusText}`;
-                }
-            } catch (error) {
-                console.error("Exception while saving report:", error);
-                alert(`An exception occurred while trying to save the report: ${error.message}`);
-                saveReportButton.disabled = false;
-                saveReportButton.textContent = "Save Report";
-                if (statusMessage) statusMessage.textContent = "Exception during save.";
-            }
-        }
-
-        function addPreviousRunsNav() {
-            const navigationList = document.getElementById('navigationList');
-            const previousRunsNavItem = document.getElementById('nav-previous-runs');
-            
-            if (window.firebaseAuth && window.firebaseAuth.currentUser && !previousRunsNavItem) {
-                const listItem = document.createElement('li');
-                listItem.innerHTML = `<a href="#" id="nav-previous-runs" onclick="showPreviousRuns(); return false;"><span class="nav-icon">&#128193;</span> Previous Reports</a>`;
-                
-                // Try to insert it after "New Report" if "New Report" exists
-                const newReportNavItem = document.getElementById('nav-new-report');
-                if (newReportNavItem && newReportNavItem.parentElement && newReportNavItem.parentElement.nextSibling) {
-                    navigationList.insertBefore(listItem, newReportNavItem.parentElement.nextSibling);
-                } else if (newReportNavItem && newReportNavItem.parentElement) {
-                    navigationList.appendChild(listItem); // Append if "New Report" is last
-                }
-                 else if (navigationList.firstChild) { // If no "New Report", add after first generic item or at top
-                    navigationList.insertBefore(listItem, navigationList.firstChild.nextSibling); // Attempt to place not first
-                } else {
-                    navigationList.appendChild(listItem);
-                }
-            }
-        }
-
-        function removePreviousRunsNav() {
-            const navItem = document.getElementById('nav-previous-runs');
-            if (navItem && navItem.parentElement) {
-                navItem.parentElement.remove();
-            }
-        }
-
-        async function showPreviousRuns() {
-            console.log('--- TEST: Executing LATEST showPreviousRuns ---'); // NEW UNIQUE LOG
-            // alert("showPreviousRuns function called!"); // Test alert - REMOVED
-
-            if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-                alert("Please sign in to view your saved reports.");
-                return;
-            }
-
-            switchContent("previous-runs-content"); // Switch to the previous runs view
-            const listContainer = document.getElementById("previous-runs-list");
-            listContainer.innerHTML = "<p>Loading your saved reports...</p>";
-
-            try {
-                const idToken = await window.firebaseAuth.currentUser.getIdToken();
-                const functionUrl = "https://us-central1-expert-panel-1000b.cloudfunctions.net/getReports";
-
-                const response = await fetch(functionUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`
-                    }
-                });
-
-                if (response.ok) {
-                    const reports = await response.json();
-                    console.log("Fetched reports raw data (v2 log):", reports); // MODIFIED LOG
-
-                    listContainer.innerHTML = ''; // Clear loading message
-                    if (reports.length === 0) {
-                        listContainer.innerHTML = "<p>No saved reports found.</p>";
-                    } else {
-                        reports.forEach((report, index) => {
-                            try { // START of new try-catch for each report item
-                                console.log(`Processing report item ${index} for display (v2 log):`, report); 
-                                if (report && report.createdAt) { 
-                                    console.log(`Timestamp object for report item ${index} (v2 log):`, report.createdAt); 
-                                } else {
-                                    console.warn(`Report item ${index} is missing createdAt or is malformed (v2 log):`, report);
-                                }
-
-                                const itemDiv = document.createElement('div');
-                                itemDiv.classList.add('previous-run-item');
-                                
-                                let title = 'Report';
-                                if (report && report.original_problem && typeof report.original_problem === 'string') {
-                                    title = report.original_problem.substring(0, 100) + (report.original_problem.length > 100 ? "..." : "");
-                                } else if (report && report.synthesis_report && report.synthesis_report.cohesive_summary && typeof report.synthesis_report.cohesive_summary === 'string') {
-                                    title = report.synthesis_report.cohesive_summary.substring(0,100) + "...";
-                                }
-
-                                const date = (report && report.createdAt && typeof report.createdAt === 'object' && report.createdAt._seconds) ? 
-                                    new Date(report.createdAt._seconds * 1000).toLocaleDateString() : 'Date N/A';
-                                
-                                const reportId = (report && report.reportId) ? report.reportId : 'N/A';
-
-                                itemDiv.innerHTML = `
-                                    <h4>${title}</h4>
-                                    <p>Saved on: ${date}</p>
-                                    <p><small>Report ID: ${reportId}</small></p>
-                                    <button class="view-report-button" data-reportid='${reportId}'>View Report</button>
-                                `;
-                                console.log(`Appending report item ${index} (ID: ${reportId}) to listContainer (v2 log).`);
-                                listContainer.appendChild(itemDiv);
-
-                            } catch (e) { 
-                                console.error(`Error rendering report item ${index} (ID: ${(report && report.reportId) ? report.reportId : 'Unknown ID'}) (v2 log):`, report, e);
-                                const errorDiv = document.createElement('div');
-                                errorDiv.classList.add('previous-run-item', 'error');
-                                const errorReportId = (report && report.reportId) ? report.reportId : 'Unknown ID';
-                                errorDiv.innerHTML = `<p>Error displaying one report. Details in console.</p><p><small>Report ID: ${errorReportId}</small></p>`;
-                                listContainer.appendChild(errorDiv);
-                            }
-                        });
-                        
-                        console.log("Content of previous-runs-list (innerHTML) after loop:", listContainer.innerHTML);
-                        const previousRunsContentDiv = document.getElementById('previous-runs-content');
-                        if (previousRunsContentDiv) {
-                            console.log("Computed display style for #previous-runs-content after loop:", window.getComputedStyle(previousRunsContentDiv).display);
-                        }
-                        if (listContainer) {
-                             console.log("Computed display style for #previous-runs-list after loop:", window.getComputedStyle(listContainer).display);
-                        }
-
-                        listContainer.querySelectorAll('.view-report-button').forEach(button => {
-                            button.addEventListener('click', async (event) => {
-                                const reportIdToView = event.target.dataset.reportid;
-                                if (reportIdToView === 'N/A') {
-                                    alert("Cannot view report: Report ID is missing.");
-                                    return;
-                                }
-                                const reportDataToDisplay = reports.find(r => r.reportId === reportIdToView);
-                                if (reportDataToDisplay) {
-                                    globalReportData = reportDataToDisplay; 
-                                    allProcessedItemNames = []; 
-                                    if (reportDataToDisplay.expert_insights) {
-                                        allProcessedItemNames = [...allProcessedItemNames, ...reportDataToDisplay.expert_insights.map(p => p.persona_name)];
-                                    }
-                                    if (reportDataToDisplay.search_findings && reportDataToDisplay.search_findings.persona_name) {
-                                        allProcessedItemNames.push(reportDataToDisplay.search_findings.persona_name);
-                                    }
-                                    if (reportDataToDisplay.synthesis_report) {
-                                        allProcessedItemNames.push("Synthesis Report");
-                                    }
-                                    displayResults(reportDataToDisplay); 
-                                } else {
-                                    alert("Could not find the selected report data.");
-                                }
-                            });
-                        });
-                    }
-                } else {
-                    const errorData = await response.json().catch(() => ({ message: "Unknown error fetching reports." }));
-                    console.error("Error fetching reports (v2 log):", response.status, errorData);
-                    listContainer.innerHTML = `<p class="error">Error fetching reports: ${errorData.message || response.statusText}</p>`;
-                }
-            } catch (error) {
-                console.error("Exception while fetching reports (v2 log):", error);
-                listContainer.innerHTML = `<p class="error">An exception occurred: ${error.message}</p>`;
-            }
-        }
-
-        function showNewReportInterface() {
-            console.log("Switching to New Report interface");
-            const resultsContentDiv = document.getElementById('results-content');
-            const navigationList = document.getElementById('navigationList');
-            const businessProblemTextarea = document.getElementById('businessProblem');
-            const submitButton = document.getElementById('submitButton');
-            const downloadButton = document.getElementById('downloadPdfButton');
-            const saveReportButton = document.getElementById('saveReportButton');
-
-            // Clear existing results and dynamic navigation
-            resultsContentDiv.innerHTML = '<div class="content-section active" id="initial-message"><p>Please enter your business problem and click "Get Expert Insights" to begin.</p></div>';
-            
-            // Rebuild main navigation, keeping "New Report" and "Previous Reports" if user is logged in
-            navigationList.innerHTML = ''; // Clear all nav
-            addCoreNavItems(); // This function will add "New Report" and, if logged in, "Previous Reports"
-
-            // Ensure the input section is visible and enabled
-            const inputSection = document.querySelector('.input-section');
-            if (inputSection) inputSection.style.display = 'block'; // Should already be block if user is logged in
-            if (businessProblemTextarea) businessProblemTextarea.value = ''; // Clear old problem
-            if (submitButton) submitButton.disabled = false;
-            if (downloadButton) downloadButton.style.display = 'none';
-            if (saveReportButton) saveReportButton.style.display = 'none';
-            
-            globalReportData = null; // Clear any loaded report data
-            allProcessedItemNames = []; // Clear processed item names
-
-            // Switch to the initial message content and set "New Report" as active nav
-            switchContent('initial-message'); 
-            // Explicitly set "New Report" nav item as active
-            const newReportNavItem = document.getElementById('nav-new-report');
-            if (newReportNavItem) {
-                document.querySelectorAll('#navigationList li a.active').forEach(nav => nav.classList.remove('active'));
-                newReportNavItem.classList.add('active');
-            }
-            activeContentId = 'initial-message'; // Ensure activeContentId reflects this state
-        }
-
-        function addCoreNavItems() {
-            const navigationList = document.getElementById('navigationList');
-            if (!document.getElementById('nav-new-report')) {
-                const newReportLi = document.createElement('li');
-                newReportLi.innerHTML = `<a href="#" id="nav-new-report" onclick="showNewReportInterface(); return false;"><span class="nav-icon">&#128195;</span> New Report</a>`; // Using a document icon, can change
-                navigationList.appendChild(newReportLi);
-            }
-            // Add "Previous Runs" if user is logged in
-            addPreviousRunsNav();
-        }
-
+        // Initialize the page
         document.addEventListener('DOMContentLoaded', () => {
             const resultsContentDiv = document.getElementById('results-content');
             if (!resultsContentDiv.innerHTML.trim()) {
                  resultsContentDiv.innerHTML = `<div class="content-section active" id="initial-message"><p>Please enter your business problem and click "Get Expert Insights" to begin.</p></div>`;
             }
-            addCoreNavItems(); // Initialize core navigation items on page load
             
-            // Check auth state to decide if "Previous Reports" should be added initially
-            if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-                // User is logged in, addPreviousRunsNav would have been called by addCoreNavItems
-            } else {
-                // User is not logged in, ensure "Previous Reports" is not there.
-                // removePreviousRunsNav(); // Already handled by onAuthStateChanged clearing navList
-            }
-
-            const newReportNavItem = document.getElementById('nav-new-report');
-            if (newReportNavItem) { // Set "New Report" as active by default on load
-                 document.querySelectorAll('#navigationList li a.active').forEach(nav => nav.classList.remove('active'));
-                 newReportNavItem.classList.add('active');
-                 activeContentId = 'initial-message';
-            }
-
             const progressContainer = document.getElementById('progressContainer');
             if (progressContainer) progressContainer.style.display = 'none';
         });
