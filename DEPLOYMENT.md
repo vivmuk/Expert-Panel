@@ -62,3 +62,12 @@ Make sure your Render backend has these environment variables set if needed:
 ---
 
 Your site will be live at: `https://your-app-name.netlify.app` 
+
+Try this in your browser console:
+```javascript
+fetch('https://expert-panel.onrender.com/test', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({test: 'data'})
+}).then(r => r.json()).then(console.log)
+``` 
