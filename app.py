@@ -261,9 +261,9 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
                 insights_context += f"    Reasoning: {item.get('supporting_reasoning', 'N/A')}\n"
                 insights_context += f"    Confidence: {item.get('confidence_level', 'N/A')}\n"
                 if item.get("identified_risks") and len(item["identified_risks"]) > 0:
-                    insights_context += f"    Risks: {', '.join(item["identified_risks"])}\n"
+                    insights_context += f"    Risks: {', '.join(item['identified_risks'])}\n"
                 if item.get("identified_opportunities") and len(item["identified_opportunities"]) > 0:
-                    insights_context += f"    Opportunities: {', '.join(item["identified_opportunities"])}\n"
+                    insights_context += f"    Opportunities: {', '.join(item['identified_opportunities'])}\n"
         else:
             insights_context += "  No specific insights provided.\n"
     insights_context += "\n---\n"
