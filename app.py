@@ -1,7 +1,7 @@
 import requests
 import json
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 
 # --- Configuration ---
 VENICE_API_KEY = "GeD9cKbx1c54CWCTcGUold361VXLgFkMrDwu5iV6qJ" # Your hardcoded API key
@@ -11,13 +11,7 @@ INSIGHT_GENERATION_MODEL = "qwen-2.5-qwq-32b"
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
-
-# Simplified CORS - allow all origins for now to ensure it works
-CORS(app, 
-     origins="*",  # Allow all origins for testing
-     methods=["GET", "POST", "OPTIONS"],
-     allow_headers=["Content-Type", "Authorization", "Accept"],
-     supports_credentials=False)
+CORS(app) # Initialize with default permissive settings first
 
 # --- Venice AI API Interaction ---
 def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema):
@@ -336,14 +330,17 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
 
 # --- API Endpoints ---
 @app.route('/health', methods=['GET'])
+@cross_origin()
 def health_check():
     return jsonify({"status": "healthy", "message": "AI Expert Panel backend is running"}), 200
 
 @app.route('/test', methods=['POST'])
+@cross_origin()
 def test_cors():
     return jsonify({"status": "success", "message": "CORS is working for POST requests"}), 200
 
 @app.route('/process_problem', methods=['POST'])
+@cross_origin()
 def handle_process_problem():
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 400
