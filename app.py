@@ -11,7 +11,17 @@ INSIGHT_GENERATION_MODEL = "qwen-2.5-qwq-32b"
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
-CORS(app)
+
+# Configure CORS to allow requests from both localhost and Netlify
+CORS(app, origins=[
+    "http://localhost:3000",  # For local development
+    "http://127.0.0.1:3000",  # For local development
+    "http://localhost:5000",  # For local development
+    "http://127.0.0.1:5000",  # For local development
+    "https://prajnaconsulting.netlify.app"  # Your Netlify domain
+], 
+methods=["GET", "POST", "OPTIONS"],
+allow_headers=["Content-Type", "Authorization"])
 
 # --- Venice AI API Interaction ---
 def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema):
