@@ -1,6 +1,6 @@
 import requests
 import json
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 
 # --- Configuration ---
@@ -12,7 +12,7 @@ INSIGHT_GENERATION_MODEL = "qwen-2.5-qwq-32b"
 # --- Flask App Initialization ---
 app = Flask(__name__)
 
-# Configure CORS to allow requests from both localhost and Netlify
+# Configure CORS more comprehensively
 CORS(app, origins=[
     "http://localhost:3000",  # For local development
     "http://127.0.0.1:3000",  # For local development
@@ -21,7 +21,18 @@ CORS(app, origins=[
     "https://prajnaconsulting.netlify.app"  # Your Netlify domain
 ], 
 methods=["GET", "POST", "OPTIONS"],
-allow_headers=["Content-Type", "Authorization"])
+allow_headers=["Content-Type", "Authorization", "Accept"],
+supports_credentials=False)
+
+# Add explicit OPTIONS handler for preflight requests
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = make_response()
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add('Access-Control-Allow-Headers', "*")
+        response.headers.add('Access-Control-Allow-Methods', "*")
+        return response
 
 # --- Venice AI API Interaction ---
 def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema):
@@ -341,18 +352,24 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
 # --- API Endpoints ---
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "healthy", "message": "AI Expert Panel backend is running"}), 200
+    response = jsonify({"status": "healthy", "message": "AI Expert Panel backend is running"})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response, 200
 
 @app.route('/process_problem', methods=['POST'])
 def handle_process_problem():
     if not request.is_json:
-        return jsonify({"error": "Request must be JSON"}), 400
+        response = jsonify({"error": "Request must be JSON"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 400
     
     data = request.get_json()
     business_problem_text = data.get('business_problem')
 
     if not business_problem_text:
-        return jsonify({"error": "Missing 'business_problem' in request"}), 400
+        response = jsonify({"error": "Missing 'business_problem' in request"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 400
 
     print(f"\n--- Received problem: {business_problem_text[:100]}... ---")
 
@@ -361,7 +378,9 @@ def handle_process_problem():
 
     if not personas: 
         print("Could not generate personas. Aborting.")
-        return jsonify({"error": "Persona generation failed. Check backend console for details."}), 500
+        response = jsonify({"error": "Persona generation failed. Check backend console for details."})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
     all_insights_by_persona = []
     print("\n--- Stage 3: Getting Insights from Each Persona ---")
@@ -386,7 +405,9 @@ def handle_process_problem():
         "expert_insights": all_insights_by_persona,
         "synthesis_report": synthesis_report # Add the new report here
     }
-    return jsonify(final_output)
+    response = jsonify(final_output)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
 # --- Main Execution ---
 if __name__ == '__main__':
