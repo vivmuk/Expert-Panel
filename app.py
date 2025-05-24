@@ -338,7 +338,11 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
         return {"error": "Failed to generate synthesis report", "details": api_response_data.get("details", api_response_data.get("error"))}
 
 
-# --- API Endpoint ---
+# --- API Endpoints ---
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy", "message": "AI Expert Panel backend is running"}), 200
+
 @app.route('/process_problem', methods=['POST'])
 def handle_process_problem():
     if not request.is_json:

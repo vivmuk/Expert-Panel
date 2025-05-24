@@ -628,6 +628,20 @@
             updateProgress('Initializing...', STAGE_IDLE);
 
             try {
+                // First test backend connectivity
+                console.log('Testing backend connectivity...');
+                const healthResponse = await fetch(`${BACKEND_URL}/health`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!healthResponse.ok) {
+                    throw new Error(`Backend health check failed: ${healthResponse.status}`);
+                }
+                
+                const healthData = await healthResponse.json();
+                console.log('Backend health check passed:', healthData);
+
                 await new Promise(resolve => setTimeout(resolve, 300));
                 updateProgress('Generating Expert Personas...', STAGE_PERSONA_GENERATION_START);
                 
