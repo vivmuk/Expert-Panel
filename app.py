@@ -13,6 +13,16 @@ INSIGHT_GENERATION_MODEL = "qwen-2.5-qwq-32b"
 app = Flask(__name__)
 CORS(app, resources={r"/*":{"origins": "*"}}, supports_credentials=True)
 
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS" and request.path == "/process_problem":
+        response = jsonify(success=True) # Or app.make_response('')
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+        response.headers.add("Access-Control-Allow-Credentials", "true")
+        return response
+
 # --- Venice AI API Interaction ---
 def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema):
     """
