@@ -15,7 +15,7 @@ CORS(app, resources={r"/*":{"origins": "*"}}, supports_credentials=True)
 
 @app.before_request
 def handle_preflight():
-    if request.method == "OPTIONS" and request.path == "/process_problem":
+    if request.method == "OPTIONS" and request.path in ["/process_problem", "/test_venice"]:
         response = jsonify(success=True) # Or app.make_response('')
         response.headers.add("Access-Control-Allow-Origin", "*")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
