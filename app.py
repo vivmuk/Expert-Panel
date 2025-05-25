@@ -52,8 +52,8 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
     try:
         print(f"About to call Venice AI API for model {model_id}, schema {schema_name_for_api}")
         print(f"Venice API URL: {VENICE_CHAT_COMPLETIONS_URL}")
-        print(f"Timeout set to: 30 seconds")
-        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=30) # Reduced timeout to 30 seconds for debugging
+        print(f"Timeout set to: 120 seconds")
+        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=120) # Increased timeout to 2 minutes for longer processing
         print(f"Venice AI API call completed successfully for {model_id}")
         response_obj_for_logging = response
         response.raise_for_status()
@@ -372,7 +372,7 @@ def test_venice_api():
         }
         
         print("Sending simple request to Venice AI...")
-        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=simple_payload, headers=headers, timeout=15)
+        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=simple_payload, headers=headers, timeout=120) # Increased timeout to match main API calls
         print(f"Venice AI response status: {response.status_code}")
         
         if response.status_code == 200:
@@ -381,7 +381,7 @@ def test_venice_api():
             return jsonify({"status": "error", "message": f"Venice AI returned status {response.status_code}", "details": response.text})
             
     except requests.exceptions.Timeout:
-        return jsonify({"status": "error", "message": "Venice AI request timed out after 15 seconds"})
+        return jsonify({"status": "error", "message": "Venice AI request timed out after 120 seconds"})
     except Exception as e:
         return jsonify({"status": "error", "message": f"Venice AI test failed: {str(e)}"})
 

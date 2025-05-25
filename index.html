@@ -78,93 +78,188 @@
             max-width: 1800px; /* Wider */
             width: 100%;
             margin: 30px auto; /* Increased margin */
+            margin-left: 40px; /* Add specific left margin for whitespace */
             gap: 30px; /* Increased gap */
+            padding: 0 20px; /* Add horizontal padding */
         }
 
         #left-panel-nav {
             width: 320px; /* Increased width for better usability */
-            background-color: var(--left-panel-bg); /* Pronounced background */
+            background: linear-gradient(135deg, var(--left-panel-bg) 0%, var(--primary-darker) 100%); /* Gradient background */
             color: var(--left-panel-text); /* Text color for the panel */
-            padding: 20px;
+            padding: 25px; /* Increased padding */
             border-right: 1px solid var(--left-panel-border-color);
-            box-shadow: var(--shadow-lg); /* More pronounced shadow */
+            box-shadow: 0 8px 32px rgba(32, 80, 114, 0.3); /* Enhanced shadow with brand colors */
             display: flex;
             flex-direction: column;
-            border-radius: var(--border-radius-md);
-            transition: box-shadow 0.3s ease;
+            border-radius: var(--border-radius-lg); /* Larger border radius */
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px); /* Modern glassmorphism effect */
+            position: relative;
+            overflow: hidden;
         }
+        
+        /* Add subtle pattern overlay */
+        #left-panel-nav::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        #left-panel-nav > * {
+            position: relative;
+            z-index: 1;
+        }
+        
         #left-panel-nav:hover {
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15); /* Enhanced hover shadow */
+            box-shadow: 0 12px 40px rgba(32, 80, 114, 0.4); /* Enhanced hover shadow */
+            transform: translateY(-2px); /* Subtle lift effect */
         }
 
         #left-panel-nav h3 {
             color: var(--left-panel-header-text); /* Contrasting header text */
-            border-bottom: 1px solid var(--secondary-color); /* Use secondary for border */
-            padding-bottom: 15px;
+            border-bottom: 2px solid var(--secondary-color); /* Thicker border */
+            padding-bottom: 18px; /* Increased padding */
             margin-top: 0; /* Adjusted margin */
-            margin-bottom: 20px;
-            font-size: 1.25em; /* Larger font */
+            margin-bottom: 25px; /* Increased margin */
+            font-size: 1.35em; /* Larger font */
             font-weight: 700; /* Bolder */
             padding-left: 5px;
+            text-transform: uppercase; /* Modern uppercase styling */
+            letter-spacing: 1px; /* Letter spacing for sophistication */
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* Subtle text shadow */
         }
         #left-panel-nav ul {
             list-style: none;
             padding: 0;
             margin: 0;
             overflow-y: auto;
+            /* Custom scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: var(--secondary-color) transparent;
         }
+        
+        #left-panel-nav ul::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #left-panel-nav ul::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        #left-panel-nav ul::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 3px;
+        }
+        
         #left-panel-nav li a {
             display: flex;
             align-items: center;
-            padding: 12px 16px;
+            padding: 15px 18px; /* Increased padding */
             text-decoration: none;
             color: var(--left-panel-text); /* Text color for nav items */
-            border-radius: 8px;
-            margin: 4px 8px;
-            transition: all 0.3s ease;
+            border-radius: 12px; /* More rounded corners */
+            margin: 6px 8px; /* Increased margin */
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth easing */
             word-wrap: break-word;
-            line-height: 1.3;
-            min-height: 45px;
+            line-height: 1.4; /* Better line height */
+            min-height: 50px; /* Increased min height */
+            position: relative;
+            backdrop-filter: blur(5px);
+            border: 1px solid transparent; /* For smooth border transitions */
         }
+        
+        /* Add subtle glow effect */
+        #left-panel-nav li a::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        
         #left-panel-nav li a .nav-icon {
-            margin-right: 12px; /* Increased margin */
-            font-size: 1.2em; 
-            width: 20px; 
+            margin-right: 15px; /* Increased margin */
+            font-size: 1.3em; /* Larger icons */
+            width: 24px; /* Increased width */
             text-align: center;
-            opacity: 0.8; /* Slightly more visible */
-            transition: opacity 0.25s ease;
+            opacity: 0.9; /* Slightly more visible */
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
         }
 
         #left-panel-nav li a:hover {
-            background-color: var(--left-panel-nav-item-hover-bg); /* Hover background */
+            background: linear-gradient(135deg, var(--left-panel-nav-item-hover-bg) 0%, color-mix(in srgb, var(--left-panel-nav-item-hover-bg) 85%, white) 100%); /* Gradient hover */
             color: var(--left-panel-nav-item-hover-text); /* Hover text */
-            transform: translateX(4px);
-            box-shadow: var(--shadow-sm);
+            transform: translateX(6px) scale(1.02); /* Enhanced transform */
+            box-shadow: 0 6px 20px rgba(50, 157, 156, 0.4); /* Color-coordinated shadow */
+            border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border */
         }
+        
+        #left-panel-nav li a:hover::before {
+            opacity: 1;
+        }
+        
         #left-panel-nav li a:hover .nav-icon {
             opacity: 1;
+            transform: scale(1.1); /* Icon scale effect */
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
         }
 
         #left-panel-nav li a.active,
         #left-panel-nav li a.processing-nav-item {
-            background-color: var(--left-panel-nav-item-active-bg); /* Active background */
+            background: linear-gradient(135deg, var(--left-panel-nav-item-active-bg) 0%, color-mix(in srgb, var(--left-panel-nav-item-active-bg) 90%, yellow) 100%); /* Gradient active */
             color: var(--left-panel-nav-item-active-text); /* Active text */
             font-weight: 700; /* Bolder for active */
-            box-shadow: var(--shadow-md);
+            box-shadow: 0 8px 25px rgba(249, 160, 63, 0.5); /* Orange shadow for active */
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transform: translateX(4px) scale(1.02);
         }
+        
+        #left-panel-nav li a.active::before,
+        #left-panel-nav li a.processing-nav-item::before {
+            opacity: 1;
+        }
+        
         #left-panel-nav li a.active .nav-icon, 
         #left-panel-nav li a.processing-nav-item .nav-icon {
              opacity: 1;
              color: var(--left-panel-nav-item-active-text); /* Ensure icon color matches */
+             transform: scale(1.1);
+             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
         }
 
         #left-panel-nav li a.processing-nav-item {
-            animation: navPulse 1.3s infinite ease-in-out;
+            animation: navPulse 1.5s infinite ease-in-out; /* Slower, smoother animation */
         }
-        @keyframes navPulse { /* Pulse with panel's active colors */
-            0% { background-color: var(--left-panel-nav-item-active-bg); opacity: 1; }
-            50% { background-color: color-mix(in srgb, var(--left-panel-nav-item-active-bg) 80%, black); opacity: 0.85; }
-            100% { background-color: var(--left-panel-nav-item-active-bg); opacity: 1; }
+        @keyframes navPulse { /* Enhanced pulse animation */
+            0% { 
+                background: linear-gradient(135deg, var(--left-panel-nav-item-active-bg) 0%, color-mix(in srgb, var(--left-panel-nav-item-active-bg) 90%, yellow) 100%);
+                box-shadow: 0 8px 25px rgba(249, 160, 63, 0.5);
+                transform: translateX(4px) scale(1.02);
+            }
+            50% { 
+                background: linear-gradient(135deg, color-mix(in srgb, var(--left-panel-nav-item-active-bg) 80%, black) 0%, var(--left-panel-nav-item-active-bg) 100%);
+                box-shadow: 0 12px 35px rgba(249, 160, 63, 0.7);
+                transform: translateX(6px) scale(1.05);
+            }
+            100% { 
+                background: linear-gradient(135deg, var(--left-panel-nav-item-active-bg) 0%, color-mix(in srgb, var(--left-panel-nav-item-active-bg) 90%, yellow) 100%);
+                box-shadow: 0 8px 25px rgba(249, 160, 63, 0.5);
+                transform: translateX(4px) scale(1.02);
+            }
         }
 
         .container { 
@@ -175,64 +270,111 @@
         }
 
         .input-section {
-            background-color: var(--panel-bg);
-            padding: 25px 30px; /* Increased padding */
-            border-radius: var(--border-radius-md); /* Rounded edges */
-            margin-bottom: 30px; /* Increased margin */
-            box-shadow: var(--shadow-md);
+            background: linear-gradient(135deg, var(--panel-bg) 0%, color-mix(in srgb, var(--panel-bg) 98%, var(--secondary-color)) 100%);
+            padding: 35px 40px; /* Increased padding */
+            border-radius: var(--border-radius-lg); /* Larger radius */
+            margin-bottom: 35px; /* Increased margin */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 8px rgba(0, 0, 0, 0.06); /* Layered shadows */
             border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
         }
+        
+        /* Add subtle pattern to input section */
+        .input-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 80% 20%, rgba(50, 157, 156, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .input-section > * {
+            position: relative;
+            z-index: 1;
+        }
+        
          .input-section p {
-            font-size: 1em; /* Slightly larger */
+            font-size: 1.1em; /* Larger font */
             color: var(--light-text-color);
-            margin-bottom: 18px;
+            margin-bottom: 22px; /* Increased margin */
+            font-weight: 400;
+            line-height: 1.6;
         }
 
         textarea {
-            width: calc(100% - 24px); /* Adjusted for padding */
-            min-height: 120px; /* Taller */
-            padding: 12px;
-            margin-bottom: 18px;
-            border-radius: var(--border-radius-sm); /* Rounded edges */
-            border: 1px solid var(--border-color);
+            width: calc(100% - 28px); /* Adjusted for increased padding */
+            min-height: 140px; /* Taller */
+            padding: 18px 14px; /* Increased padding */
+            margin-bottom: 22px; /* Increased margin */
+            border-radius: var(--border-radius-md); /* Larger radius */
+            border: 2px solid var(--border-color); /* Thicker border */
             background-color: #fff;
             color: var(--text-color);
-            font-size: 1em;
+            font-size: 1.05em; /* Slightly larger */
             font-family: var(--font-family);
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            transition: all 0.3s ease;
+            resize: vertical; /* Allow vertical resize */
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04); /* Inset shadow */
         }
         textarea:focus {
             border-color: var(--secondary-color); /* Use secondary for focus */
             outline: 0;
-            box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--secondary-color) 25%, transparent); /* Modern focus ring */
+            box-shadow: 0 0 0 0.3rem color-mix(in srgb, var(--secondary-color) 20%, transparent), inset 0 2px 4px rgba(0, 0, 0, 0.04); /* Enhanced focus ring */
+            transform: translateY(-2px); /* Subtle lift on focus */
         }
 
         button {
             display: inline-block;
-            padding: 12px 25px; /* Larger buttons */
-            background-color: var(--secondary-color); /* Use secondary for default buttons */
+            padding: 15px 30px; /* Larger buttons */
+            background: linear-gradient(135deg, var(--secondary-color) 0%, color-mix(in srgb, var(--secondary-color) 85%, var(--primary-color)) 100%); /* Gradient background */
             color: white;
             border: none;
-            border-radius: var(--border-radius-sm); /* Rounded edges */
-            font-size: 1em; /* Larger font */
-            font-weight: 500;
+            border-radius: var(--border-radius-md); /* Larger radius */
+            font-size: 1.05em; /* Larger font */
+            font-weight: 600; /* Bolder */
             cursor: pointer;
-            transition: background-color 0.2s ease-in-out, transform 0.1s ease, box-shadow 0.2s ease;
-            margin-right: 12px;
-            margin-bottom: 12px;
-            box-shadow: var(--shadow-sm);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth easing */
+            margin-right: 15px; /* Increased margin */
+            margin-bottom: 15px; /* Increased margin */
+            box-shadow: 0 4px 15px rgba(50, 157, 156, 0.3); /* Color-coordinated shadow */
+            position: relative;
+            overflow: hidden;
         }
+        
+        /* Button shine effect */
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        button:hover::before {
+            left: 100%;
+        }
+        
         button:hover {
-            background-color: color-mix(in srgb, var(--secondary-color) 85%, black); /* Darken secondary */
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
+            background: linear-gradient(135deg, color-mix(in srgb, var(--secondary-color) 90%, black) 0%, var(--secondary-color) 100%); /* Enhanced gradient */
+            transform: translateY(-3px) scale(1.02); /* Enhanced transform */
+            box-shadow: 0 8px 25px rgba(50, 157, 156, 0.4); /* Enhanced shadow */
         }
         button:disabled {
-            background-color: #B0BEC5; /* Muted color for disabled */
+            background: linear-gradient(135deg, #B0BEC5 0%, #90A4AE 100%); /* Gradient for disabled */
             color: #78909C;
             cursor: not-allowed;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
             box-shadow: none;
+        }
+        button:disabled::before {
+            display: none;
         }
 
         .progress-container {
@@ -272,16 +414,36 @@
 
         #results-content .content-section {
             display: none;
-            background-color: var(--panel-bg);
-            padding: 30px 35px; /* Increased padding */
-            border-radius: var(--border-radius-md); /* Rounded edges */
-            margin-bottom: 30px;
-            box-shadow: var(--shadow-md);
+            background: linear-gradient(135deg, var(--panel-bg) 0%, color-mix(in srgb, var(--panel-bg) 99%, var(--light-green-bg)) 100%);
+            padding: 40px 45px; /* Increased padding */
+            border-radius: var(--border-radius-lg); /* Larger radius */
+            margin-bottom: 35px; /* Increased margin */
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08), 0 2px 10px rgba(0, 0, 0, 0.06); /* Enhanced layered shadows */
             border: 1px solid var(--border-color);
             opacity: 0;
-            transform: translateY(15px); /* Slightly more pronounced animation */
-            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+            transform: translateY(20px); /* More pronounced animation */
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); /* Smoother transition */
+            position: relative;
+            overflow: hidden;
         }
+        
+        /* Add subtle pattern to content sections */
+        #results-content .content-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 90% 10%, rgba(32, 80, 114, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        #results-content .content-section > * {
+            position: relative;
+            z-index: 1;
+        }
+        
         #results-content .content-section.active {
             display: block;
             opacity: 1;
@@ -290,15 +452,41 @@
 
         #results-content h2, #results-content h3, #results-content h4 {
             color: var(--primary-color); /* Use primary for headers */
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border-color); /* Thicker border */
+            padding-bottom: 15px; /* Increased padding */
             margin-top: 0;
-            margin-bottom: 20px;
-            font-weight: 500;
+            margin-bottom: 25px; /* Increased margin */
+            font-weight: 600; /* Bolder */
+            position: relative;
         }
-        #results-content h2 { font-size: 1.8em; } /* Larger */
-        #results-content h3 { font-size: 1.5em; } /* Larger */
-        #results-content h4 { font-size: 1.2em; margin-bottom: 15px; border-bottom: none; color: var(--text-color); } /* Larger */
+        
+        /* Add accent line to headers */
+        #results-content h2::after, #results-content h3::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--secondary-color), var(--accent-orange));
+            border-radius: 2px;
+        }
+        
+        #results-content h2 { 
+            font-size: 2em; /* Larger */
+            margin-bottom: 30px;
+        } 
+        #results-content h3 { 
+            font-size: 1.6em; /* Larger */
+            margin-top: 35px;
+        } 
+        #results-content h4 { 
+            font-size: 1.3em; /* Larger */
+            margin-bottom: 18px; 
+            border-bottom: none; 
+            color: var(--text-color);
+            margin-top: 25px;
+        }
 
         .error {
             color: #b71c1c; /* Darker red */
@@ -332,20 +520,33 @@
         }
 
         .insight-block, .key-finding-block {
-            border-left: 5px solid; /* Thicker border */
-            padding: 18px 20px; /* Increased padding */
-            margin-bottom: 22px;
-            background-color: #FDFEFE; /* Very light, almost white */
-            border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
-            box-shadow: var(--shadow-sm);
+            border-left: 6px solid; /* Thicker border */
+            padding: 25px 28px; /* Increased padding */
+            margin-bottom: 28px; /* Increased margin */
+            background: linear-gradient(135deg, #FDFEFE 0%, color-mix(in srgb, #FDFEFE 95%, var(--light-green-bg)) 100%); /* Subtle gradient */
+            border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0; /* Larger radius */
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06), 0 1px 6px rgba(0, 0, 0, 0.04); /* Enhanced shadows */
+            position: relative;
+            transition: all 0.3s ease;
         }
-        .insight-block { border-left-color: var(--accent-orange); } 
-        .key-finding-block { border-left-color: var(--secondary-color); } /* Using secondary for this */
+        
+        .insight-block:hover, .key-finding-block:hover {
+            transform: translateX(4px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 2px 10px rgba(0, 0, 0, 0.06);
+        }
+        
+        .insight-block { 
+            border-left-color: var(--accent-orange);
+        } 
+        .key-finding-block { 
+            border-left-color: var(--secondary-color);
+        }
 
         .insight-block p, .key-finding-block p {
-            margin: 8px 0;
-            font-size: 0.95em;
+            margin: 10px 0; /* Increased margin */
+            font-size: 1em; /* Larger font */
             color: var(--light-text-color);
+            line-height: 1.6; /* Better line height */
         }
         .insight-block p:first-of-type, .key-finding-block p:first-of-type {
             margin-top: 0;
@@ -356,17 +557,31 @@
         }
          .insight-block p strong:first-child, .key-finding-block p strong:first-child {
             color: var(--primary-darker);
+            font-size: 1.05em; /* Slightly larger for emphasis */
          }
 
         .action-step {
-            background-color: var(--light-green-bg); /* Use light green from palette */
-            padding: 15px 18px;
-            margin-bottom: 15px;
-            border-radius: var(--border-radius-sm);
-            border: 1px solid color-mix(in srgb, var(--secondary-color) 50%, transparent); /* Border from secondary */
-            box-shadow: var(--shadow-sm);
+            background: linear-gradient(135deg, var(--light-green-bg) 0%, color-mix(in srgb, var(--light-green-bg) 90%, white) 100%); /* Enhanced gradient */
+            padding: 22px 25px; /* Increased padding */
+            margin-bottom: 20px; /* Increased margin */
+            border-radius: var(--border-radius-md); /* Larger radius */
+            border: 2px solid color-mix(in srgb, var(--secondary-color) 50%, transparent); /* Thicker border */
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06); /* Enhanced shadow */
+            position: relative;
+            transition: all 0.3s ease;
         }
-        .action-step p { font-size: 0.95em; }
+        
+        .action-step:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border-color: var(--secondary-color);
+        }
+        
+        .action-step p { 
+            font-size: 1em; /* Larger font */
+            margin: 8px 0;
+            line-height: 1.6;
+        }
 
         .priority-High { color: var(--accent-coral); font-weight: 700; } /* Use coral */
         .priority-Medium { color: var(--accent-orange); font-weight: 700; } /* Use orange */
@@ -383,22 +598,36 @@
         }
 
         button#downloadPdfButton {
-            background-color: var(--accent-orange); /* Use accent orange */
+            background: linear-gradient(135deg, var(--accent-orange) 0%, color-mix(in srgb, var(--accent-orange) 90%, var(--accent-coral)) 100%); /* Enhanced gradient */
+            font-size: 1.1em; /* Larger font */
+            padding: 18px 35px; /* Larger padding */
+            font-weight: 700; /* Bolder */
+            box-shadow: 0 6px 20px rgba(249, 160, 63, 0.4); /* Color-coordinated shadow */
+            text-transform: uppercase; /* Modern uppercase */
+            letter-spacing: 0.5px; /* Letter spacing */
         }
         button#downloadPdfButton:hover {
-            background-color: color-mix(in srgb, var(--accent-orange) 85%, black); /* Darken orange */
+            background: linear-gradient(135deg, color-mix(in srgb, var(--accent-orange) 90%, black) 0%, var(--accent-orange) 100%); /* Enhanced gradient */
+            box-shadow: 0 10px 35px rgba(249, 160, 63, 0.6); /* Enhanced shadow */
+            transform: translateY(-4px) scale(1.03); /* Enhanced transform */
         }
 
         .original-problem-display {
-            font-size: 1em;
-            margin-bottom: 25px;
-            padding: 15px 18px;
-            background-color: var(--light-green-bg); /* Use light green */
-            border-radius: var(--border-radius-sm);
-            border-left: 5px solid var(--secondary-color); /* Use secondary */
+            font-size: 1.05em; /* Larger font */
+            margin-bottom: 30px; /* Increased margin */
+            padding: 22px 25px; /* Increased padding */
+            background: linear-gradient(135deg, var(--light-green-bg) 0%, color-mix(in srgb, var(--light-green-bg) 95%, white) 100%); /* Enhanced gradient */
+            border-radius: var(--border-radius-md); /* Larger radius */
+            border-left: 6px solid var(--secondary-color); /* Thicker border */
             color: var(--text-color); /* Darker text for readability */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+            line-height: 1.6; /* Better line height */
         }
-        .original-problem-display strong { color: var(--primary-color); font-weight:600; }
+        .original-problem-display strong { 
+            color: var(--primary-color); 
+            font-weight: 600;
+            font-size: 1.1em; /* Larger emphasis */
+        }
 
         /* Styles for Processing Notification - Less Intrusive */
         #processing-overlay {
@@ -471,6 +700,107 @@
             transform: none;
             background: none;
             box-shadow: none;
+        }
+
+        /* Responsive Design Improvements */
+        @media (max-width: 1200px) {
+            .main-content-wrapper {
+                margin-left: 20px;
+                max-width: 95%;
+                gap: 25px;
+            }
+            
+            #left-panel-nav {
+                width: 280px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .main-content-wrapper {
+                flex-direction: column;
+                margin-left: 10px;
+                padding: 0 10px;
+                gap: 20px;
+            }
+            
+            #left-panel-nav {
+                width: 100%;
+                order: 2; /* Move navigation below content on mobile */
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .input-section {
+                padding: 25px 20px;
+            }
+            
+            #results-content .content-section {
+                padding: 25px 20px;
+            }
+            
+            textarea {
+                min-height: 100px;
+            }
+            
+            button {
+                width: 100%;
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            
+            button#downloadPdfButton {
+                width: auto;
+                display: inline-block;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header {
+                padding: 15px 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .main-content-wrapper {
+                margin: 15px auto;
+                margin-left: 5px;
+                padding: 0 5px;
+            }
+            
+            .input-section, #results-content .content-section {
+                padding: 20px 15px;
+            }
+            
+            #results-content h2 {
+                font-size: 1.6em;
+            }
+            
+            #results-content h3 {
+                font-size: 1.4em;
+            }
+        }
+
+        /* Enhanced Focus States for Accessibility */
+        button:focus-visible, 
+        textarea:focus-visible,
+        #left-panel-nav li a:focus-visible {
+            outline: 3px solid var(--accent-orange);
+            outline-offset: 2px;
+        }
+        
+        /* Smooth scroll behavior */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Selection styling */
+        ::selection {
+            background-color: color-mix(in srgb, var(--secondary-color) 30%, transparent);
+            color: var(--primary-darker);
         }
 
     </style>
