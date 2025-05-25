@@ -306,25 +306,27 @@
         }
 
         textarea {
-            width: calc(100% - 28px); /* Adjusted for increased padding */
+            width: 100%; /* Fixed width to stay within container */
             min-height: 140px; /* Taller */
-            padding: 18px 14px; /* Increased padding */
-            margin-bottom: 22px; /* Increased margin */
+            padding: 20px; /* Increased padding */
+            margin-bottom: 25px; /* Increased margin */
             border-radius: var(--border-radius-md); /* Larger radius */
             border: 2px solid var(--border-color); /* Thicker border */
-            background-color: #fff;
+            background: linear-gradient(135deg, #fff 0%, color-mix(in srgb, #fff 98%, var(--light-green-bg)) 100%);
             color: var(--text-color);
             font-size: 1.05em; /* Slightly larger */
             font-family: var(--font-family);
             transition: all 0.3s ease;
             resize: vertical; /* Allow vertical resize */
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04); /* Inset shadow */
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.05); /* Enhanced shadows */
+            box-sizing: border-box; /* Ensure padding is included in width */
         }
         textarea:focus {
             border-color: var(--secondary-color); /* Use secondary for focus */
             outline: 0;
-            box-shadow: 0 0 0 0.3rem color-mix(in srgb, var(--secondary-color) 20%, transparent), inset 0 2px 4px rgba(0, 0, 0, 0.04); /* Enhanced focus ring */
+            box-shadow: 0 0 0 0.3rem color-mix(in srgb, var(--secondary-color) 20%, transparent), inset 0 2px 8px rgba(0, 0, 0, 0.06), 0 4px 15px rgba(50, 157, 156, 0.15); /* Enhanced focus ring */
             transform: translateY(-2px); /* Subtle lift on focus */
+            background: linear-gradient(135deg, #fff 0%, color-mix(in srgb, #fff 95%, var(--secondary-color)) 100%);
         }
 
         button {
@@ -415,7 +417,7 @@
         #results-content .content-section {
             display: none;
             background: linear-gradient(135deg, var(--panel-bg) 0%, color-mix(in srgb, var(--panel-bg) 99%, var(--light-green-bg)) 100%);
-            padding: 40px 45px; /* Increased padding */
+            padding: 0; /* Remove padding to let cards handle it */
             border-radius: var(--border-radius-lg); /* Larger radius */
             margin-bottom: 35px; /* Increased margin */
             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08), 0 2px 10px rgba(0, 0, 0, 0.06); /* Enhanced layered shadows */
@@ -427,279 +429,243 @@
             overflow: hidden;
         }
         
-        /* Add subtle pattern to content sections */
-        #results-content .content-section::before {
+        /* Modern Card Header */
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-darker) 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card-header::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(circle at 90% 10%, rgba(32, 80, 114, 0.03) 0%, transparent 50%);
+            background: radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
             pointer-events: none;
         }
         
-        #results-content .content-section > * {
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.8em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 15px;
             position: relative;
             z-index: 1;
         }
         
-        #results-content .content-section.active {
-            display: block;
-            opacity: 1;
-            transform: translateY(0px);
+        .card-header .header-icon {
+            font-size: 2em;
+            opacity: 0.9;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
         }
-
-        #results-content h2, #results-content h3, #results-content h4 {
-            color: var(--primary-color); /* Use primary for headers */
-            border-bottom: 2px solid var(--border-color); /* Thicker border */
-            padding-bottom: 15px; /* Increased padding */
-            margin-top: 0;
-            margin-bottom: 25px; /* Increased margin */
-            font-weight: 600; /* Bolder */
+        
+        .card-header .expert-badge {
+            background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-coral) 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            margin-left: auto;
+        }
+        
+        /* Card Content */
+        .card-content {
+            padding: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Enhanced Insight Blocks */
+        .insight-block, .key-finding-block {
+            border: none;
+            padding: 25px;
+            margin-bottom: 25px;
+            background: linear-gradient(135deg, #fff 0%, color-mix(in srgb, #fff 97%, var(--light-green-bg)) 100%);
+            border-radius: var(--border-radius-md);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08), 0 1px 6px rgba(0, 0, 0, 0.04);
+            position: relative;
+            transition: all 0.3s ease;
+            border-left: 5px solid;
+        }
+        
+        .insight-block {
+            border-left-color: var(--accent-orange);
+        }
+        
+        .key-finding-block {
+            border-left-color: var(--secondary-color);
+        }
+        
+        .insight-block::before,
+        .key-finding-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--accent-orange), var(--accent-coral));
+            border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
+        }
+        
+        .key-finding-block::before {
+            background: linear-gradient(to bottom, var(--secondary-color), var(--accent-yellow));
+        }
+        
+        .insight-block:hover, .key-finding-block:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12), 0 3px 10px rgba(0, 0, 0, 0.08);
+        }
+        
+        /* Modern Action Steps */
+        .action-step {
+            background: linear-gradient(135deg, var(--light-green-bg) 0%, color-mix(in srgb, var(--light-green-bg) 90%, white) 100%);
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius-md);
+            border: 2px solid color-mix(in srgb, var(--secondary-color) 30%, transparent);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+            position: relative;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .action-step::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--secondary-color), var(--accent-orange));
+        }
+        
+        .action-step:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-color: var(--secondary-color);
+        }
+        
+        .action-step .step-number {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--accent-orange) 100%);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9em;
+            margin-right: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Priority Badges */
+        .priority-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            margin-left: 10px;
+        }
+        
+        .priority-High {
+            background: linear-gradient(135deg, var(--accent-coral) 0%, #e53e3e 100%);
+            color: white;
+        }
+        
+        .priority-Medium {
+            background: linear-gradient(135deg, var(--accent-orange) 0%, #f6ad55 100%);
+            color: white;
+        }
+        
+        .priority-Low {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #68d391 100%);
+            color: white;
+        }
+        
+        /* Modern Section Headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid color-mix(in srgb, var(--primary-color) 20%, transparent);
             position: relative;
         }
         
-        /* Add accent line to headers */
-        #results-content h2::after, #results-content h3::after {
+        .section-header::after {
             content: '';
             position: absolute;
             bottom: -2px;
             left: 0;
-            width: 60px;
+            width: 80px;
             height: 3px;
             background: linear-gradient(90deg, var(--secondary-color), var(--accent-orange));
             border-radius: 2px;
         }
         
-        #results-content h2 { 
-            font-size: 2em; /* Larger */
-            margin-bottom: 30px;
-        } 
-        #results-content h3 { 
-            font-size: 1.6em; /* Larger */
-            margin-top: 35px;
-        } 
-        #results-content h4 { 
-            font-size: 1.3em; /* Larger */
-            margin-bottom: 18px; 
-            border-bottom: none; 
-            color: var(--text-color);
-            margin-top: 25px;
-        }
-
-        .error {
-            color: #b71c1c; /* Darker red */
-            font-weight: 500;
-            padding: 18px; /* Increased padding */
-            background-color: #FFEBEE; /* Lighter red background */
-            border: 1px solid #FFCDD2; /* Lighter red border */
-            border-left: 6px solid var(--accent-coral); /* Coral accent border */
-            border-radius: var(--border-radius-sm);
-            margin-bottom:25px;
-        }
-        .error strong { color: #c62828; } /* Slightly darker red for strong text */
-
-        .icon-placeholder {
-            font-size: 1.5em; /* Larger */
-            float: right;
-            color: var(--secondary-color); /* Use secondary for icons */
-            margin-left: 15px;
-            opacity: 0.9;
-        }
-
-        .persona-definition p, .search-persona-intro p {
-            font-size: 0.95em;
-            color: var(--light-text-color);
-            margin-bottom: 10px;
-        }
-        .persona-definition hr, .search-persona-intro hr {
-             border: 0;
-             border-top: 1px solid color-mix(in srgb, var(--primary-color) 15%, transparent); /* Subtle hr */
-             margin: 25px 0;
-        }
-
-        .insight-block, .key-finding-block {
-            border-left: 6px solid; /* Thicker border */
-            padding: 25px 28px; /* Increased padding */
-            margin-bottom: 28px; /* Increased margin */
-            background: linear-gradient(135deg, #FDFEFE 0%, color-mix(in srgb, #FDFEFE 95%, var(--light-green-bg)) 100%); /* Subtle gradient */
-            border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0; /* Larger radius */
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06), 0 1px 6px rgba(0, 0, 0, 0.04); /* Enhanced shadows */
-            position: relative;
-            transition: all 0.3s ease;
-        }
-        
-        .insight-block:hover, .key-finding-block:hover {
-            transform: translateX(4px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 2px 10px rgba(0, 0, 0, 0.06);
-        }
-        
-        .insight-block { 
-            border-left-color: var(--accent-orange);
-        } 
-        .key-finding-block { 
-            border-left-color: var(--secondary-color);
-        }
-
-        .insight-block p, .key-finding-block p {
-            margin: 10px 0; /* Increased margin */
-            font-size: 1em; /* Larger font */
-            color: var(--light-text-color);
-            line-height: 1.6; /* Better line height */
-        }
-        .insight-block p:first-of-type, .key-finding-block p:first-of-type {
-            margin-top: 0;
-        }
-        .insight-block strong, .key-finding-block strong {
-             color: var(--text-color);
-             font-weight: 600; /* Bolder */
-        }
-         .insight-block p strong:first-child, .key-finding-block p strong:first-child {
-            color: var(--primary-darker);
-            font-size: 1.05em; /* Slightly larger for emphasis */
-         }
-
-        .action-step {
-            background: linear-gradient(135deg, var(--light-green-bg) 0%, color-mix(in srgb, var(--light-green-bg) 90%, white) 100%); /* Enhanced gradient */
-            padding: 22px 25px; /* Increased padding */
-            margin-bottom: 20px; /* Increased margin */
-            border-radius: var(--border-radius-md); /* Larger radius */
-            border: 2px solid color-mix(in srgb, var(--secondary-color) 50%, transparent); /* Thicker border */
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06); /* Enhanced shadow */
-            position: relative;
-            transition: all 0.3s ease;
-        }
-        
-        .action-step:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-            border-color: var(--secondary-color);
-        }
-        
-        .action-step p { 
-            font-size: 1em; /* Larger font */
-            margin: 8px 0;
-            line-height: 1.6;
-        }
-
-        .priority-High { color: var(--accent-coral); font-weight: 700; } /* Use coral */
-        .priority-Medium { color: var(--accent-orange); font-weight: 700; } /* Use orange */
-        .priority-Low { color: var(--secondary-color); font-weight: 700; } /* Use secondary/teal */
-
-        ul { list-style-type: none; padding-left: 0; }
-        #results-content ul li {
-            background-color: var(--bg-color); /* Consistent with page bg */
-            padding: 12px 15px;
-            margin-bottom: 10px;
-            border-radius: var(--border-radius-sm);
-            border: 1px solid var(--border-color);
-            font-size: 0.95em;
-        }
-
-        button#downloadPdfButton {
-            background: linear-gradient(135deg, var(--accent-orange) 0%, color-mix(in srgb, var(--accent-orange) 90%, var(--accent-coral)) 100%); /* Enhanced gradient */
-            font-size: 1.1em; /* Larger font */
-            padding: 18px 35px; /* Larger padding */
-            font-weight: 700; /* Bolder */
-            box-shadow: 0 6px 20px rgba(249, 160, 63, 0.4); /* Color-coordinated shadow */
-            text-transform: uppercase; /* Modern uppercase */
-            letter-spacing: 0.5px; /* Letter spacing */
-        }
-        button#downloadPdfButton:hover {
-            background: linear-gradient(135deg, color-mix(in srgb, var(--accent-orange) 90%, black) 0%, var(--accent-orange) 100%); /* Enhanced gradient */
-            box-shadow: 0 10px 35px rgba(249, 160, 63, 0.6); /* Enhanced shadow */
-            transform: translateY(-4px) scale(1.03); /* Enhanced transform */
-        }
-
-        .original-problem-display {
-            font-size: 1.05em; /* Larger font */
-            margin-bottom: 30px; /* Increased margin */
-            padding: 22px 25px; /* Increased padding */
-            background: linear-gradient(135deg, var(--light-green-bg) 0%, color-mix(in srgb, var(--light-green-bg) 95%, white) 100%); /* Enhanced gradient */
-            border-radius: var(--border-radius-md); /* Larger radius */
-            border-left: 6px solid var(--secondary-color); /* Thicker border */
-            color: var(--text-color); /* Darker text for readability */
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Subtle shadow */
-            line-height: 1.6; /* Better line height */
-        }
-        .original-problem-display strong { 
-            color: var(--primary-color); 
+        .section-header h3 {
+            margin: 0;
+            color: var(--primary-color);
+            font-size: 1.4em;
             font-weight: 600;
-            font-size: 1.1em; /* Larger emphasis */
         }
-
-        /* Styles for Processing Notification - Less Intrusive */
-        #processing-overlay {
-            position: fixed; 
-            top: 20px;
-            right: 20px;
-            width: 350px;
-            max-width: 90vw;
-            background-color: var(--panel-bg);
-            border: 2px solid var(--secondary-color);
+        
+        .section-header .section-icon {
+            font-size: 1.5em;
+            color: var(--secondary-color);
+        }
+        
+        /* Expert Info Card */
+        .expert-info {
+            background: linear-gradient(135deg, color-mix(in srgb, var(--secondary-color) 10%, transparent) 0%, transparent 100%);
+            border: 1px solid color-mix(in srgb, var(--secondary-color) 30%, transparent);
             border-radius: var(--border-radius-md);
-            box-shadow: var(--shadow-lg);
             padding: 20px;
-            z-index: 10000; 
-            text-align: center;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateX(100%);
-            transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+            margin-bottom: 25px;
+            position: relative;
         }
-        #processing-overlay.visible {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(0);
+        
+        .expert-info::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--secondary-color), var(--accent-orange));
+            border-radius: 2px 0 0 2px;
         }
-        #processing-overlay h2 {
-            color: var(--primary-darker);
-            font-size: 1.2em;
-            margin-bottom: 15px;
-            margin-top: 0;
+        
+        .expert-role {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 8px;
         }
-        #processing-overlay p {
-            margin: 10px 0 0 0;
+        
+        .expert-focus {
             font-size: 0.9em;
             color: var(--light-text-color);
-        }
-        /* Simple Spinner - updated colors */
-        .spinner {
-            border: 4px solid var(--hover-bg-color);
-            border-top: 4px solid var(--accent-orange);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Close button for processing notification */
-        .processing-close {
-            position: absolute;
-            top: 8px;
-            right: 12px;
-            background: none;
-            border: none;
-            font-size: 1.2em;
-            cursor: pointer;
-            color: var(--light-text-color);
-            padding: 0;
-            margin: 0;
-            width: auto;
-            height: auto;
-            box-shadow: none;
-        }
-        .processing-close:hover {
-            color: var(--accent-coral);
-            transform: none;
-            background: none;
-            box-shadow: none;
+            font-style: italic;
         }
 
         /* Responsive Design Improvements */
@@ -803,6 +769,58 @@
             color: var(--primary-darker);
         }
 
+        #results-content .content-section.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0px);
+        }
+
+        /* Additional missing styles */
+        button#downloadPdfButton {
+            background: linear-gradient(135deg, var(--accent-orange) 0%, color-mix(in srgb, var(--accent-orange) 90%, var(--accent-coral)) 100%);
+            font-size: 1.1em;
+            padding: 18px 35px;
+            font-weight: 700;
+            box-shadow: 0 6px 20px rgba(249, 160, 63, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        button#downloadPdfButton:hover {
+            background: linear-gradient(135deg, color-mix(in srgb, var(--accent-orange) 90%, black) 0%, var(--accent-orange) 100%);
+            box-shadow: 0 10px 35px rgba(249, 160, 63, 0.6);
+            transform: translateY(-4px) scale(1.03);
+        }
+
+        .error {
+            color: #b71c1c;
+            font-weight: 500;
+            padding: 0;
+            background: none;
+            border: none;
+            margin-bottom: 25px;
+        }
+
+        /* Modern Loading States */
+        .content-section.loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .content-section.loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
     </style>
 </head>
 <body>
@@ -830,19 +848,29 @@
                 <textarea id="businessProblem" placeholder="Describe your business problem here..."></textarea>
                 <button id="submitButton" onclick="submitProblem()">Get Expert Insights</button>
                 <button id="downloadPdfButton" onclick="downloadPDF()" style="display:none;">Download PDF</button>
+                
+                <!-- Modern Processing Notification -->
+                <div class="processing-notification" id="processingNotification">
+                    <h3>
+                        <span>🧠</span>
+                        Generating Expert Analysis
+                    </h3>
+                    <div class="modern-spinner"></div>
+                    <p id="processingStatus">AI experts are analyzing your problem...</p>
+                    
+                    <div class="progress-info">
+                        <div class="progress-bar-modern">
+                            <div class="progress-bar-fill" id="progressBarFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">0% Complete</div>
+                    </div>
+                </div>
             </div>
             
             <div id="results-content">
                 <!-- Content sections will be dynamically inserted here -->
             </div>
         </main>
-    </div>
-
-    <div id="processing-overlay">
-        <button class="processing-close" onclick="hideProcessingNotification()" title="Close">&times;</button>
-        <h2>Generating Report...</h2>
-        <div class="spinner"></div>
-        <p>AI experts are analyzing your problem.</p>
     </div>
 
     <script>
@@ -872,9 +900,16 @@
         let allProcessedItemNames = [];
 
         function hideProcessingNotification() {
-            const processingOverlay = document.getElementById('processing-overlay');
-            if (processingOverlay) {
-                processingOverlay.classList.remove('visible');
+            const processingNotification = document.getElementById('processingNotification');
+            if (processingNotification) {
+                processingNotification.classList.remove('visible');
+            }
+        }
+
+        function showProcessingNotification() {
+            const processingNotification = document.getElementById('processingNotification');
+            if (processingNotification) {
+                processingNotification.classList.add('visible');
             }
         }
 
@@ -897,16 +932,22 @@
 
         function updateProgress(message, numericStage) {
             currentProgressNumericStage = numericStage;
-            const progressBarInner = document.getElementById('progressBarInner');
-            const statusMessage = document.getElementById('statusMessage');
+            const progressBarFill = document.getElementById('progressBarFill');
+            const progressText = document.getElementById('progressText');
+            const processingStatus = document.getElementById('processingStatus');
             const percentage = Math.min(100, Math.round((currentProgressNumericStage / TOTAL_PROGRESS_STAGES) * 100));
             
-            if (progressBarInner) {
-                 progressBarInner.style.width = percentage + '%';
-                 progressBarInner.textContent = percentage + '%';
+            if (progressBarFill) {
+                progressBarFill.style.width = percentage + '%';
             }
-            if (statusMessage) statusMessage.textContent = message;
+            if (progressText) {
+                progressText.textContent = percentage + '% Complete';
+            }
+            if (processingStatus) {
+                processingStatus.textContent = message;
+            }
 
+            // Update navigation processing states
             document.querySelectorAll('#navigationList li a.processing-nav-item').forEach(nav => nav.classList.remove('processing-nav-item'));
             
             let currentProcessingItemName = null;
@@ -928,7 +969,9 @@
                 const activeNavItem = document.getElementById(navItemId);
                 if (activeNavItem) {
                     activeNavItem.classList.add('processing-nav-item');
-                    statusMessage.textContent = `Processing: ${currentProcessingItemName}...`;
+                    if (processingStatus) {
+                        processingStatus.textContent = `Processing: ${currentProcessingItemName}...`;
+                    }
                     activeNavItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
             }
@@ -941,7 +984,6 @@
             const progressContainer = document.getElementById('progressContainer');
             const submitButton = document.getElementById('submitButton');
             const downloadButton = document.getElementById('downloadPdfButton');
-            const processingOverlay = document.getElementById('processing-overlay');
 
             globalReportData = null;
             allProcessedItemNames = []; 
@@ -954,8 +996,8 @@
             navigationList.innerHTML = ''; 
             submitButton.disabled = true;
             downloadButton.style.display = 'none';
-            if (processingOverlay) processingOverlay.classList.add('visible');
-            progressContainer.style.display = 'block';
+            showProcessingNotification();
+            if (progressContainer) progressContainer.style.display = 'block';
             updateProgress('Initializing...', STAGE_IDLE);
 
             try {
@@ -1038,15 +1080,10 @@
                 updateProgress('Error occurred.', STAGE_ALL_COMPLETE);
             } finally {
                 submitButton.disabled = false;
-                if (processingOverlay) processingOverlay.classList.remove('visible');
+                hideProcessingNotification();
                 
                 setTimeout(() => {
                     document.querySelectorAll('#navigationList li a.processing-nav-item').forEach(nav => nav.classList.remove('processing-nav-item'));
-                    setTimeout(() => {
-                        if(progressContainer.style.display === 'block' && !submitButton.disabled) { 
-                           // progressContainer.style.display = 'none';
-                        }
-                    }, 5000);
                 }, 300);
             }
         }
@@ -1089,7 +1126,7 @@
             let firstItemIdToDisplay = null;
             const navOrder = [];
 
-            // 1. Synthesis Report
+            // 1. Synthesis Report with modern card design
             if (data.synthesis_report) {
                 const itemName = "Synthesis Report";
                 const safeName = itemName.replace(/[^a-zA-Z0-9_]/g, '-');
@@ -1097,74 +1134,100 @@
                 navOrder.push({name: itemName, id: contentId, type: 'report'});
 
                 if (data.synthesis_report.error) {
-                     resultsContentDiv.innerHTML += `<div class="content-section error" id="${contentId}"><h3>Synthesis Report Error</h3><p>${data.synthesis_report.error}</p></div>`;
+                     resultsContentDiv.innerHTML += `
+                        <div class="content-section error" id="${contentId}">
+                            <div class="card-header">
+                                <h2><span class="header-icon">⚠️</span> Synthesis Report Error</h2>
+                            </div>
+                            <div class="card-content">
+                                <p>${data.synthesis_report.error}</p>
+                            </div>
+                        </div>`;
                 } else {
                     const synthesis = data.synthesis_report;
+                    
                     let actionsHTML = '';
                     if (synthesis.actionable_next_steps && synthesis.actionable_next_steps.length > 0) {
-                        synthesis.actionable_next_steps.forEach(action => {
+                        synthesis.actionable_next_steps.forEach((action, index) => {
                             actionsHTML += `
                                 <div class="action-step">
-                                    <p><strong>Step:</strong> ${action.step_description}</p>
-                                    <p><strong>Priority:</strong> <span class="priority-${action.priority || 'Medium'}">${action.priority || 'Medium'}</span></p>
-                                    ${action.suggested_rationale ? `<p><strong>Rationale:</strong> ${action.suggested_rationale}</p>` : ''}
+                                    <div style="display: flex; align-items: flex-start; gap: 15px;">
+                                        <span class="step-number">${index + 1}</span>
+                                        <div style="flex: 1;">
+                                            <p style="margin: 0 0 8px 0; font-weight: 600; font-size: 1.1em;">${action.step_description}</p>
+                                            <p style="margin: 0 0 8px 0;">
+                                                <strong>Priority:</strong> 
+                                                <span class="priority-badge priority-${action.priority || 'Medium'}">${action.priority || 'Medium'}</span>
+                                            </p>
+                                            ${action.suggested_rationale ? `<p style="margin: 0; font-style: italic; color: var(--light-text-color);">${action.suggested_rationale}</p>` : ''}
+                                        </div>
+                                    </div>
                                 </div>`;
                         });
-                    } else { actionsHTML = '<p>No specific actionable steps provided.</p>'; }
+                    } else { 
+                        actionsHTML = '<p>No specific actionable steps provided.</p>'; 
+                    }
                     
                     resultsContentDiv.innerHTML += `
                         <div class="content-section" id="${contentId}">
-                            <h2><span class="icon-placeholder">${getNavIcon(itemName)}</span> ${itemName}</h2>
-                            <div class="original-problem-display">
-                                <p><strong>Original Problem:</strong> ${data.original_problem || 'N/A'}</p>
+                            <div class="card-header">
+                                <h2>
+                                    <span class="header-icon">📊</span> 
+                                    ${itemName}
+                                    <span class="expert-badge">Executive Summary</span>
+                                </h2>
                             </div>
-                            <h3>Cohesive Summary:</h3>
-                            <p>${synthesis.cohesive_summary || 'Not available.'}</p>
-                            <h3>Key Themes:</h3>
-                            <ul>${(synthesis.key_themes || []).map(theme => `<li>${theme}</li>`).join('') || '<li>Not available.</li>'}</ul>
-                            <h3>Potential Blind Spots:</h3>
-                            <ul>${(synthesis.potential_blind_spots || []).map(spot => `<li>${spot}</li>`).join('') || '<li>Not available.</li>'}</ul>
-                            <h3>Actionable Next Steps:</h3>
-                            ${actionsHTML}
+                            <div class="card-content">
+                                <div class="expert-info" style="background: linear-gradient(135deg, color-mix(in srgb, var(--accent-orange) 10%, transparent) 0%, transparent 100%); border-color: var(--accent-orange);">
+                                    <div class="expert-role">Original Problem</div>
+                                    <div style="font-size: 1.05em; line-height: 1.6;">${data.original_problem || 'N/A'}</div>
+                                </div>
+                                
+                                <div class="section-header">
+                                    <span class="section-icon">💡</span>
+                                    <h3>Executive Summary</h3>
+                                </div>
+                                <p style="font-size: 1.1em; line-height: 1.7; margin-bottom: 25px;">${synthesis.cohesive_summary || 'Not available.'}</p>
+                                
+                                <div class="section-header">
+                                    <span class="section-icon">🎯</span>
+                                    <h3>Key Themes</h3>
+                                </div>
+                                <div style="display: grid; gap: 10px; margin-bottom: 25px;">
+                                    ${(synthesis.key_themes || []).map(theme => `
+                                        <div style="background: linear-gradient(135deg, var(--light-green-bg) 0%, white 100%); 
+                                                    padding: 15px 20px; border-radius: 8px; border-left: 4px solid var(--secondary-color);
+                                                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                                            <span style="font-weight: 500;">${theme}</span>
+                                        </div>
+                                    `).join('') || '<p>Not available.</p>'}
+                                </div>
+                                
+                                <div class="section-header">
+                                    <span class="section-icon">👁️</span>
+                                    <h3>Potential Blind Spots</h3>
+                                </div>
+                                <div style="display: grid; gap: 10px; margin-bottom: 25px;">
+                                    ${(synthesis.potential_blind_spots || []).map(spot => `
+                                        <div style="background: linear-gradient(135deg, color-mix(in srgb, var(--accent-coral) 10%, transparent) 0%, white 100%); 
+                                                    padding: 15px 20px; border-radius: 8px; border-left: 4px solid var(--accent-coral);
+                                                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                                            <span style="font-weight: 500;">${spot}</span>
+                                        </div>
+                                    `).join('') || '<p>Not available.</p>'}
+                                </div>
+                                
+                                <div class="section-header">
+                                    <span class="section-icon">🚀</span>
+                                    <h3>Actionable Next Steps</h3>
+                                </div>
+                                ${actionsHTML}
+                            </div>
                         </div>`;
                 }
             }
             
-            // 2. Search Findings Panel
-            if (data.search_findings) {
-                const searchData = data.search_findings;
-                const itemName = searchData.persona_name || "Research Assistant";
-                const safeName = itemName.replace(/[^a-zA-Z0-9_]/g, '-');
-                const contentId = `search-${safeName}-content`;
-                navOrder.push({name: itemName, id: contentId, type: 'search'});
-
-                let findingsHTML = '';
-                if (searchData.error) {
-                    findingsHTML = `<div class="error"><p><strong>Error during search:</strong> ${searchData.error}</p></div>`;
-                } else if (searchData.findings && searchData.findings.length > 0) {
-                    searchData.findings.forEach(item => {
-                        findingsHTML += `
-                            <div class="search-result-item">
-                                ${item.link ? `<h4><a href="${item.link}" target="_blank">${item.title || 'Untitled Finding'}</a></h4>` : `<h4>${item.title || 'Untitled Finding'}</h4>`}
-                                <p>${item.snippet || 'No snippet available.'}</p>
-                            </div>`;
-                    });
-                } else {
-                    findingsHTML = "<p>No key findings were returned from the search.</p>";
-                }
-
-                resultsContentDiv.innerHTML += `
-                    <div class="content-section" id="${contentId}">
-                        <h2><span class="icon-placeholder">${getNavIcon(itemName)}</span> ${itemName}</h2>
-                        <div class="search-persona-intro">
-                             <p>Automated research findings related to the business problem.</p>
-                             <hr>
-                        </div>
-                        ${findingsHTML}
-                    </div>`;
-            }
-
-            // 3. Expert Personas
+            // 2. Expert Personas with enhanced design
             if (data.expert_insights && data.expert_insights.length > 0) {
                 data.expert_insights.forEach(personaPackage => {
                     const itemName = personaPackage.persona_name || 'Unnamed Persona';
@@ -1177,56 +1240,124 @@
                         const definition = data.persona_definitions.find(p => p.name === itemName);
                         if(definition) {
                             personaDefinitionHTML = `
-                                <div class="persona-definition">
-                                    <p><strong>Role:</strong> ${definition.description || 'N/A'}</p>
-                                    <p><strong>Focus:</strong> ${(definition.focus_areas || []).join(', ') || 'N/A'}</p>
-                                    <hr>
+                                <div class="expert-info">
+                                    <div class="expert-role">${definition.description || 'N/A'}</div>
+                                    <div class="expert-focus"><strong>Focus Areas:</strong> ${(definition.focus_areas || []).join(', ') || 'N/A'}</div>
                                 </div>`;
                         }
                     }
 
                     let insightsContentHTML = '';
                     if (personaPackage.error) {
-                         insightsContentHTML += `<div class="error"><p><strong>Error:</strong> ${personaPackage.error}</p></div>`;
+                         insightsContentHTML += `
+                            <div style="background: linear-gradient(135deg, #ffebee 0%, white 100%); 
+                                        padding: 20px; border-radius: 8px; border-left: 4px solid var(--accent-coral);
+                                        box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                                <strong style="color: var(--accent-coral);">Error:</strong> ${personaPackage.error}
+                            </div>`;
                     } else {
                         if (personaPackage.insights_and_analysis && personaPackage.insights_and_analysis.length > 0) {
-                            personaPackage.insights_and_analysis.forEach(item => {
+                            personaPackage.insights_and_analysis.forEach((item, index) => {
                                 insightsContentHTML += `
                                     <div class="insight-block">
-                                        <p><strong>Insight:</strong> ${item.insight}</p>
-                                        <p><strong>Reasoning:</strong> ${item.supporting_reasoning || 'N/A'}</p>
-                                        <p><strong>Confidence:</strong> ${item.confidence_level || 'N/A'}</p>
-                                        ${item.identified_risks && item.identified_risks.length > 0 ? `<p><strong>Risks:</strong> <span style="color: #D9534F;">${item.identified_risks.join(', ')}</span></p>` : ''}
-                                        ${item.identified_opportunities && item.identified_opportunities.length > 0 ? `<p><strong>Opportunities:</strong> <span style="color: #5CB85C;">${item.identified_opportunities.join(', ')}</span></p>` : ''}
+                                        <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
+                                            <div style="background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-coral) 100%);
+                                                        color: white; width: 32px; height: 32px; border-radius: 50%;
+                                                        display: flex; align-items: center; justify-content: center;
+                                                        font-weight: 700; font-size: 0.9em; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                                ${index + 1}
+                                            </div>
+                                            <div style="flex: 1;">
+                                                <h4 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
+                                                    ${item.insight}
+                                                </h4>
+                                                <p style="margin: 0 0 10px 0; line-height: 1.6;">
+                                                    <strong style="color: var(--primary-darker);">Reasoning:</strong> 
+                                                    ${item.supporting_reasoning || 'N/A'}
+                                                </p>
+                                                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                                                    <span style="background: linear-gradient(135deg, var(--secondary-color) 0%, var(--accent-yellow) 100%);
+                                                                 color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; font-weight: 600;">
+                                                        Confidence: ${item.confidence_level || 'N/A'}
+                                                    </span>
+                                                </div>
+                                                ${item.identified_risks && item.identified_risks.length > 0 ? `
+                                                    <div style="margin: 10px 0;">
+                                                        <strong style="color: var(--accent-coral);">⚠️ Risks:</strong> 
+                                                        <span style="color: var(--accent-coral);">${item.identified_risks.join(', ')}</span>
+                                                    </div>` : ''}
+                                                ${item.identified_opportunities && item.identified_opportunities.length > 0 ? `
+                                                    <div style="margin: 10px 0;">
+                                                        <strong style="color: var(--secondary-color);">🌟 Opportunities:</strong> 
+                                                        <span style="color: var(--secondary-color);">${item.identified_opportunities.join(', ')}</span>
+                                                    </div>` : ''}
+                                            </div>
+                                        </div>
                                     </div>`;
                             });
                         } else {
-                            insightsContentHTML += '<p>No specific insights provided by this persona.</p>';
+                            insightsContentHTML += '<p>No specific insights provided by this expert.</p>';
                         }
                     }
+                    
                     resultsContentDiv.innerHTML += `
                         <div class="content-section" id="${contentId}">
-                            <h2><span class="icon-placeholder">${getNavIcon(itemName)}</span> ${itemName}</h2>
-                            ${personaDefinitionHTML}
-                            ${insightsContentHTML}
+                            <div class="card-header">
+                                <h2>
+                                    <span class="header-icon">${getNavIcon(itemName)}</span> 
+                                    ${itemName}
+                                    <span class="expert-badge">Expert Analysis</span>
+                                </h2>
+                            </div>
+                            <div class="card-content">
+                                ${personaDefinitionHTML}
+                                <div class="section-header">
+                                    <span class="section-icon">🔍</span>
+                                    <h3>Analysis & Insights</h3>
+                                </div>
+                                ${insightsContentHTML}
+                            </div>
                         </div>`;
                 });
             }
             
-            // Populate Navigation List based on navOrder
+            // Populate Navigation List with enhanced styling
             navOrder.forEach(item => {
                  const navItemId = `nav-${item.name.replace(/[^a-zA-Z0-9_]/g, '-')}`;
-                 navigationList.innerHTML += `<li><a href="#" id="${navItemId}" onclick="switchContent('${item.id}'); return false;"><span class="nav-icon">${getNavIcon(item.name)}</span> ${item.name}</a></li>`;
+                 navigationList.innerHTML += `
+                    <li>
+                        <a href="#" id="${navItemId}" onclick="switchContent('${item.id}'); return false;">
+                            <span class="nav-icon">${getNavIcon(item.name)}</span> 
+                            ${item.name}
+                        </a>
+                    </li>`;
                  if (!firstItemIdToDisplay) firstItemIdToDisplay = item.id;
             });
 
             if (!firstItemIdToDisplay && data.error) { 
                  const errorContentId = 'global-error-content-final';
-                 resultsContentDiv.innerHTML += `<div class="content-section error active" id="${errorContentId}"><strong>Backend Error:</strong> ${data.error} ${data.details ? '<br>Details: '+JSON.stringify(data.details) : ''}</div>`;
+                 resultsContentDiv.innerHTML += `
+                    <div class="content-section error active" id="${errorContentId}">
+                        <div class="card-header">
+                            <h2><span class="header-icon">⚠️</span> System Error</h2>
+                        </div>
+                        <div class="card-content">
+                            <strong>Backend Error:</strong> ${data.error} 
+                            ${data.details ? '<br><strong>Details:</strong> '+JSON.stringify(data.details) : ''}
+                        </div>
+                    </div>`;
                  firstItemIdToDisplay = errorContentId;
             } else if (!firstItemIdToDisplay) {
                  const noResultsId = 'no-results-content-final';
-                 resultsContentDiv.innerHTML += `<div class="content-section active" id="${noResultsId}"><p>No results to display. Please submit a problem.</p></div>`;
+                 resultsContentDiv.innerHTML += `
+                    <div class="content-section active" id="${noResultsId}">
+                        <div class="card-header">
+                            <h2><span class="header-icon">📝</span> No Results</h2>
+                        </div>
+                        <div class="card-content">
+                            <p>No results to display. Please submit a problem to begin analysis.</p>
+                        </div>
+                    </div>`;
                  firstItemIdToDisplay = noResultsId;
             }
 
