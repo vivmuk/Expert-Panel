@@ -978,6 +978,60 @@
             }
         }
 
+        .venice-footer {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-darker) 100%);
+            color: #ffffff;
+            padding: 20px 0;
+            text-align: center;
+            margin-top: auto;
+            box-shadow: 0 -4px 20px rgba(30, 64, 175, 0.15);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .venice-footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .venice-footer p {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+        
+        .venice-link {
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        
+        .venice-link:hover {
+            color: var(--secondary-color);
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .venice-link:active {
+            transform: translateY(0);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .venice-footer {
+                padding: 15px 0;
+            }
+            
+            .venice-footer p {
+                font-size: 13px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1982,5 +2036,12 @@
         });
 
     </script>
+    
+    <!-- Venice.ai Footer -->
+    <footer class="venice-footer">
+        <div class="venice-footer-content">
+            <p>Powered by <a href="https://venice.ai" target="_blank" rel="noopener noreferrer" class="venice-link">Venice.ai</a></p>
+        </div>
+    </footer>
 </body>
 </html>
