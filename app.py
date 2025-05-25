@@ -23,6 +23,53 @@ def handle_preflight():
         response.headers.add("Access-Control-Allow-Credentials", "true")
         return response
 
+# --- Utility Functions ---
+def clean_text_content(text):
+    """
+    Clean up text content by removing [REF] tags and other unwanted formatting
+    that Venice AI might include in its responses.
+    """
+    if not isinstance(text, str):
+        return text
+    
+    import re
+    
+    # Remove [REF] tags and their content - matches [REF], [REF1], [REF]5[/REF], etc.
+    text = re.sub(r'\[REF[^\]]*\][^[]*\[/REF\]', '', text)  # Remove full [REF]...[/REF] blocks
+    text = re.sub(r'\[REF[^\]]*\]', '', text)  # Remove standalone [REF] tags
+    text = re.sub(r'\[/REF\]', '', text)  # Remove closing [/REF] tags
+    
+    # Remove other common unwanted formatting
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # Convert **bold** to plain text
+    text = re.sub(r'\*([^*]+)\*', r'\1', text)  # Convert *italic* to plain text
+    
+    # Clean up extra whitespace
+    text = re.sub(r'\s+', ' ', text)  # Replace multiple spaces with single space
+    text = text.strip()  # Remove leading/trailing whitespace
+    
+    return text
+
+def clean_insights_data(insights_data):
+    """
+    Recursively clean all text content in insights data structure
+    """
+    if isinstance(insights_data, dict):
+        cleaned = {}
+        for key, value in insights_data.items():
+            if isinstance(value, str):
+                cleaned[key] = clean_text_content(value)
+            elif isinstance(value, (dict, list)):
+                cleaned[key] = clean_insights_data(value)
+            else:
+                cleaned[key] = value
+        return cleaned
+    elif isinstance(insights_data, list):
+        return [clean_insights_data(item) for item in insights_data]
+    elif isinstance(insights_data, str):
+        return clean_text_content(insights_data)
+    else:
+        return insights_data
+
 # --- Venice AI API Interaction ---
 def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema):
     """
@@ -119,7 +166,10 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
             print(f"Warning: Message content was not a string after attempted extraction for model {model_id}, schema {schema_name_for_api}. Type: {type(json_string_to_parse)}")
             structured_content = json_string_to_parse 
         
-        return structured_content
+        # Clean the structured content to remove [REF] tags and other unwanted formatting
+        cleaned_content = clean_insights_data(structured_content)
+        
+        return cleaned_content
         
     except requests.exceptions.Timeout:
         print(f"Timeout error calling Venice AI API for model {model_id}, schema {schema_name_for_api}")

@@ -1248,31 +1248,75 @@
             let yPosition = 40;
             const pageHeight = doc.internal.pageSize.getHeight();
             const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 40;
-            const usableWidth = pageWidth - (2 * margin);
+            const margin = 50; // Increased left margin
+            const rightMargin = 40; // Specific right margin
+            const usableWidth = pageWidth - margin - rightMargin; // Account for both margins
             
             function addFormattedText(text, x, y, options = {}) {
-                const { fontSize = 10, fontStyle = 'normal', color = '#333333', maxWidth = usableWidth, lineHeightFactor = 1.4, isTitle = false } = options;
+                const { 
+                    fontSize = 10, 
+                    fontStyle = 'normal', 
+                    color = '#333333', 
+                    maxWidth = usableWidth, 
+                    lineHeightFactor = 1.4, 
+                    isTitle = false,
+                    indent = 0 
+                } = options;
+                
                 doc.setFontSize(fontSize);
                 doc.setFont("helvetica", fontStyle);
                 doc.setTextColor(color.startsWith('#') ? color.substring(1) : color);
 
-                const lines = doc.splitTextToSize(text, maxWidth);
+                // Ensure text doesn't exceed page width
+                const effectiveWidth = Math.min(maxWidth - indent, usableWidth - indent);
+                const lines = doc.splitTextToSize(text, effectiveWidth);
                 let localY = y;
+                
                 lines.forEach((line, index) => {
                     if (index > 0) localY += fontSize * lineHeightFactor;
                     localY = checkAndAddPage(localY, fontSize * lineHeightFactor);
-                    doc.text(line, x, localY);
+                    doc.text(line, x + indent, localY);
                 });
-                return localY + ( (lines.length > 0 && !isTitle) ? (fontSize * lineHeightFactor * 0.5) : 0);
+                
+                return localY + ((lines.length > 0 && !isTitle) ? (fontSize * lineHeightFactor * 0.5) : 0);
             }
 
             function checkAndAddPage(currentY, spaceNeeded = 20) {
-                if (currentY + spaceNeeded > pageHeight - margin) {
+                if (currentY + spaceNeeded > pageHeight - 60) { // Increased bottom margin
                     doc.addPage();
-                    return margin;
+                    return 60; // Increased top margin for new pages
                 }
                 return currentY;
+            }
+
+            function addSection(title, content, options = {}) {
+                yPosition = checkAndAddPage(yPosition, 40);
+                yPosition = addFormattedText(title, margin, yPosition, { 
+                    fontSize: 14, 
+                    fontStyle: 'bold', 
+                    color: '#0056b3', 
+                    isTitle: true 
+                });
+                yPosition += 8;
+                
+                if (typeof content === 'string') {
+                    yPosition = addFormattedText(content, margin, yPosition, { 
+                        fontSize: 11, 
+                        lineHeightFactor: 1.6,
+                        ...options 
+                    });
+                } else if (Array.isArray(content)) {
+                    content.forEach(item => {
+                        yPosition = addFormattedText(`• ${item}`, margin, yPosition, { 
+                            fontSize: 10, 
+                            indent: 15,
+                            lineHeightFactor: 1.5,
+                            ...options 
+                        });
+                    });
+                }
+                yPosition += 15;
+                return yPosition;
             }
 
             // Title Page
@@ -1288,121 +1332,189 @@
             // Add a separator line
             doc.setDrawColor('#0056b3');
             doc.setLineWidth(2);
-            doc.line(margin, yPosition, pageWidth - margin, yPosition);
+            doc.line(margin, yPosition, pageWidth - rightMargin, yPosition);
             yPosition += 30;
             
-            // Original Problem
-            yPosition = checkAndAddPage(yPosition, 60);
-            yPosition = addFormattedText("Original Business Problem:", margin, yPosition, { fontSize: 16, fontStyle: 'bold', color: '#0056b3', isTitle: true });
-            yPosition += 10;
+            // Original Problem with better formatting
+            yPosition = checkAndAddPage(yPosition, 80);
+            yPosition = addFormattedText("Original Business Problem:", margin, yPosition, { 
+                fontSize: 16, 
+                fontStyle: 'bold', 
+                color: '#0056b3', 
+                isTitle: true 
+            });
+            yPosition += 15;
             
-            // Add background for the problem statement
+            // Add background box for problem statement
             doc.setFillColor('#f8f9fa');
-            const problemHeight = 40;
+            const problemText = data.original_problem || 'N/A';
+            const problemLines = doc.splitTextToSize(problemText, usableWidth - 20);
+            const problemHeight = problemLines.length * 12 * 1.6 + 20;
             doc.rect(margin, yPosition - 5, usableWidth, problemHeight, 'F');
             
-            yPosition = addFormattedText(data.original_problem || 'N/A', margin + 10, yPosition + 5, { fontSize: 12, lineHeightFactor: 1.6, maxWidth: usableWidth - 20 });
+            yPosition = addFormattedText(problemText, margin + 10, yPosition + 5, { 
+                fontSize: 12, 
+                lineHeightFactor: 1.6, 
+                maxWidth: usableWidth - 20 
+            });
             yPosition += 25;
 
             // Synthesis Report
             if (data.synthesis_report && !data.synthesis_report.error) {
                 const synthesis = data.synthesis_report;
-                yPosition = checkAndAddPage(yPosition, 50);
-                yPosition = addFormattedText("Synthesis Report & Action Plan", margin, yPosition, { fontSize: 16, fontStyle: 'bold', color: '#0056b3', isTitle: true });
                 
-                yPosition = addFormattedText("Cohesive Summary:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
-                yPosition = addFormattedText(synthesis.cohesive_summary || 'N/A', margin, yPosition, { fontSize: 10 });
-
-                yPosition = addFormattedText("Key Themes:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
-                (synthesis.key_themes || []).forEach(theme => {
-                    yPosition = addFormattedText("• " + theme, margin + 10, yPosition, { fontSize: 10 });
+                yPosition = addSection("Executive Summary", synthesis.cohesive_summary || 'N/A');
+                yPosition = addSection("Key Themes", synthesis.key_themes || []);
+                yPosition = addSection("Potential Blind Spots", synthesis.potential_blind_spots || []);
+                
+                // Actionable Next Steps with better formatting
+                yPosition = checkAndAddPage(yPosition, 60);
+                yPosition = addFormattedText("Actionable Next Steps:", margin, yPosition, { 
+                    fontSize: 14, 
+                    fontStyle: 'bold', 
+                    color: '#0056b3', 
+                    isTitle: true 
                 });
-                yPosition += 5;
-
-                yPosition = addFormattedText("Potential Blind Spots:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
-                (synthesis.potential_blind_spots || []).forEach(spot => {
-                    yPosition = addFormattedText("• " + spot, margin + 10, yPosition, { fontSize: 10 });
-                });
-                yPosition += 5;
-
-                yPosition = addFormattedText("Actionable Next Steps:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
-                (synthesis.actionable_next_steps || []).forEach(action => {
-                    yPosition = checkAndAddPage(yPosition, 40);
-                    yPosition = addFormattedText(`Step: ${action.step_description}`, margin + 10, yPosition, { fontSize: 10, fontStyle: 'bold'});
-                    yPosition = addFormattedText(`Priority: ${action.priority}`, margin + 20, yPosition, { fontSize: 10 });
+                yPosition += 15;
+                
+                (synthesis.actionable_next_steps || []).forEach((action, index) => {
+                    yPosition = checkAndAddPage(yPosition, 60);
+                    
+                    // Step header
+                    yPosition = addFormattedText(`Step ${index + 1}: ${action.step_description}`, margin, yPosition, { 
+                        fontSize: 11, 
+                        fontStyle: 'bold',
+                        maxWidth: usableWidth
+                    });
+                    
+                    // Priority
+                    yPosition = addFormattedText(`Priority: ${action.priority}`, margin + 15, yPosition, { 
+                        fontSize: 10,
+                        color: action.priority === 'High' ? '#D9534F' : action.priority === 'Medium' ? '#F0AD4E' : '#5CB85C'
+                    });
+                    
+                    // Rationale
                     if (action.suggested_rationale) {
-                        yPosition = addFormattedText(`Rationale: ${action.suggested_rationale}`, margin + 20, yPosition, { fontSize: 10, maxWidth: usableWidth - 30 });
+                        yPosition = addFormattedText(`Rationale: ${action.suggested_rationale}`, margin + 15, yPosition, { 
+                            fontSize: 10, 
+                            maxWidth: usableWidth - 30,
+                            lineHeightFactor: 1.5
+                        });
                     }
-                    yPosition += 5;
-                });
-                 yPosition += 10;
-            }
-            
-            // Search Findings
-            if (data.search_findings && !data.search_findings.error && data.search_findings.findings && data.search_findings.findings.length > 0) {
-                doc.addPage();
-                yPosition = margin;
-                const searchData = data.search_findings;
-                yPosition = addFormattedText(`${searchData.persona_name || "Research Assistant"} - Key Findings`, margin, yPosition, { fontSize: 16, fontStyle: 'bold', color: '#0056b3', isTitle: true });
-
-                (searchData.findings || []).forEach(item => {
-                    yPosition = checkAndAddPage(yPosition, 40);
-                    yPosition = addFormattedText(item.title || "Untitled Finding", margin, yPosition, { fontSize: 11, fontStyle: 'bold', color: '#007bff' });
-                    if (item.link) {
-                         yPosition = addFormattedText(`Source: ${item.link}`, margin, yPosition, { fontSize: 9, color: '#007bff' });
-                    }
-                    yPosition = addFormattedText(item.snippet || 'N/A', margin, yPosition, { fontSize: 10, maxWidth: usableWidth });
                     yPosition += 10;
                 });
             }
-
-            // Detailed Expert Insights
+            
+            // Expert Insights - Start on new page
             if (data.expert_insights && data.expert_insights.length > 0) {
-                data.expert_insights.forEach(personaPackage => {
-                    doc.addPage();
-                    yPosition = margin;
+                doc.addPage();
+                yPosition = 60;
+                
+                yPosition = addFormattedText("Expert Analysis Details", margin, yPosition, { 
+                    fontSize: 18, 
+                    fontStyle: 'bold', 
+                    color: '#0056b3', 
+                    isTitle: true 
+                });
+                yPosition += 20;
+                
+                data.expert_insights.forEach((personaPackage, personaIndex) => {
+                    if (personaIndex > 0) {
+                        doc.addPage();
+                        yPosition = 60;
+                    }
                     
-                    // Expert header with background
+                    // Expert header
+                    const expertName = personaPackage.persona_name || 'Unknown Expert';
                     doc.setFillColor('#e7f3ff');
-                    doc.rect(margin, yPosition - 5, usableWidth, 30, 'F');
-                    yPosition = addFormattedText(`Expert Persona: ${personaPackage.persona_name || 'Unknown Persona'}`, margin + 10, yPosition + 5, { fontSize: 16, fontStyle: 'bold', color: '#0056b3', isTitle: true });
-                    yPosition += 15;
+                    doc.rect(margin, yPosition - 5, usableWidth, 35, 'F');
                     
-                    const definition = (data.persona_definitions || []).find(p => p.name === personaPackage.persona_name);
+                    yPosition = addFormattedText(`Expert: ${expertName}`, margin + 10, yPosition + 10, { 
+                        fontSize: 16, 
+                        fontStyle: 'bold', 
+                        color: '#0056b3', 
+                        isTitle: true 
+                    });
+                    yPosition += 20;
+                    
+                    // Expert description
+                    const definition = (data.persona_definitions || []).find(p => p.name === expertName);
                     if (definition) {
-                        yPosition = addFormattedText("Role & Focus:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
-                        yPosition = addFormattedText(`${definition.description || 'N/A'}. Focus areas: ${(definition.focus_areas || []).join(', ') || 'N/A'}`, margin, yPosition, { fontSize: 10 });
+                        yPosition = addFormattedText(`Expertise: ${definition.description || 'N/A'}`, margin, yPosition, { 
+                            fontSize: 11,
+                            maxWidth: usableWidth
+                        });
+                        
+                        if (definition.focus_areas && definition.focus_areas.length > 0) {
+                            yPosition = addFormattedText(`Focus Areas: ${definition.focus_areas.join(', ')}`, margin, yPosition, { 
+                                fontSize: 10,
+                                color: '#666666',
+                                maxWidth: usableWidth
+                            });
+                        }
                         yPosition += 15;
                     }
 
+                    // Insights
                     if (personaPackage.error) {
-                        yPosition = addFormattedText(`Error: ${personaPackage.error}`, margin, yPosition, { fontSize: 10, color: '#D9534F', fontStyle:'bold' });
-                    } else {
-                        yPosition = addFormattedText("Detailed Analysis & Insights:", margin, yPosition, { fontSize: 12, fontStyle: 'bold' });
-                        yPosition += 5;
-                        
-                        (personaPackage.insights_and_analysis || []).forEach((item, index) => {
-                            yPosition = checkAndAddPage(yPosition, 70); 
+                        yPosition = addFormattedText(`Error: ${personaPackage.error}`, margin, yPosition, { 
+                            fontSize: 10, 
+                            color: '#D9534F', 
+                            fontStyle: 'bold'
+                        });
+                    } else if (personaPackage.insights_and_analysis && personaPackage.insights_and_analysis.length > 0) {
+                        personaPackage.insights_and_analysis.forEach((item, index) => {
+                            yPosition = checkAndAddPage(yPosition, 80);
                             
-                            // Add insight box background
+                            // Insight box background
+                            const boxHeight = 60;
                             doc.setFillColor('#f8f9fa');
-                            const insightBoxHeight = 60;
-                            doc.rect(margin + 5, yPosition - 5, usableWidth - 10, insightBoxHeight, 'F');
+                            doc.rect(margin + 5, yPosition - 5, usableWidth - 10, boxHeight, 'F');
                             
-                            yPosition = addFormattedText(`Insight ${index + 1}: ${item.insight || 'N/A'}`, margin + 10, yPosition, { fontSize: 11, fontStyle:'bold', maxWidth: usableWidth - 30 });
-                            yPosition = addFormattedText(`Reasoning: ${item.supporting_reasoning || 'N/A'}`, margin + 10, yPosition, { fontSize: 10, maxWidth: usableWidth - 30 });
-                            yPosition = addFormattedText(`Confidence Level: ${item.confidence_level || 'N/A'}`, margin + 10, yPosition, { fontSize: 10 });
+                            yPosition = addFormattedText(`Insight ${index + 1}: ${item.insight || 'N/A'}`, margin + 10, yPosition, { 
+                                fontSize: 11, 
+                                fontStyle: 'bold', 
+                                maxWidth: usableWidth - 30 
+                            });
+                            
+                            yPosition = addFormattedText(`Reasoning: ${item.supporting_reasoning || 'N/A'}`, margin + 10, yPosition, { 
+                                fontSize: 10, 
+                                maxWidth: usableWidth - 30,
+                                lineHeightFactor: 1.5
+                            });
+                            
+                            yPosition = addFormattedText(`Confidence: ${item.confidence_level || 'N/A'}`, margin + 10, yPosition, { 
+                                fontSize: 10 
+                            });
                             
                             if (item.identified_risks && item.identified_risks.length > 0) {
-                                yPosition = addFormattedText(`Risks: ${item.identified_risks.join(', ')}`, margin + 10, yPosition, { fontSize: 10, color: '#D9534F', maxWidth: usableWidth - 30 });
+                                yPosition = addFormattedText(`Risks: ${item.identified_risks.join(', ')}`, margin + 10, yPosition, { 
+                                    fontSize: 10, 
+                                    color: '#D9534F', 
+                                    maxWidth: usableWidth - 30 
+                                });
                             }
+                            
                             if (item.identified_opportunities && item.identified_opportunities.length > 0) {
-                                yPosition = addFormattedText(`Opportunities: ${item.identified_opportunities.join(', ')}`, margin + 10, yPosition, { fontSize: 10, color: '#5CB85C', maxWidth: usableWidth - 30 });
+                                yPosition = addFormattedText(`Opportunities: ${item.identified_opportunities.join(', ')}`, margin + 10, yPosition, { 
+                                    fontSize: 10, 
+                                    color: '#5CB85C', 
+                                    maxWidth: usableWidth - 30 
+                                });
                             }
-                            yPosition += 15; 
+                            yPosition += 20;
                         });
                     }
                 });
+            }
+            
+            // Add page numbers
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor('#666666');
+                doc.text(`Page ${i} of ${pageCount}`, pageWidth - rightMargin - 50, pageHeight - 20);
             }
             
             doc.save('AI_Expert_Panel_Report.pdf');
