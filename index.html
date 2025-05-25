@@ -1045,12 +1045,6 @@
             <ul id="navigationList">
                 <!-- Navigation items will be populated dynamically -->
             </ul>
-             <div class="progress-container" id="progressContainer">
-                <div class="progress-bar">
-                    <span class="progress-bar-inner" id="progressBarInner">0%</span>
-                </div>
-                <div id="statusMessage">Initializing...</div>
-            </div>
         </nav>
 
         <main class="container" id="right-panel-container">
@@ -1084,6 +1078,18 @@
                             <div class="progress-bar-fill" id="progressBarFill"></div>
                         </div>
                         <div class="progress-text" id="progressText">0% Complete</div>
+                    </div>
+                    
+                    <!-- Educational Text Section -->
+                    <div class="educational-text-container" style="margin-top: 25px; padding: 20px; 
+                                                                  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+                                                                  border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.2);
+                                                                  min-height: 60px; display: flex; align-items: center; justify-content: center;">
+                        <p id="educationalText" style="margin: 0; font-size: 1.05em; line-height: 1.6; 
+                                                      color: var(--primary-color); text-align: center; 
+                                                      font-weight: 500; transition: opacity 0.5s ease;">
+                            Multiple perspectives reveal blind spots that single viewpoints often miss.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -1119,12 +1125,62 @@
         let globalReportData = null;
         let activeContentId = null;
         let allProcessedItemNames = [];
+        let educationalTextInterval = null;
+
+        // Educational text messages about the platform's value
+        const educationalMessages = [
+            "Multiple perspectives reveal blind spots that single viewpoints often miss.",
+            "Diverse expert opinions lead to more robust and comprehensive business solutions.",
+            "AI-powered expert panels can analyze complex problems faster than traditional consulting.",
+            "Different specializations bring unique insights that strengthen decision-making.",
+            "Cross-functional analysis helps identify risks and opportunities across all business areas.",
+            "Expert diversity reduces cognitive bias and improves strategic thinking quality.",
+            "Venice AI enables access to world-class expertise without geographical limitations.",
+            "Collaborative intelligence combines human expertise with AI processing power.",
+            "Multi-expert analysis provides confidence through consensus and highlights areas of disagreement.",
+            "Strategic problems benefit from marketing, financial, operational, and technical perspectives simultaneously.",
+            "AI expert panels democratize access to high-level business consulting and strategic advice.",
+            "Synthesized expert opinions create actionable insights that individual consultants might miss.",
+            "Real-time expert analysis accelerates decision-making in fast-paced business environments.",
+            "Comprehensive expert review helps validate assumptions and challenge conventional thinking.",
+            "AI-orchestrated expertise scales personalized business consulting to any organization size."
+        ];
+
+        function startEducationalTextRotation() {
+            const educationalTextElement = document.getElementById('educationalText');
+            if (!educationalTextElement) return;
+
+            let currentIndex = 0;
+            
+            educationalTextInterval = setInterval(() => {
+                // Fade out
+                educationalTextElement.style.opacity = '0';
+                
+                setTimeout(() => {
+                    // Change text to random message
+                    const randomIndex = Math.floor(Math.random() * educationalMessages.length);
+                    educationalTextElement.textContent = educationalMessages[randomIndex];
+                    
+                    // Fade in
+                    educationalTextElement.style.opacity = '1';
+                }, 500); // Half second for fade transition
+                
+            }, 7000); // Change every 7 seconds
+        }
+
+        function stopEducationalTextRotation() {
+            if (educationalTextInterval) {
+                clearInterval(educationalTextInterval);
+                educationalTextInterval = null;
+            }
+        }
 
         function hideProcessingNotification() {
             const processingNotification = document.getElementById('processingNotification');
             if (processingNotification) {
                 processingNotification.classList.remove('visible');
             }
+            stopEducationalTextRotation();
         }
 
         function showProcessingNotification() {
@@ -1132,6 +1188,7 @@
             if (processingNotification) {
                 processingNotification.classList.add('visible');
             }
+            startEducationalTextRotation();
         }
 
         function getNavIcon(itemName) {
@@ -1156,9 +1213,6 @@
             const progressBarFill = document.getElementById('progressBarFill');
             const progressText = document.getElementById('progressText');
             const processingStatus = document.getElementById('processingStatus');
-            const progressContainer = document.getElementById('progressContainer');
-            const progressBarInner = document.getElementById('progressBarInner');
-            const statusMessage = document.getElementById('statusMessage');
             
             const percentage = Math.min(100, Math.round((currentProgressNumericStage / TOTAL_PROGRESS_STAGES) * 100));
             
@@ -1171,22 +1225,6 @@
             }
             if (processingStatus) {
                 processingStatus.textContent = message;
-            }
-
-            // Update left panel progress
-            if (progressBarInner) {
-                progressBarInner.style.width = percentage + '%';
-                progressBarInner.textContent = percentage + '%';
-            }
-            if (statusMessage) {
-                statusMessage.textContent = message;
-            }
-
-            // Hide progress container when complete
-            if (percentage >= 100 && progressContainer) {
-                setTimeout(() => {
-                    progressContainer.style.display = 'none';
-                }, 2000);
             }
 
             // Update navigation processing states
@@ -1214,9 +1252,6 @@
                     if (processingStatus) {
                         processingStatus.textContent = `Processing: ${currentProcessingItemName}...`;
                     }
-                    if (statusMessage) {
-                        statusMessage.textContent = `Processing: ${currentProcessingItemName}...`;
-                    }
                     activeNavItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
             }
@@ -1226,7 +1261,6 @@
             const problemText = document.getElementById('businessProblem').value;
             const resultsContentDiv = document.getElementById('results-content');
             const navigationList = document.getElementById('navigationList');
-            const progressContainer = document.getElementById('progressContainer');
             const submitButton = document.getElementById('submitButton');
             const downloadButton = document.getElementById('downloadPdfButton');
 
@@ -1242,7 +1276,6 @@
             submitButton.disabled = true;
             downloadButton.style.display = 'none';
             showProcessingNotification();
-            if (progressContainer) progressContainer.style.display = 'block';
             updateProgress('Initializing...', STAGE_IDLE);
 
             try {
@@ -2040,9 +2073,6 @@
             if (!resultsContentDiv.innerHTML.trim()) {
                  resultsContentDiv.innerHTML = `<div class="content-section active" id="initial-message"><p>Please enter your business problem and click "Get Expert Insights" to begin.</p></div>`;
             }
-            
-            const progressContainer = document.getElementById('progressContainer');
-            if (progressContainer) progressContainer.style.display = 'none';
         });
 
     </script>
