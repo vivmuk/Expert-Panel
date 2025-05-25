@@ -1,6 +1,4 @@
 flask
 flask-cors
 requests
-gunicorn
-gevent
-greenlet 
+gunicorn 

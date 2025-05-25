@@ -50,7 +50,7 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
     response_obj_for_logging = None
     message_content_for_logging = None # To log problematic content if JSON parsing fails
     try:
-        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=60) # Reduced timeout
+        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=120) # Increased timeout to 120 seconds
         response_obj_for_logging = response
         response.raise_for_status()
         
@@ -371,8 +371,11 @@ def handle_process_problem():
         return jsonify({"error": "Persona generation failed. Check backend console for details."}), 500
 
     all_insights_by_persona = []
-    print("\n--- Stage 3: Getting Insights from Each Persona ---")
-    for persona in personas:
+    print(f"\n--- Stage 3: Getting Insights from Each Persona (Total: {len(personas)}) ---")
+    for idx, persona in enumerate(personas):
+        persona_name = persona.get('name', f'Persona {idx+1}') if isinstance(persona, dict) else f'Persona {idx+1}'
+        print(f"Processing {idx+1}/{len(personas)}: {persona_name}")
+        
         if not isinstance(persona, dict):
             print(f"Skipping invalid persona object: {persona}")
             all_insights_by_persona.append({"persona_name": "Invalid Persona Object", "insights_and_analysis": [], "error": "Invalid persona structure received."})
@@ -381,6 +384,7 @@ def handle_process_problem():
         try:
             persona_insights = get_insights_from_persona(business_problem_text, persona)
             all_insights_by_persona.append(persona_insights)
+            print(f"Completed {idx+1}/{len(personas)}: {persona_name}")
         except Exception as e:
             print(f"Error getting insights from {persona.get('name', 'Unknown')}: {e}")
             all_insights_by_persona.append({
@@ -388,6 +392,7 @@ def handle_process_problem():
                 "insights_and_analysis": [],
                 "error": f"Processing failed: {str(e)}"
             })
+            print(f"Failed {idx+1}/{len(personas)}: {persona_name} - continuing with next persona")
     
     # Call the new synthesis function
     synthesis_report = generate_synthesis_report(business_problem_text, all_insights_by_persona, personas)
