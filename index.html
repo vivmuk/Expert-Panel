@@ -75,28 +75,30 @@
         .main-content-wrapper {
             display: flex;
             flex-grow: 1;
-            max-width: 1800px; /* Wider */
+            max-width: 1400px; /* Reduced from 1800px to prevent overflow */
             width: 100%;
-            margin: 30px auto; /* Increased margin */
-            margin-left: 40px; /* Add specific left margin for whitespace */
-            gap: 30px; /* Increased gap */
-            padding: 0 20px; /* Add horizontal padding */
+            margin: 30px auto;
+            margin-left: 20px; /* Reduced from 40px */
+            margin-right: 20px; /* Add right margin to balance */
+            gap: 25px; /* Reduced gap */
+            padding: 0 15px; /* Reduced padding */
         }
 
         #left-panel-nav {
-            width: 320px; /* Increased width for better usability */
-            background: linear-gradient(135deg, var(--left-panel-bg) 0%, var(--primary-darker) 100%); /* Gradient background */
-            color: var(--left-panel-text); /* Text color for the panel */
-            padding: 25px; /* Increased padding */
+            width: 280px; /* Reduced from 320px */
+            background: linear-gradient(135deg, var(--left-panel-bg) 0%, var(--primary-darker) 100%);
+            color: var(--left-panel-text);
+            padding: 25px;
             border-right: 1px solid var(--left-panel-border-color);
-            box-shadow: 0 8px 32px rgba(32, 80, 114, 0.3); /* Enhanced shadow with brand colors */
+            box-shadow: 0 8px 32px rgba(32, 80, 114, 0.3);
             display: flex;
             flex-direction: column;
-            border-radius: var(--border-radius-lg); /* Larger border radius */
+            border-radius: var(--border-radius-lg);
             transition: all 0.3s ease;
-            backdrop-filter: blur(10px); /* Modern glassmorphism effect */
+            backdrop-filter: blur(10px);
             position: relative;
             overflow: hidden;
+            flex-shrink: 0; /* Prevent shrinking */
         }
         
         /* Add subtle pattern overlay */
@@ -264,20 +266,25 @@
 
         .container { 
             flex-grow: 1;
+            flex-shrink: 1; /* Allow shrinking if needed */
+            min-width: 0; /* Important for flex child to shrink */
             padding: 0; 
             background: transparent; 
             overflow-y: auto;
+            max-width: calc(100vw - 350px); /* Ensure it doesn't exceed viewport */
         }
 
         .input-section {
             background: linear-gradient(135deg, var(--panel-bg) 0%, color-mix(in srgb, var(--panel-bg) 98%, var(--secondary-color)) 100%);
-            padding: 35px 40px; /* Increased padding */
-            border-radius: var(--border-radius-lg); /* Larger radius */
-            margin-bottom: 35px; /* Increased margin */
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 8px rgba(0, 0, 0, 0.06); /* Layered shadows */
+            padding: 30px 35px; /* Reduced padding */
+            border-radius: var(--border-radius-lg);
+            margin-bottom: 35px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 8px rgba(0, 0, 0, 0.06);
             border: 1px solid var(--border-color);
             position: relative;
             overflow: hidden;
+            max-width: 100%; /* Ensure it doesn't exceed container */
+            box-sizing: border-box; /* Include padding in width calculation */
         }
         
         /* Add subtle pattern to input section */
@@ -417,16 +424,18 @@
         #results-content .content-section {
             display: none;
             background: linear-gradient(135deg, var(--panel-bg) 0%, color-mix(in srgb, var(--panel-bg) 99%, var(--light-green-bg)) 100%);
-            padding: 0; /* Remove padding to let cards handle it */
-            border-radius: var(--border-radius-lg); /* Larger radius */
-            margin-bottom: 35px; /* Increased margin */
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08), 0 2px 10px rgba(0, 0, 0, 0.06); /* Enhanced layered shadows */
+            padding: 0;
+            border-radius: var(--border-radius-lg);
+            margin-bottom: 35px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08), 0 2px 10px rgba(0, 0, 0, 0.06);
             border: 1px solid var(--border-color);
             opacity: 0;
-            transform: translateY(20px); /* More pronounced animation */
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); /* Smoother transition */
+            transform: translateY(20px);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
+            max-width: 100%; /* Ensure content doesn't exceed container */
+            box-sizing: border-box; /* Include padding in width calculation */
         }
         
         /* Modern Card Header */
@@ -482,9 +491,11 @@
         
         /* Card Content */
         .card-content {
-            padding: 30px;
+            padding: 25px 30px; /* Reduced padding */
             position: relative;
             z-index: 1;
+            word-wrap: break-word; /* Ensure long text wraps */
+            overflow-wrap: break-word; /* Modern alternative */
         }
         
         /* Enhanced Insight Blocks */
@@ -669,15 +680,39 @@
         }
 
         /* Responsive Design Improvements */
-        @media (max-width: 1200px) {
+        @media (max-width: 1400px) {
             .main-content-wrapper {
-                margin-left: 20px;
-                max-width: 95%;
-                gap: 25px;
+                margin-left: 15px;
+                margin-right: 15px;
+                max-width: 100%;
+                gap: 20px;
+                padding: 0 10px;
             }
             
             #left-panel-nav {
-                width: 280px;
+                width: 260px;
+            }
+            
+            .container {
+                max-width: calc(100vw - 320px);
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .main-content-wrapper {
+                margin-left: 10px;
+                margin-right: 10px;
+                max-width: 95%;
+                gap: 15px;
+                padding: 0 5px;
+            }
+            
+            #left-panel-nav {
+                width: 240px;
+            }
+            
+            .container {
+                max-width: calc(100vw - 280px);
             }
         }
         
@@ -685,7 +720,8 @@
             .main-content-wrapper {
                 flex-direction: column;
                 margin-left: 10px;
-                padding: 0 10px;
+                margin-right: 10px;
+                padding: 0 5px;
                 gap: 20px;
             }
             
@@ -694,16 +730,24 @@
                 order: 2; /* Move navigation below content on mobile */
             }
             
+            .container {
+                max-width: 100%;
+            }
+            
             .header h1 {
                 font-size: 2em;
             }
             
             .input-section {
-                padding: 25px 20px;
+                padding: 20px 25px;
             }
             
             #results-content .content-section {
-                padding: 25px 20px;
+                padding: 0;
+            }
+            
+            .card-content {
+                padding: 20px 25px;
             }
             
             textarea {
@@ -732,13 +776,12 @@
             }
             
             .main-content-wrapper {
-                margin: 15px auto;
-                margin-left: 5px;
-                padding: 0 5px;
+                margin: 15px 5px;
+                padding: 0;
             }
             
-            .input-section, #results-content .content-section {
-                padding: 20px 15px;
+            .input-section, .card-content {
+                padding: 15px 20px;
             }
             
             #results-content h2 {
