@@ -50,9 +50,14 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
     response_obj_for_logging = None
     message_content_for_logging = None # To log problematic content if JSON parsing fails
     try:
-        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=120) # Increased timeout to 120 seconds
+        print(f"About to call Venice AI API for model {model_id}, schema {schema_name_for_api}")
+        print(f"Venice API URL: {VENICE_CHAT_COMPLETIONS_URL}")
+        print(f"Timeout set to: 30 seconds")
+        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=30) # Reduced timeout to 30 seconds for debugging
+        print(f"Venice AI API call completed successfully for {model_id}")
         response_obj_for_logging = response
         response.raise_for_status()
+        print(f"Venice AI API response status: {response.status_code}")
         
         full_api_response_json = response.json()
         
@@ -348,6 +353,37 @@ def health_check():
 @cross_origin(supports_credentials=True)
 def test_cors():
     return jsonify({"status": "success", "message": "CORS is working for POST requests"}), 200
+
+@app.route('/test_venice', methods=['POST'])
+@cross_origin(supports_credentials=True)
+def test_venice_api():
+    """Simple test endpoint to check Venice AI connectivity"""
+    try:
+        print("Testing basic Venice AI connectivity...")
+        simple_payload = {
+            "model": "qwen-2.5-qwq-32b",
+            "messages": [{"role": "user", "content": "Say hello"}],
+            "temperature": 0.7,
+            "max_completion_tokens": 50
+        }
+        headers = {
+            "Authorization": f"Bearer {VENICE_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        print("Sending simple request to Venice AI...")
+        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=simple_payload, headers=headers, timeout=15)
+        print(f"Venice AI response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            return jsonify({"status": "success", "message": "Venice AI is accessible", "response_preview": str(response.text)[:200]})
+        else:
+            return jsonify({"status": "error", "message": f"Venice AI returned status {response.status_code}", "details": response.text})
+            
+    except requests.exceptions.Timeout:
+        return jsonify({"status": "error", "message": "Venice AI request timed out after 15 seconds"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Venice AI test failed: {str(e)}"})
 
 @app.route('/process_problem', methods=['POST'])
 @cross_origin(supports_credentials=True)
