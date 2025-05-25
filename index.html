@@ -5,26 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Expert Panel - Synthesis</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <style>
         :root {
             /* New Color Palette & Modern Look Variables */
-            --primary-color: #205072; /* Dark Teal - Primary */
-            --primary-darker: #103A52; /* Darker shade of primary */
-            --secondary-color: #329D9C; /* Medium Teal - Secondary/Accent */
-            --accent-orange: #F9A03F;   /* Accent Orange */
-            --accent-coral: #ED553B;    /* Accent Coral/Red */
-            --accent-yellow: #FFCB05;   /* Accent Yellow (from image) */
-            --light-green-bg: #E0F2F1; /* Light Teal/Greenish - for subtle backgrounds */
+            --primary-color: #1e40af; /* Modern Blue */
+            --primary-darker: #1e3a8a; 
+            --secondary-color: #06b6d4; /* Cyan */
+            --accent-orange: #f59e0b;   
+            --accent-coral: #ef4444;    
+            --accent-yellow: #eab308;   
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --light-green-bg: #f0fdf4;
 
-            --text-color: #263238; /* Dark Slate Grey - for better contrast */
-            --light-text-color: #546E7A; /* Lighter Slate Grey */
-            --bg-color: #F8F9FA; /* Light Grey - General page background */
-            --panel-bg: #FFFFFF;         /* White - For content panels */
-            --border-color: #CFD8DC;     /* Lighter Grey Blue - for borders */
+            --text-color: #1f2937; 
+            --light-text-color: #6b7280; 
+            --bg-color: #f8fafc; 
+            --panel-bg: #ffffff;         
+            --border-color: #e5e7eb;     
             
-            --hover-bg-color: #B2DFDB; /* Light teal for general hovers */
+            --hover-bg-color: #e0f2fe;
             --active-nav-bg: var(--accent-coral);
             --active-nav-text: #FFFFFF;
 
@@ -41,10 +44,11 @@
             --shadow-sm: 0 2px 5px rgba(0,0,0,0.07);
             --shadow-md: 0 5px 12px rgba(0,0,0,0.09);
             --shadow-lg: 0 8px 20px rgba(0,0,0,0.12);
-            --font-family: 'Roboto', sans-serif;
+            --font-family: 'Inter', sans-serif;
             --border-radius-sm: 6px;
             --border-radius-md: 10px;
             --border-radius-lg: 15px;
+            --border-radius-xl: 20px;
         }
 
         body {
@@ -864,6 +868,116 @@
             z-index: 10;
         }
 
+        /* Enhanced Modern Spinner */
+        .modern-spinner {
+            width: 60px;
+            height: 60px;
+            margin: 20px auto;
+            position: relative;
+        }
+
+        .modern-spinner::before,
+        .modern-spinner::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            animation: modernSpin 2s linear infinite;
+        }
+
+        .modern-spinner::before {
+            width: 60px;
+            height: 60px;
+            border: 4px solid transparent;
+            border-top: 4px solid var(--secondary-color);
+            border-right: 4px solid var(--accent-orange);
+        }
+
+        .modern-spinner::after {
+            width: 40px;
+            height: 40px;
+            top: 10px;
+            left: 10px;
+            border: 3px solid transparent;
+            border-bottom: 3px solid var(--accent-purple);
+            border-left: 3px solid var(--accent-green);
+            animation: modernSpin 1.5s linear infinite reverse;
+        }
+
+        @keyframes modernSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Enhanced Processing Notification */
+        .processing-notification {
+            display: none;
+            background: linear-gradient(135deg, var(--panel-bg) 0%, #f0f9ff 100%);
+            border: 2px solid var(--secondary-color);
+            border-radius: var(--border-radius-xl);
+            padding: 30px;
+            margin-top: 25px;
+            box-shadow: var(--shadow-xl);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .processing-notification::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .processing-notification.visible {
+            display: block;
+            animation: slideInUp 0.5s ease-out;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .processing-notification h3 {
+            margin: 0 0 20px 0;
+            color: var(--primary-color);
+            font-size: 1.4em;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .processing-notification h3 span {
+            font-size: 1.5em;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -978,8 +1092,13 @@
             const progressBarFill = document.getElementById('progressBarFill');
             const progressText = document.getElementById('progressText');
             const processingStatus = document.getElementById('processingStatus');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBarInner = document.getElementById('progressBarInner');
+            const statusMessage = document.getElementById('statusMessage');
+            
             const percentage = Math.min(100, Math.round((currentProgressNumericStage / TOTAL_PROGRESS_STAGES) * 100));
             
+            // Update main processing notification
             if (progressBarFill) {
                 progressBarFill.style.width = percentage + '%';
             }
@@ -988,6 +1107,22 @@
             }
             if (processingStatus) {
                 processingStatus.textContent = message;
+            }
+
+            // Update left panel progress
+            if (progressBarInner) {
+                progressBarInner.style.width = percentage + '%';
+                progressBarInner.textContent = percentage + '%';
+            }
+            if (statusMessage) {
+                statusMessage.textContent = message;
+            }
+
+            // Hide progress container when complete
+            if (percentage >= 100 && progressContainer) {
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 2000);
             }
 
             // Update navigation processing states
@@ -1014,6 +1149,9 @@
                     activeNavItem.classList.add('processing-nav-item');
                     if (processingStatus) {
                         processingStatus.textContent = `Processing: ${currentProcessingItemName}...`;
+                    }
+                    if (statusMessage) {
+                        statusMessage.textContent = `Processing: ${currentProcessingItemName}...`;
                     }
                     activeNavItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
@@ -1419,276 +1557,414 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
 
-            let yPosition = 40;
+            let yPosition = 50;
             const pageHeight = doc.internal.pageSize.getHeight();
             const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 50; // Increased left margin
-            const rightMargin = 40; // Specific right margin
-            const usableWidth = pageWidth - margin - rightMargin; // Account for both margins
+            const leftMargin = 60;
+            const rightMargin = 50;
+            const usableWidth = pageWidth - leftMargin - rightMargin;
             
             function addFormattedText(text, x, y, options = {}) {
                 const { 
-                    fontSize = 10, 
+                    fontSize = 11, 
                     fontStyle = 'normal', 
                     color = '#333333', 
                     maxWidth = usableWidth, 
-                    lineHeightFactor = 1.4, 
+                    lineHeightFactor = 1.8, 
                     isTitle = false,
-                    indent = 0 
+                    indent = 0,
+                    align = 'left'
                 } = options;
                 
                 doc.setFontSize(fontSize);
                 doc.setFont("helvetica", fontStyle);
                 doc.setTextColor(color.startsWith('#') ? color.substring(1) : color);
 
-                // Ensure text doesn't exceed page width
                 const effectiveWidth = Math.min(maxWidth - indent, usableWidth - indent);
                 const lines = doc.splitTextToSize(text, effectiveWidth);
                 let localY = y;
                 
                 lines.forEach((line, index) => {
-                    if (index > 0) localY += fontSize * lineHeightFactor;
-                    localY = checkAndAddPage(localY, fontSize * lineHeightFactor);
-                    doc.text(line, x + indent, localY);
+                    if (index > 0) {
+                        localY += fontSize * lineHeightFactor;
+                    }
+                    localY = checkAndAddPage(localY, fontSize * lineHeightFactor + 15);
+                    
+                    let xPos = x + indent;
+                    if (align === 'center') {
+                        const lineWidth = doc.getTextWidth(line);
+                        xPos = (pageWidth - lineWidth) / 2;
+                    }
+                    
+                    doc.text(line, xPos, localY);
                 });
                 
-                return localY + ((lines.length > 0 && !isTitle) ? (fontSize * lineHeightFactor * 0.5) : 0);
+                return localY + (fontSize * lineHeightFactor * 0.8);
             }
 
-            function checkAndAddPage(currentY, spaceNeeded = 20) {
-                if (currentY + spaceNeeded > pageHeight - 60) { // Increased bottom margin
+            function checkAndAddPage(currentY, spaceNeeded = 40) {
+                if (currentY + spaceNeeded > pageHeight - 100) {
                     doc.addPage();
-                    return 60; // Increased top margin for new pages
+                    return 80;
                 }
                 return currentY;
             }
 
             function addSection(title, content, options = {}) {
-                yPosition = checkAndAddPage(yPosition, 40);
-                yPosition = addFormattedText(title, margin, yPosition, { 
-                    fontSize: 14, 
+                yPosition = checkAndAddPage(yPosition, 80);
+                
+                // Add section title with background
+                const titleHeight = 40;
+                doc.setFillColor('#f8fafc');
+                doc.rect(leftMargin - 10, yPosition - 10, usableWidth + 20, titleHeight, 'F');
+                doc.setDrawColor('#e5e7eb');
+                doc.rect(leftMargin - 10, yPosition - 10, usableWidth + 20, titleHeight, 'S');
+                
+                yPosition = addFormattedText(title, leftMargin, yPosition + 20, { 
+                    fontSize: 16, 
                     fontStyle: 'bold', 
-                    color: '#0056b3', 
+                    color: '#1e40af', 
                     isTitle: true 
                 });
-                yPosition += 8;
+                yPosition += 30;
                 
                 if (typeof content === 'string') {
-                    yPosition = addFormattedText(content, margin, yPosition, { 
-                        fontSize: 11, 
-                        lineHeightFactor: 1.6,
+                    yPosition = addFormattedText(content, leftMargin, yPosition, { 
+                        fontSize: 12, 
+                        lineHeightFactor: 1.8,
                         ...options 
                     });
                 } else if (Array.isArray(content)) {
-                    content.forEach(item => {
-                        yPosition = addFormattedText(`• ${item}`, margin, yPosition, { 
-                            fontSize: 10, 
-                            indent: 15,
-                            lineHeightFactor: 1.5,
+                    content.forEach((item, index) => {
+                        yPosition = checkAndAddPage(yPosition, 35);
+                        yPosition = addFormattedText(`${index + 1}. ${item}`, leftMargin, yPosition, { 
+                            fontSize: 11, 
+                            indent: 0,
+                            lineHeightFactor: 1.8,
                             ...options 
                         });
+                        yPosition += 15;
                     });
                 }
-                yPosition += 15;
+                yPosition += 35;
                 return yPosition;
             }
 
-            // Title Page
-            doc.setFontSize(24);
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor('#0056b3');
-            const titleText = "AI Expert Panel Report";
-            const titleWidth = doc.getTextWidth(titleText);
-            const titleX = (pageWidth - titleWidth) / 2;
-            doc.text(titleText, titleX, yPosition);
-            yPosition += 40;
+            // Enhanced Title Page
+            doc.setFillColor('#1e40af');
+            doc.rect(0, 0, pageWidth, 140, 'F');
             
-            // Add a separator line
-            doc.setDrawColor('#0056b3');
-            doc.setLineWidth(2);
-            doc.line(margin, yPosition, pageWidth - rightMargin, yPosition);
-            yPosition += 30;
-            
-            // Original Problem with better formatting
-            yPosition = checkAndAddPage(yPosition, 80);
-            yPosition = addFormattedText("Original Business Problem:", margin, yPosition, { 
-                fontSize: 16, 
+            yPosition = addFormattedText("AI Expert Panel Report", 0, 80, { 
+                fontSize: 32, 
                 fontStyle: 'bold', 
-                color: '#0056b3', 
-                isTitle: true 
+                color: '#ffffff',
+                align: 'center'
             });
-            yPosition += 15;
             
-            // Add background box for problem statement
-            doc.setFillColor('#f8f9fa');
-            const problemText = data.original_problem || 'N/A';
-            const problemLines = doc.splitTextToSize(problemText, usableWidth - 20);
-            const problemHeight = problemLines.length * 12 * 1.6 + 20;
-            doc.rect(margin, yPosition - 5, usableWidth, problemHeight, 'F');
+            yPosition = addFormattedText("Comprehensive Business Analysis & Strategic Recommendations", 0, yPosition + 25, { 
+                fontSize: 14, 
+                color: '#e0f2fe',
+                align: 'center'
+            });
             
-            yPosition = addFormattedText(problemText, margin + 10, yPosition + 5, { 
+            yPosition = 200;
+            
+            // Date and metadata
+            const currentDate = new Date().toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            doc.setFillColor('#f8fafc');
+            doc.rect(leftMargin, yPosition, usableWidth, 80, 'F');
+            doc.setDrawColor('#e5e7eb');
+            doc.rect(leftMargin, yPosition, usableWidth, 80, 'S');
+            
+            yPosition = addFormattedText(`Report Generated: ${currentDate}`, leftMargin + 20, yPosition + 30, { 
                 fontSize: 12, 
-                lineHeightFactor: 1.6, 
-                maxWidth: usableWidth - 20 
+                fontStyle: 'bold',
+                color: '#374151'
             });
-            yPosition += 25;
+            
+            yPosition = addFormattedText(`Analysis Type: Multi-Expert AI Consultation`, leftMargin + 20, yPosition + 10, { 
+                fontSize: 11, 
+                color: '#6b7280'
+            });
+            
+            yPosition += 80;
+            
+            // Original Problem with enhanced formatting
+            yPosition = checkAndAddPage(yPosition, 120);
+            
+            const problemText = data.original_problem || 'N/A';
+            const problemLines = doc.splitTextToSize(problemText, usableWidth - 40);
+            const problemHeight = Math.max(80, problemLines.length * 16 + 60);
+            
+            doc.setFillColor('#fef3c7');
+            doc.rect(leftMargin, yPosition, usableWidth, problemHeight, 'F');
+            doc.setDrawColor('#f59e0b');
+            doc.setLineWidth(3);
+            doc.rect(leftMargin, yPosition, usableWidth, problemHeight, 'S');
+            
+            yPosition = addFormattedText("BUSINESS PROBLEM STATEMENT", leftMargin + 20, yPosition + 30, { 
+                fontSize: 14, 
+                fontStyle: 'bold', 
+                color: '#92400e'
+            });
+            
+            yPosition = addFormattedText(problemText, leftMargin + 20, yPosition + 15, { 
+                fontSize: 12, 
+                lineHeightFactor: 1.8, 
+                maxWidth: usableWidth - 40,
+                color: '#451a03'
+            });
+            
+            yPosition += problemHeight - 30;
 
-            // Synthesis Report
+            // Synthesis Report with enhanced formatting
             if (data.synthesis_report && !data.synthesis_report.error) {
                 const synthesis = data.synthesis_report;
                 
-                yPosition = addSection("Executive Summary", synthesis.cohesive_summary || 'N/A');
-                yPosition = addSection("Key Themes", synthesis.key_themes || []);
-                yPosition = addSection("Potential Blind Spots", synthesis.potential_blind_spots || []);
-                
-                // Actionable Next Steps with better formatting
-                yPosition = checkAndAddPage(yPosition, 60);
-                yPosition = addFormattedText("Actionable Next Steps:", margin, yPosition, { 
-                    fontSize: 14, 
-                    fontStyle: 'bold', 
-                    color: '#0056b3', 
-                    isTitle: true 
+                // Executive Summary
+                yPosition = addSection("EXECUTIVE SUMMARY", synthesis.cohesive_summary || 'N/A', {
+                    fontSize: 12,
+                    color: '#374151'
                 });
-                yPosition += 15;
+                
+                // Key Themes
+                yPosition = addSection("KEY STRATEGIC THEMES", synthesis.key_themes || [], {
+                    fontSize: 11,
+                    color: '#374151'
+                });
+                
+                // Blind Spots
+                yPosition = addSection("POTENTIAL BLIND SPOTS & RISKS", synthesis.potential_blind_spots || [], {
+                    fontSize: 11,
+                    color: '#dc2626'
+                });
+                
+                // Action Steps with enhanced formatting
+                yPosition = checkAndAddPage(yPosition, 100);
+                
+                doc.setFillColor('#f0fdf4');
+                doc.rect(leftMargin - 10, yPosition - 10, usableWidth + 20, 40, 'F');
+                doc.setDrawColor('#10b981');
+                doc.rect(leftMargin - 10, yPosition - 10, usableWidth + 20, 40, 'S');
+                
+                yPosition = addFormattedText("ACTIONABLE NEXT STEPS", leftMargin, yPosition + 20, { 
+                    fontSize: 16, 
+                    fontStyle: 'bold', 
+                    color: '#166534'
+                });
+                yPosition += 40;
                 
                 (synthesis.actionable_next_steps || []).forEach((action, index) => {
-                    yPosition = checkAndAddPage(yPosition, 60);
+                    yPosition = checkAndAddPage(yPosition, 120);
                     
-                    // Step header
-                    yPosition = addFormattedText(`Step ${index + 1}: ${action.step_description}`, margin, yPosition, { 
-                        fontSize: 11, 
+                    // Step container
+                    const stepHeight = 100;
+                    doc.setFillColor('#f9fafb');
+                    doc.rect(leftMargin, yPosition, usableWidth, stepHeight, 'F');
+                    doc.setDrawColor('#d1d5db');
+                    doc.rect(leftMargin, yPosition, usableWidth, stepHeight, 'S');
+                    
+                    // Step number circle
+                    doc.setFillColor('#1e40af');
+                    doc.circle(leftMargin + 25, yPosition + 30, 15, 'F');
+                    doc.setFontSize(14);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor('#ffffff');
+                    doc.text(`${index + 1}`, leftMargin + 20, yPosition + 36);
+                    
+                    // Step content
+                    yPosition = addFormattedText(`${action.step_description}`, leftMargin + 55, yPosition + 25, { 
+                        fontSize: 12, 
                         fontStyle: 'bold',
-                        maxWidth: usableWidth
+                        maxWidth: usableWidth - 70,
+                        color: '#1f2937',
+                        lineHeightFactor: 1.6
                     });
                     
-                    // Priority
-                    yPosition = addFormattedText(`Priority: ${action.priority}`, margin + 15, yPosition, { 
+                    // Priority badge
+                    const priorityColor = action.priority === 'High' ? '#dc2626' : 
+                                        action.priority === 'Medium' ? '#ea580c' : '#059669';
+                    yPosition = addFormattedText(`Priority: ${action.priority}`, leftMargin + 55, yPosition + 10, { 
                         fontSize: 10,
-                        color: action.priority === 'High' ? '#D9534F' : action.priority === 'Medium' ? '#F0AD4E' : '#5CB85C'
+                        fontStyle: 'bold',
+                        color: priorityColor
                     });
                     
                     // Rationale
                     if (action.suggested_rationale) {
-                        yPosition = addFormattedText(`Rationale: ${action.suggested_rationale}`, margin + 15, yPosition, { 
+                        yPosition = addFormattedText(`${action.suggested_rationale}`, leftMargin + 55, yPosition + 10, { 
                             fontSize: 10, 
-                            maxWidth: usableWidth - 30,
-                            lineHeightFactor: 1.5
+                            maxWidth: usableWidth - 70,
+                            lineHeightFactor: 1.6,
+                            color: '#6b7280'
                         });
                     }
-                    yPosition += 10;
+                    
+                    yPosition += stepHeight - 50;
                 });
             }
-            
-            // Expert Insights - Start on new page
+
+            // Expert Analysis Details
             if (data.expert_insights && data.expert_insights.length > 0) {
                 doc.addPage();
-                yPosition = 60;
+                yPosition = 80;
                 
-                yPosition = addFormattedText("Expert Analysis Details", margin, yPosition, { 
-                    fontSize: 18, 
+                // Section header
+                doc.setFillColor('#1e40af');
+                doc.rect(0, yPosition - 20, pageWidth, 60, 'F');
+                
+                yPosition = addFormattedText("DETAILED EXPERT ANALYSIS", 0, yPosition + 20, { 
+                    fontSize: 20, 
                     fontStyle: 'bold', 
-                    color: '#0056b3', 
-                    isTitle: true 
+                    color: '#ffffff',
+                    align: 'center'
                 });
-                yPosition += 20;
+                
+                yPosition += 60;
                 
                 data.expert_insights.forEach((personaPackage, personaIndex) => {
                     if (personaIndex > 0) {
                         doc.addPage();
-                        yPosition = 60;
+                        yPosition = 80;
                     }
                     
-                    // Expert header
                     const expertName = personaPackage.persona_name || 'Unknown Expert';
-                    doc.setFillColor('#e7f3ff');
-                    doc.rect(margin, yPosition - 5, usableWidth, 35, 'F');
                     
-                    yPosition = addFormattedText(`Expert: ${expertName}`, margin + 10, yPosition + 10, { 
+                    // Expert header with enhanced design
+                    doc.setFillColor('#e0f2fe');
+                    doc.rect(leftMargin, yPosition, usableWidth, 60, 'F');
+                    doc.setDrawColor('#0891b2');
+                    doc.setLineWidth(2);
+                    doc.rect(leftMargin, yPosition, usableWidth, 60, 'S');
+                    
+                    yPosition = addFormattedText(`EXPERT: ${expertName.toUpperCase()}`, leftMargin + 20, yPosition + 35, { 
                         fontSize: 16, 
                         fontStyle: 'bold', 
-                        color: '#0056b3', 
-                        isTitle: true 
+                        color: '#0c4a6e'
                     });
-                    yPosition += 20;
+                    
+                    yPosition += 45;
                     
                     // Expert description
                     const definition = (data.persona_definitions || []).find(p => p.name === expertName);
                     if (definition) {
-                        yPosition = addFormattedText(`Expertise: ${definition.description || 'N/A'}`, margin, yPosition, { 
+                        yPosition = addFormattedText(`Expertise: ${definition.description || 'N/A'}`, leftMargin, yPosition + 15, { 
                             fontSize: 11,
-                            maxWidth: usableWidth
+                            maxWidth: usableWidth,
+                            color: '#374151',
+                            lineHeightFactor: 1.6
                         });
                         
                         if (definition.focus_areas && definition.focus_areas.length > 0) {
-                            yPosition = addFormattedText(`Focus Areas: ${definition.focus_areas.join(', ')}`, margin, yPosition, { 
+                            yPosition = addFormattedText(`Focus Areas: ${definition.focus_areas.join(', ')}`, leftMargin, yPosition + 10, { 
                                 fontSize: 10,
-                                color: '#666666',
-                                maxWidth: usableWidth
+                                color: '#6b7280',
+                                maxWidth: usableWidth,
+                                fontStyle: 'italic',
+                                lineHeightFactor: 1.6
                             });
                         }
-                        yPosition += 15;
+                        yPosition += 25;
                     }
 
-                    // Insights
+                    // Insights with better formatting
                     if (personaPackage.error) {
-                        yPosition = addFormattedText(`Error: ${personaPackage.error}`, margin, yPosition, { 
-                            fontSize: 10, 
-                            color: '#D9534F', 
+                        doc.setFillColor('#fef2f2');
+                        doc.rect(leftMargin, yPosition, usableWidth, 40, 'F');
+                        yPosition = addFormattedText(`Error: ${personaPackage.error}`, leftMargin + 10, yPosition + 25, { 
+                            fontSize: 11, 
+                            color: '#dc2626', 
                             fontStyle: 'bold'
                         });
+                        yPosition += 30;
                     } else if (personaPackage.insights_and_analysis && personaPackage.insights_and_analysis.length > 0) {
                         personaPackage.insights_and_analysis.forEach((item, index) => {
-                            yPosition = checkAndAddPage(yPosition, 80);
+                            yPosition = checkAndAddPage(yPosition, 140);
                             
-                            // Insight box background
-                            const boxHeight = 60;
-                            doc.setFillColor('#f8f9fa');
-                            doc.rect(margin + 5, yPosition - 5, usableWidth - 10, boxHeight, 'F');
+                            // Insight container
+                            const insightHeight = 120;
+                            doc.setFillColor('#f8fafc');
+                            doc.rect(leftMargin + 10, yPosition, usableWidth - 20, insightHeight, 'F');
+                            doc.setDrawColor('#cbd5e1');
+                            doc.rect(leftMargin + 10, yPosition, usableWidth - 20, insightHeight, 'S');
                             
-                            yPosition = addFormattedText(`Insight ${index + 1}: ${item.insight || 'N/A'}`, margin + 10, yPosition, { 
+                            // Insight number
+                            doc.setFillColor('#f59e0b');
+                            doc.circle(leftMargin + 30, yPosition + 25, 12, 'F');
+                            doc.setFontSize(12);
+                            doc.setFont("helvetica", "bold");
+                            doc.setTextColor('#ffffff');
+                            doc.text(`${index + 1}`, leftMargin + 26, yPosition + 31);
+                            
+                            yPosition = addFormattedText(`${item.insight || 'N/A'}`, leftMargin + 55, yPosition + 20, { 
                                 fontSize: 11, 
                                 fontStyle: 'bold', 
-                                maxWidth: usableWidth - 30 
+                                maxWidth: usableWidth - 70,
+                                color: '#1f2937',
+                                lineHeightFactor: 1.6
                             });
                             
-                            yPosition = addFormattedText(`Reasoning: ${item.supporting_reasoning || 'N/A'}`, margin + 10, yPosition, { 
+                            yPosition = addFormattedText(`Reasoning: ${item.supporting_reasoning || 'N/A'}`, leftMargin + 55, yPosition + 10, { 
                                 fontSize: 10, 
-                                maxWidth: usableWidth - 30,
-                                lineHeightFactor: 1.5
+                                maxWidth: usableWidth - 70,
+                                lineHeightFactor: 1.6,
+                                color: '#374151'
                             });
                             
-                            yPosition = addFormattedText(`Confidence: ${item.confidence_level || 'N/A'}`, margin + 10, yPosition, { 
-                                fontSize: 10 
+                            yPosition = addFormattedText(`Confidence: ${item.confidence_level || 'N/A'}`, leftMargin + 55, yPosition + 10, { 
+                                fontSize: 10,
+                                color: '#059669',
+                                fontStyle: 'bold'
                             });
                             
                             if (item.identified_risks && item.identified_risks.length > 0) {
-                                yPosition = addFormattedText(`Risks: ${item.identified_risks.join(', ')}`, margin + 10, yPosition, { 
-                                    fontSize: 10, 
-                                    color: '#D9534F', 
-                                    maxWidth: usableWidth - 30 
+                                yPosition = addFormattedText(`⚠ Risks: ${item.identified_risks.join(', ')}`, leftMargin + 55, yPosition + 8, { 
+                                    fontSize: 9, 
+                                    color: '#dc2626', 
+                                    maxWidth: usableWidth - 70,
+                                    fontStyle: 'italic',
+                                    lineHeightFactor: 1.5
                                 });
                             }
                             
                             if (item.identified_opportunities && item.identified_opportunities.length > 0) {
-                                yPosition = addFormattedText(`Opportunities: ${item.identified_opportunities.join(', ')}`, margin + 10, yPosition, { 
-                                    fontSize: 10, 
-                                    color: '#5CB85C', 
-                                    maxWidth: usableWidth - 30 
+                                yPosition = addFormattedText(`★ Opportunities: ${item.identified_opportunities.join(', ')}`, leftMargin + 55, yPosition + 8, { 
+                                    fontSize: 9, 
+                                    color: '#059669', 
+                                    maxWidth: usableWidth - 70,
+                                    fontStyle: 'italic',
+                                    lineHeightFactor: 1.5
                                 });
                             }
-                            yPosition += 20;
+                            
+                            yPosition += insightHeight - 60;
                         });
                     }
                 });
             }
             
-            // Add page numbers
+            // Enhanced footer with page numbers
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
-                doc.setFontSize(8);
-                doc.setTextColor('#666666');
-                doc.text(`Page ${i} of ${pageCount}`, pageWidth - rightMargin - 50, pageHeight - 20);
+                
+                // Footer line
+                doc.setDrawColor('#e5e7eb');
+                doc.setLineWidth(1);
+                doc.line(leftMargin, pageHeight - 50, pageWidth - rightMargin, pageHeight - 50);
+                
+                // Page number
+                doc.setFontSize(10);
+                doc.setTextColor('#6b7280');
+                doc.text(`Page ${i} of ${pageCount}`, pageWidth - rightMargin - 70, pageHeight - 30);
+                
+                // Footer text
+                doc.text('AI Expert Panel Report - Confidential', leftMargin, pageHeight - 30);
             }
             
             doc.save('AI_Expert_Panel_Report.pdf');
