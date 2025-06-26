@@ -1,4 +1,9 @@
 flask
 flask-cors
+flask-limiter
+flask-caching
+python-dotenv
 requests
-gunicorn 
+gunicorn
+redis
+marshmallow 

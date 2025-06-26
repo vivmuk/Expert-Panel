@@ -1,10 +1,26 @@
 import requests
 import json
+import os
+import logging
+from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # --- Configuration ---
-VENICE_API_KEY = "GeD9cKbx1c54CWCTcGUold361VXLgFkMrDwu5iV6qJ" # Your hardcoded API key
+VENICE_API_KEY = os.environ.get('VENICE_API_KEY')  # Load from environment variable
+if not VENICE_API_KEY:
+    raise ValueError("VENICE_API_KEY environment variable is required")
 VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
 PERSONA_GENERATION_MODEL = "qwen-2.5-qwq-32b"
 INSIGHT_GENERATION_MODEL = "qwen-2.5-qwq-32b"
@@ -12,6 +28,19 @@ INSIGHT_GENERATION_MODEL = "qwen-2.5-qwq-32b"
 # --- Flask App Initialization ---
 app = Flask(__name__)
 CORS(app, resources={r"/*":{"origins": "*"}}, supports_credentials=True)
+
+# Add rate limiting and caching
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_caching import Cache
+
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
+
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 @app.before_request
 def handle_preflight():
@@ -437,6 +466,7 @@ def test_venice_api():
 
 @app.route('/process_problem', methods=['POST'])
 @cross_origin(supports_credentials=True)
+@limiter.limit("10 per hour")  # Limit expensive AI operations
 def handle_process_problem():
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 400
