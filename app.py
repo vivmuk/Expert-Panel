@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 # --- Configuration ---
 VENICE_API_KEY = os.environ.get('VENICE_API_KEY')  # Load from environment variable
 if not VENICE_API_KEY:
+    logger.error("VENICE_API_KEY environment variable is required")
+    logger.error("Please set the VENICE_API_KEY environment variable in your deployment platform")
     raise ValueError("VENICE_API_KEY environment variable is required")
 VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
 PERSONA_GENERATION_MODEL = "qwen-2.5-qwq-32b"
