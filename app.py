@@ -24,7 +24,7 @@ VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
 # Model Configuration
 PERSONA_GENERATION_MODEL = "llama-3.1-405b"      # Llama 405B for expert orchestration
 INSIGHT_GENERATION_MODEL = "qwen3-235b"          # Qwen 235B for individual expert analysis  
-SEARCH_ANALYSIS_MODEL = "mistral-31-24b"         # Mistral for search-based market analysis
+SEARCH_ANALYSIS_MODEL = "qwen-2.5-qwq-32b"      # Qwen QWQ for search-based market analysis
 SYNTHESIS_MODEL = "qwen3-235b"                    # Qwen 235B for final synthesis
 
 # Expert Configuration
@@ -228,7 +228,7 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
         print(f"Unexpected error in call_venice_api for model {model_id}, schema {schema_name_for_api}: {e}")
         return {"error": "An unexpected error occurred", "model_id": model_id, "details": str(e)}
 
-def call_venice_search_api(query, model_id="mistral-31-24b"):
+def call_venice_search_api(query, model_id="qwen-2.5-qwq-32b"):
     """
     Call Venice AI search API for real-time information gathering.
     """
@@ -407,39 +407,166 @@ def generate_market_intelligence(business_problem):
     """
     print("\n--- Stage 3.2: Generating Market Intelligence ---")
     
-    # Define search queries for different market intelligence areas
+    # Define enhanced search queries for different market intelligence areas
     search_queries = [
         {
             "type": "key_players",
             "title": "Key Market Players & Competitors",
-            "query": f"Who are the key market players, competitors, and industry leaders related to: {business_problem}? Include market share, recent developments, and competitive positioning."
+            "query": f"""Search for comprehensive competitive landscape analysis related to: {business_problem}
+
+Find information about:
+- Top 5-10 market leaders and their market share percentages
+- Recent mergers, acquisitions, and strategic partnerships in this space
+- Competitive positioning and differentiation strategies
+- Revenue figures, growth rates, and financial performance of key players
+- Geographic presence and market penetration
+- Recent product launches, innovations, or strategic initiatives
+- Venture capital investments and funding rounds in this sector
+
+Focus on data from the last 6 months (since mid-2024) and include specific company names, figures, and dates where available."""
         },
         {
             "type": "consulting_insights", 
             "title": "Top Consulting Firm Recommendations",
-            "query": f"What are the latest recommendations from top consulting firms (McKinsey, BCG, Bain, Deloitte, PwC, Accenture) regarding: {business_problem}? Include recent reports and strategic advice."
+            "query": f"""Search for recent strategic consulting reports and recommendations from top-tier firms regarding: {business_problem}
+
+Look for insights from:
+- McKinsey & Company reports and articles
+- Boston Consulting Group (BCG) research and perspectives  
+- Bain & Company insights and case studies
+- Deloitte industry reports and strategic recommendations
+- PwC analysis and market outlooks
+- Accenture research and technology insights
+
+Focus on:
+- Published reports, white papers, and thought leadership from the last 6 months (mid-2024 onwards)
+- Strategic frameworks and methodologies recommended for similar challenges
+- Industry benchmarks and best practices
+- Digital transformation recommendations
+- Cost optimization and efficiency strategies
+- Future-focused strategic advice and predictions"""
         },
         {
             "type": "porters_five",
             "title": "Porter's Five Forces Analysis",
-            "query": f"Analyze Porter's Five Forces (competitive rivalry, supplier power, buyer power, threat of substitutes, barriers to entry) for the industry/market related to: {business_problem}"
+            "query": f"""Conduct a comprehensive Porter's Five Forces analysis for the industry/market context of: {business_problem}
+
+Analyze and provide specific details for each force:
+
+1. COMPETITIVE RIVALRY:
+- Number of competitors and market concentration
+- Price competition intensity and profit margins
+- Product differentiation levels
+- Exit barriers and switching costs
+
+2. SUPPLIER POWER:
+- Number of suppliers and concentration
+- Switching costs for suppliers
+- Forward integration threats
+- Input cost pressures and supply chain disruptions
+
+3. BUYER POWER:
+- Customer concentration and purchasing volume
+- Price sensitivity and elasticity
+- Backward integration potential
+- Availability of substitute products
+
+4. THREAT OF SUBSTITUTES:
+- Alternative solutions and technologies
+- Performance-to-price ratios of substitutes
+- Customer propensity to substitute
+- Disruptive innovation threats
+
+5. BARRIERS TO ENTRY:
+- Capital requirements and economies of scale
+- Regulatory requirements and licensing
+- Technology and expertise barriers
+- Brand loyalty and network effects
+
+Include recent examples from the last 6 months, specific companies, and quantitative data where available."""
         },
         {
             "type": "threats_risks",
             "title": "Market Threats & Emerging Risks", 
-            "query": f"What are the current and emerging threats, risks, and challenges in the market/industry related to: {business_problem}? Include regulatory, technological, and economic threats."
+            "query": f"""Identify and analyze current and emerging threats, risks, and challenges for businesses dealing with: {business_problem}
+
+Search for comprehensive risk assessment covering:
+
+REGULATORY & COMPLIANCE RISKS:
+- New legislation and regulatory changes (last 6 months)
+- Compliance requirements and penalties
+- Data privacy and security regulations
+- Environmental and sustainability mandates
+
+TECHNOLOGICAL THREATS:
+- Disruptive technologies and innovation threats
+- Cybersecurity risks and data breaches
+- Technology obsolescence risks
+- AI and automation displacement
+
+ECONOMIC & MARKET RISKS:
+- Economic downturn and recession impacts
+- Inflation, interest rate changes, and currency fluctuations
+- Supply chain disruptions and geopolitical tensions
+- Market saturation and declining demand
+
+COMPETITIVE THREATS:
+- New entrants and disruptors
+- Price wars and margin compression
+- Technology disruption from startups
+- Platform and ecosystem competition
+
+Include specific examples from the last 6 months, recent incidents, probability assessments, and potential impact levels."""
         },
         {
             "type": "latest_trends",
             "title": "Latest Market Trends & Innovations",
-            "query": f"What are the latest market trends, innovations, technologies, and future developments related to: {business_problem}? Include emerging opportunities and disruptions."
+            "query": f"""Research the latest market trends, emerging technologies, and innovation developments relevant to: {business_problem}
+
+Focus on cutting-edge developments from the last 6 months (mid-2024 onwards):
+
+TECHNOLOGY TRENDS:
+- Artificial Intelligence and Machine Learning applications
+- Automation and robotics adoption
+- Cloud computing and edge technologies
+- Internet of Things (IoT) and connectivity solutions
+- Blockchain and Web3 applications
+
+BUSINESS MODEL INNOVATIONS:
+- Platform and ecosystem strategies
+- Subscription and as-a-Service models
+- Direct-to-consumer approaches
+- Circular economy and sustainability initiatives
+- Remote and hybrid work solutions
+
+MARKET OPPORTUNITIES:
+- Emerging market segments and demographics
+- Sustainability and ESG-driven opportunities
+- Digital transformation acceleration
+- Health and wellness trends
+- Gen Z and millennial consumption patterns
+
+INVESTMENT & FUNDING TRENDS:
+- Venture capital and private equity focus areas
+- IPO trends and valuations
+- Corporate innovation investments
+- Government funding and incentives
+
+Include specific company examples, investment amounts, growth projections, and adoption timelines from the last 6 months."""
         }
     ]
     
     market_intelligence = []
     
-    for search_item in search_queries:
-        print(f"Generating {search_item['title']}...")
+    for idx, search_item in enumerate(search_queries):
+        print(f"Generating {search_item['title']} ({idx+1}/5)...")
+        
+        # Add delay between searches to avoid hitting model limits
+        if idx > 0:
+            import time
+            print(f"Waiting 2 seconds before next search to avoid rate limits...")
+            time.sleep(2)
+        
         search_result = call_venice_search_api(search_item["query"], SEARCH_ANALYSIS_MODEL)
         
         if search_result.get("error"):
@@ -469,36 +596,111 @@ def generate_market_intelligence(business_problem):
 
 def extract_key_insights_from_content(content):
     """
-    Extract key insights from search content using text analysis.
+    Extract key insights from search content using enhanced text analysis.
     Returns a list of key insights/bullet points.
     """
     if not content or len(content) < 50:
         return ["Limited information available"]
     
-    # Simple extraction - look for sentences that contain key insight indicators
     import re
     
-    # Split into sentences and filter for key insights
-    sentences = re.split(r'[.!?]+', content)
+    # Enhanced extraction with multiple strategies
     key_insights = []
     
-    insight_indicators = [
-        "key", "important", "significant", "major", "critical", "essential",
-        "trend", "growth", "increase", "decrease", "risk", "opportunity",
-        "recommendation", "strategy", "should", "must", "leaders", "market"
+    # Strategy 1: Look for bullet points and numbered lists
+    bullet_patterns = [
+        r'[•\-\*]\s+([^.\n]+(?:\.[^.\n]*)*)',
+        r'\d+\.\s+([^.\n]+(?:\.[^.\n]*)*)',
+        r'>\s+([^.\n]+(?:\.[^.\n]*)*)'
     ]
     
-    for sentence in sentences:
-        sentence = sentence.strip()
-        if len(sentence) > 20 and len(sentence) < 200:
-            # Check if sentence contains insight indicators
-            sentence_lower = sentence.lower()
-            if any(indicator in sentence_lower for indicator in insight_indicators):
-                key_insights.append(sentence)
-                if len(key_insights) >= 5:  # Limit to top 5 insights per section
+    for pattern in bullet_patterns:
+        matches = re.findall(pattern, content, re.IGNORECASE)
+        for match in matches:
+            insight = match.strip()
+            if 30 < len(insight) < 150 and insight not in key_insights:
+                key_insights.append(insight)
+                if len(key_insights) >= 8:
                     break
     
-    return key_insights if key_insights else ["Analysis completed - see full content for details"]
+    # Strategy 2: Look for sentences with high-value indicators
+    if len(key_insights) < 5:
+        sentences = re.split(r'[.!?]+', content)
+        
+        # Enhanced insight indicators with weights
+        high_value_indicators = [
+            "market share", "revenue", "growth rate", "billion", "million", "percent", "%",
+            "leading", "dominant", "competitive advantage", "market leader", "first mover",
+            "breakthrough", "innovation", "disruption", "transformation", "strategic",
+            "investment", "funding", "acquisition", "merger", "partnership",
+            "forecast", "projection", "expected", "anticipated", "emerging", "trend"
+        ]
+        
+        medium_value_indicators = [
+            "key", "important", "significant", "major", "critical", "essential",
+            "opportunity", "risk", "challenge", "recommendation", "should", "must",
+            "analysis", "study", "research", "report", "survey", "data"
+        ]
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if 25 < len(sentence) < 180:
+                sentence_lower = sentence.lower()
+                
+                # Score the sentence based on indicators
+                score = 0
+                score += sum(2 for indicator in high_value_indicators if indicator in sentence_lower)
+                score += sum(1 for indicator in medium_value_indicators if indicator in sentence_lower)
+                
+                # Look for numerical data
+                if re.search(r'\d+[%$]|\$\d+|\d+\s*(billion|million|percent|%)', sentence_lower):
+                    score += 3
+                
+                # Look for company/brand names (capitalized words)
+                if re.search(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', sentence):
+                    score += 1
+                
+                if score >= 3 and sentence not in key_insights:
+                    key_insights.append(sentence)
+                    if len(key_insights) >= 8:
+                        break
+    
+    # Strategy 3: Extract specific data points
+    if len(key_insights) < 3:
+        # Look for specific patterns like percentages, dollar amounts, company names
+        data_patterns = [
+            r'([A-Z][a-zA-Z\s&]+(?:Inc|Corp|Company|LLC|Ltd)?)\s+(?:reported|achieved|announced|generated|posted|recorded)\s+[^.]{20,80}',
+            r'(?:Market\s+share|Revenue|Growth|Sales|Profit)\s+(?:of|reached|increased|decreased|grew)\s+[^.]{20,80}',
+            r'(?:\$\d+(?:\.\d+)?\s*(?:billion|million)|>\d+%|\d+%\s+(?:growth|increase|decrease))[^.]{0,60}'
+        ]
+        
+        for pattern in data_patterns:
+            matches = re.findall(pattern, content, re.IGNORECASE)
+            for match in matches:
+                insight = match.strip() if isinstance(match, str) else ' '.join(match).strip()
+                if 20 < len(insight) < 150 and insight not in key_insights:
+                    key_insights.append(insight)
+                    if len(key_insights) >= 6:
+                        break
+    
+    # Clean up and deduplicate
+    cleaned_insights = []
+    for insight in key_insights:
+        # Remove extra whitespace and clean up
+        cleaned = re.sub(r'\s+', ' ', insight).strip()
+        # Remove duplicates and very similar insights
+        if cleaned and len(cleaned) > 20 and cleaned not in cleaned_insights:
+            # Check for substantial overlap with existing insights
+            is_duplicate = False
+            for existing in cleaned_insights:
+                overlap = len(set(cleaned.lower().split()) & set(existing.lower().split()))
+                if overlap > len(cleaned.split()) * 0.7:  # 70% word overlap
+                    is_duplicate = True
+                    break
+            if not is_duplicate:
+                cleaned_insights.append(cleaned)
+    
+    return cleaned_insights[:6] if cleaned_insights else ["Analysis completed - see full content for details"]
 
 # --- Stage 3.5: Synthesis Report Generation ---
 def generate_synthesis_report(original_problem, all_expert_insights, persona_definitions_for_context, market_intelligence=None):

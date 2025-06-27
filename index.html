@@ -49,6 +49,13 @@
             --border-radius-md: 10px;
             --border-radius-lg: 15px;
             --border-radius-xl: 20px;
+            
+            /* Market Intelligence Specific Colors */
+            --market-intel-primary: #0f766e; /* Teal primary */
+            --market-intel-secondary: #14b8a6; /* Teal secondary */
+            --market-intel-bg: #f0fdfa; /* Light teal background */
+            --market-intel-border: #5eead4; /* Teal border */
+            --market-intel-accent: #0d9488; /* Teal accent */
         }
 
         body {
@@ -57,10 +64,11 @@
             padding: 0;
             background-color: var(--bg-color);
             color: var(--text-color);
-            line-height: 1.6;
+            line-height: 1.5; /* Reduced for crispness */
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            font-size: 14px; /* Base font size reduced */
         }
         .header {
             background: var(--panel-bg);
@@ -72,29 +80,30 @@
         }
         .header h1 {
             margin: 0;
-            font-size: 2.4em; /* Slightly larger */
-            font-weight: 500;
+            font-size: 2.0em; /* Reduced for crisper look */
+            font-weight: 600;
         }
         .header .subtitle {
-            font-size: 1.1em;
+            font-size: 0.95em; /* Smaller for better fit */
             color: var(--light-text-color);
-            margin-top: 8px;
+            margin-top: 6px;
+            font-weight: 500;
         }
 
         .main-content-wrapper {
             display: flex;
             flex-grow: 1;
-            max-width: 1400px; /* Reduced from 1800px to prevent overflow */
+            max-width: 1500px; /* Slightly increased for better content space */
             width: 100%;
-            margin: 30px auto;
-            margin-left: 20px; /* Reduced from 40px */
-            margin-right: 20px; /* Add right margin to balance */
-            gap: 25px; /* Reduced gap */
-            padding: 0 15px; /* Reduced padding */
+            margin: 20px auto; /* Reduced top/bottom margin */
+            margin-left: 16px;
+            margin-right: 16px;
+            gap: 20px; /* Reduced gap for tighter layout */
+            padding: 0 12px; /* Reduced padding */
         }
 
         #left-panel-nav {
-            width: 280px; /* Reduced from 320px */
+            width: 260px; /* Further reduced for better fit */
             background: linear-gradient(135deg, var(--left-panel-bg) 0%, var(--primary-darker) 100%);
             color: var(--left-panel-text);
             padding: 25px;
@@ -983,6 +992,100 @@
             }
         }
 
+        /* Market Intelligence Specific Styles */
+        .content-section[id*="market-"] {
+            border-left: 5px solid var(--market-intel-primary) !important;
+            background: linear-gradient(135deg, var(--market-intel-bg) 0%, #ffffff 100%) !important;
+        }
+        
+        .content-section[id*="market-"] .card-header {
+            background: linear-gradient(135deg, var(--market-intel-primary) 0%, var(--market-intel-secondary) 100%) !important;
+            color: white !important;
+        }
+        
+        .content-section[id*="market-"] .expert-badge {
+            background: var(--market-intel-accent) !important;
+            color: white !important;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        
+        .content-section[id*="market-"] .expert-info {
+            background: linear-gradient(135deg, color-mix(in srgb, var(--market-intel-secondary) 15%, transparent) 0%, transparent 100%) !important;
+            border-color: var(--market-intel-border) !important;
+        }
+        
+                 #left-panel-nav li a[onclick*="market-"] {
+             background: linear-gradient(135deg, var(--market-intel-bg) 0%, transparent 100%);
+             border-left: 3px solid var(--market-intel-border);
+         }
+         
+         #left-panel-nav li a[onclick*="market-"]:hover {
+             background: linear-gradient(135deg, var(--market-intel-primary) 0%, var(--market-intel-secondary) 100%) !important;
+             color: white !important;
+         }
+        
+        /* Crisp Typography Improvements */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 600;
+            line-height: 1.3;
+            letter-spacing: -0.01em;
+        }
+        
+        .card-header h2 {
+            font-size: 1.3em; /* Reduced for better fit */
+            margin: 0;
+        }
+        
+        .section-header h3 {
+            font-size: 1.1em; /* Reduced for better fit */
+            margin: 0;
+        }
+        
+        .expert-info .expert-role {
+            font-size: 0.9em; /* Smaller for crisper look */
+            margin-bottom: 8px;
+        }
+        
+        .expert-badge {
+            font-size: 0.75em; /* Smaller badge text */
+            padding: 4px 10px;
+            font-weight: 600;
+        }
+        
+        /* Compact spacing improvements */
+        .card-content {
+            padding: 18px 22px; /* Reduced padding */
+        }
+        
+        .section-header {
+            margin: 20px 0 12px 0; /* Reduced margins */
+        }
+        
+        .expert-info {
+            margin-bottom: 18px; /* Reduced margin */
+            padding: 16px 18px; /* Reduced padding */
+        }
+        
+        /* Better button styles */
+        .example-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        /* Improved input section */
+        .input-section p {
+            font-size: 0.95em;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+        
+        #businessProblem {
+            font-size: 0.9em;
+            line-height: 1.4;
+            padding: 14px 16px;
+        }
+
         .venice-footer {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-darker) 100%);
             color: #ffffff;
@@ -1692,7 +1795,7 @@
                                 <h2>
                                     <span class="header-icon">🔍</span> 
                                     ${itemName}
-                                    <span class="expert-badge" style="background: #0891b2;">Market Intelligence</span>
+                                                                         <span class="expert-badge market-intel-badge">Market Intelligence</span>
                                 </h2>
                             </div>
                             <div class="card-content">
