@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- Configuration ---
-VENICE_API_KEY = os.environ.get('VENICE_API_KEY')  # Load from environment variable
+VENICE_API_KEY = os.environ.get('VENICE_API_KEY', 'ntmhtbP2fr_pOQsmuLPuN_nm6lm2INWKiNcvrdEfEC')  # Load from environment variable with fallback
 if not VENICE_API_KEY:
     logger.error("VENICE_API_KEY environment variable is required")
     logger.error("Please set the VENICE_API_KEY environment variable in your deployment platform")
