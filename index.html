@@ -75,6 +75,11 @@
             font-size: 2.4em; /* Slightly larger */
             font-weight: 500;
         }
+        .header .subtitle {
+            font-size: 1.1em;
+            color: var(--light-text-color);
+            margin-top: 8px;
+        }
 
         .main-content-wrapper {
             display: flex;
@@ -1037,6 +1042,7 @@
 <body>
     <header class="header">
         <h1>AI Expert Panel</h1>
+        <div class="subtitle">20 AI Experts • Real-time Market Intelligence • Powered by Venice AI</div>
     </header>
 
     <div class="main-content-wrapper">
@@ -1049,7 +1055,29 @@
 
         <main class="container" id="right-panel-container">
             <div class="input-section">
-                <p>Enter your business problem. The system will orchestrate AI experts for insights and an action plan.</p>
+                <p>Enter your business problem. The system will orchestrate 20 AI experts for insights and an action plan.</p>
+                
+                <!-- Examples Section -->
+                <div class="examples-section" style="margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; border: 1px solid #bae6fd;">
+                    <h4 style="margin: 0 0 15px 0; color: #0369a1; font-size: 1.1em;">💡 Example Problems to Try:</h4>
+                    <div class="example-buttons" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        <button class="example-btn" onclick="setExampleProblem('startup-marketing')" style="padding: 8px 16px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                            🚀 Startup Marketing Strategy
+                        </button>
+                        <button class="example-btn" onclick="setExampleProblem('digital-transformation')" style="padding: 8px 16px; background: #06b6d4; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                            🔄 Digital Transformation
+                        </button>
+                        <button class="example-btn" onclick="setExampleProblem('supply-chain')" style="padding: 8px 16px; background: #0891b2; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                            📦 Supply Chain Optimization
+                        </button>
+                        <button class="example-btn" onclick="setExampleProblem('customer-retention')" style="padding: 8px 16px; background: #0e7490; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                            🤝 Customer Retention Crisis
+                        </button>
+                        <button class="example-btn" onclick="setExampleProblem('ai-implementation')" style="padding: 8px 16px; background: #155e75; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                            🤖 AI Implementation Strategy
+                        </button>
+                    </div>
+                </div>
                 <div class="time-notice" style="background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 10%, #fef3c7 100%); 
                                                 border: 2px solid #f59e0b; border-radius: 8px; padding: 15px 20px; 
                                                 margin-bottom: 20px; display: flex; align-items: center; gap: 12px;
@@ -1112,7 +1140,7 @@
         const STAGE_PERSONA_GENERATION_COMPLETE = 2;
         const STAGE_BACKEND_PROCESSING_COMPLETE = 3;
         const STAGE_PERSONA_INSIGHT_COLLECTION_START = 4; 
-        const MAX_EXPECTED_PERSONAS_FOR_PROGRESS = 10;
+        const MAX_EXPECTED_PERSONAS_FOR_PROGRESS = 15;
         const STAGE_SEARCH_ASSISTANT_START = STAGE_PERSONA_INSIGHT_COLLECTION_START + MAX_EXPECTED_PERSONAS_FOR_PROGRESS;
         const STAGE_SEARCH_ASSISTANT_COMPLETE = STAGE_SEARCH_ASSISTANT_START + 1;
         const STAGE_SYNTHESIS_START = STAGE_SEARCH_ASSISTANT_COMPLETE + 1;
@@ -1257,6 +1285,40 @@
             }
         }
 
+        // Example problems for quick testing
+        function setExampleProblem(exampleType) {
+            const businessProblemTextarea = document.getElementById('businessProblem');
+            let exampleText = '';
+            
+            switch(exampleType) {
+                case 'startup-marketing':
+                    exampleText = "Our tech startup has developed an innovative AI-powered project management tool, but we're struggling to gain market traction. Despite having a solid product, our customer acquisition costs are high, conversion rates are low, and we're burning through our seed funding. We need a comprehensive marketing strategy to scale our user base and achieve product-market fit before our next funding round in 6 months.";
+                    break;
+                case 'digital-transformation':
+                    exampleText = "Our traditional manufacturing company needs to undergo digital transformation to remain competitive. We're facing pressure from digitally-native competitors, our processes are outdated, and our workforce lacks digital skills. We need to modernize our operations, implement new technologies, and change our company culture while maintaining productivity and managing costs.";
+                    break;
+                case 'supply-chain':
+                    exampleText = "Our e-commerce business is experiencing major supply chain disruptions leading to stockouts, delayed deliveries, and rising costs. Customer satisfaction is declining, and we're losing market share to competitors with more reliable fulfillment. We need to optimize our supply chain, diversify suppliers, and implement better inventory management while controlling costs.";
+                    break;
+                case 'customer-retention':
+                    exampleText = "Our SaaS platform is experiencing a customer churn crisis with monthly churn rates reaching 8%. New customer acquisition is expensive, and our customer lifetime value is declining. We need to understand why customers are leaving, improve retention strategies, and increase customer satisfaction to achieve sustainable growth.";
+                    break;
+                case 'ai-implementation':
+                    exampleText = "Our mid-size consulting firm wants to integrate AI into our service offerings to improve efficiency and stay competitive. However, we lack AI expertise, our staff is resistant to change, and we're unsure which AI tools would provide the best ROI. We need a strategic plan to implement AI across our operations while managing change and training our team.";
+                    break;
+                default:
+                    exampleText = "Describe your business challenge here...";
+            }
+            
+            businessProblemTextarea.value = exampleText;
+            
+            // Add visual feedback
+            businessProblemTextarea.style.backgroundColor = '#f0f9ff';
+            setTimeout(() => {
+                businessProblemTextarea.style.backgroundColor = '';
+            }, 1000);
+        }
+
         async function submitProblem() {
             const problemText = document.getElementById('businessProblem').value;
             const resultsContentDiv = document.getElementById('results-content');
@@ -1317,6 +1379,10 @@
                 if (data.expert_insights) {
                     allProcessedItemNames = [...allProcessedItemNames, ...data.expert_insights.map(p => p.persona_name)];
                 }
+                
+                if (data.market_intelligence) {
+                    allProcessedItemNames = [...allProcessedItemNames, ...data.market_intelligence.map(intel => intel.title || 'Market Analysis')];
+                }
                 if (data.search_findings && data.search_findings.persona_name) {
                     allProcessedItemNames.push(data.search_findings.persona_name);
                 }
@@ -1345,7 +1411,7 @@
                 updateProgress('Finalizing results...', STAGE_DISPLAY_RESULTS);
                 displayResults(data);
 
-                if (data.synthesis_report || data.expert_insights || data.search_findings) {
+                if (data.synthesis_report || data.expert_insights || data.market_intelligence) {
                     downloadButton.style.display = 'inline-block';
                 }
 
@@ -1594,6 +1660,66 @@
                                     <h3>Analysis & Insights</h3>
                                 </div>
                                 ${insightsContentHTML}
+                            </div>
+                        </div>`;
+                });
+            }
+            
+            // 3. Market Intelligence Section
+            if (data.market_intelligence && data.market_intelligence.length > 0) {
+                data.market_intelligence.forEach(intel => {
+                    const itemName = intel.title || 'Market Analysis';
+                    const safeName = itemName.replace(/[^a-zA-Z0-9_]/g, '-');
+                    const contentId = `market-${safeName}-content`;
+                    navOrder.push({name: itemName, id: contentId, type: 'market'});
+                    
+                    let insightsHTML = '';
+                    if (intel.key_insights && intel.key_insights.length > 0) {
+                        insightsHTML = intel.key_insights.map(insight => `
+                            <div style="background: linear-gradient(135deg, #f0f9ff 0%, white 100%); 
+                                        padding: 15px 20px; border-radius: 8px; border-left: 4px solid var(--secondary-color);
+                                        box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 10px;">
+                                <span style="font-weight: 500;">• ${insight}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        insightsHTML = '<p>No specific insights extracted.</p>';
+                    }
+                    
+                    resultsContentDiv.innerHTML += `
+                        <div class="content-section" id="${contentId}">
+                            <div class="card-header">
+                                <h2>
+                                    <span class="header-icon">🔍</span> 
+                                    ${itemName}
+                                    <span class="expert-badge" style="background: #0891b2;">Market Intelligence</span>
+                                </h2>
+                            </div>
+                            <div class="card-content">
+                                <div class="expert-info" style="background: linear-gradient(135deg, color-mix(in srgb, var(--secondary-color) 10%, transparent) 0%, transparent 100%); border-color: var(--secondary-color);">
+                                    <div class="expert-role">Real-time Market Analysis</div>
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+                                        <span style="font-size: 0.9em;">Confidence Level:</span>
+                                        <span style="background: ${intel.confidence_level === 'High' ? '#10b981' : intel.confidence_level === 'Medium' ? '#f59e0b' : '#ef4444'}; 
+                                                     color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; font-weight: 600;">
+                                            ${intel.confidence_level || 'Medium'}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="section-header">
+                                    <span class="section-icon">🎯</span>
+                                    <h3>Key Insights</h3>
+                                </div>
+                                ${insightsHTML}
+                                
+                                <div class="section-header">
+                                    <span class="section-icon">📊</span>
+                                    <h3>Detailed Analysis</h3>
+                                </div>
+                                <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; max-height: 400px; overflow-y: auto;">
+                                    <p style="line-height: 1.7; margin: 0; white-space: pre-wrap;">${intel.content || 'No detailed content available.'}</p>
+                                </div>
                             </div>
                         </div>`;
                 });
@@ -2041,6 +2167,100 @@
                             
                             yPosition += insightHeight - 60;
                         });
+                    }
+                });
+            }
+            
+            // Market Intelligence Section
+            if (data.market_intelligence && data.market_intelligence.length > 0) {
+                doc.addPage();
+                yPosition = 80;
+                
+                // Section header
+                doc.setFillColor('#0891b2');
+                doc.rect(0, yPosition - 20, pageWidth, 60, 'F');
+                
+                yPosition = addFormattedText("MARKET INTELLIGENCE ANALYSIS", 0, yPosition + 20, { 
+                    fontSize: 20, 
+                    fontStyle: 'bold', 
+                    color: '#ffffff',
+                    align: 'center'
+                });
+                
+                yPosition += 60;
+                
+                data.market_intelligence.forEach((intel, index) => {
+                    if (index > 0) {
+                        yPosition = checkAndAddPage(yPosition, 100);
+                    }
+                    
+                    const title = intel.title || 'Market Analysis';
+                    
+                    // Intelligence header
+                    doc.setFillColor('#f0f9ff');
+                    doc.rect(leftMargin, yPosition, usableWidth, 50, 'F');
+                    doc.setDrawColor('#0891b2');
+                    doc.setLineWidth(2);
+                    doc.rect(leftMargin, yPosition, usableWidth, 50, 'S');
+                    
+                    yPosition = addFormattedText(title.toUpperCase(), leftMargin + 20, yPosition + 30, { 
+                        fontSize: 14, 
+                        fontStyle: 'bold', 
+                        color: '#0c4a6e'
+                    });
+                    
+                    yPosition += 40;
+                    
+                    // Confidence level
+                    yPosition = addFormattedText(`Confidence Level: ${intel.confidence_level || 'Medium'}`, leftMargin, yPosition + 15, { 
+                        fontSize: 11,
+                        color: intel.confidence_level === 'High' ? '#059669' : intel.confidence_level === 'Low' ? '#dc2626' : '#ea580c',
+                        fontStyle: 'bold'
+                    });
+                    
+                    yPosition += 25;
+                    
+                    // Key insights
+                    if (intel.key_insights && intel.key_insights.length > 0) {
+                        yPosition = addFormattedText("KEY INSIGHTS:", leftMargin, yPosition + 15, { 
+                            fontSize: 12, 
+                            fontStyle: 'bold', 
+                            color: '#1f2937'
+                        });
+                        yPosition += 10;
+                        
+                        intel.key_insights.forEach((insight, insightIndex) => {
+                            yPosition = checkAndAddPage(yPosition, 35);
+                            yPosition = addFormattedText(`• ${insight}`, leftMargin + 20, yPosition + 15, { 
+                                fontSize: 10, 
+                                maxWidth: usableWidth - 40,
+                                lineHeightFactor: 1.6,
+                                color: '#374151'
+                            });
+                        });
+                        yPosition += 20;
+                    }
+                    
+                    // Full content (truncated for PDF)
+                    if (intel.content) {
+                        yPosition = addFormattedText("DETAILED ANALYSIS:", leftMargin, yPosition + 15, { 
+                            fontSize: 12, 
+                            fontStyle: 'bold', 
+                            color: '#1f2937'
+                        });
+                        yPosition += 10;
+                        
+                        const truncatedContent = intel.content.length > 1000 ? 
+                            intel.content.substring(0, 1000) + '...' : 
+                            intel.content;
+                            
+                        yPosition = addFormattedText(truncatedContent, leftMargin + 20, yPosition + 15, { 
+                            fontSize: 10, 
+                            maxWidth: usableWidth - 40,
+                            lineHeightFactor: 1.6,
+                            color: '#374151'
+                        });
+                        yPosition += 30;
                     }
                 });
             }

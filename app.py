@@ -20,8 +20,17 @@ logger = logging.getLogger(__name__)
 # --- Configuration ---
 VENICE_API_KEY = 'ntmhtbP2fr_pOQsmuLPuN_nm6lm2INWKiNcvrdEfEC'  # Venice AI API key
 VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
-PERSONA_GENERATION_MODEL = "qwen-2.5-qwq-32b"
-INSIGHT_GENERATION_MODEL = "qwen-2.5-qwq-32b"
+
+# Model Configuration
+PERSONA_GENERATION_MODEL = "llama-3.1-405b"      # Llama 405B for expert orchestration
+INSIGHT_GENERATION_MODEL = "qwen3-235b"          # Qwen 235B for individual expert analysis  
+SEARCH_ANALYSIS_MODEL = "mistral-31-24b"         # Mistral for search-based market analysis
+SYNTHESIS_MODEL = "qwen3-235b"                    # Qwen 235B for final synthesis
+
+# Expert Configuration
+TOTAL_EXPERTS = 20
+REGULAR_EXPERTS = 15  # Traditional expert analysis
+SEARCH_EXPERTS = 5    # Market intelligence and search-based analysis
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
@@ -219,17 +228,74 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
         print(f"Unexpected error in call_venice_api for model {model_id}, schema {schema_name_for_api}: {e}")
         return {"error": "An unexpected error occurred", "model_id": model_id, "details": str(e)}
 
+def call_venice_search_api(query, model_id="mistral-31-24b"):
+    """
+    Call Venice AI search API for real-time information gathering.
+    """
+    payload = {
+        "model": model_id,
+        "messages": [
+            {
+                "role": "user", 
+                "content": query
+            }
+        ],
+        "search": True,  # Enable search functionality
+        "temperature": 0.7,
+        "max_completion_tokens": 2000
+    }
+    headers = {
+        "Authorization": f"Bearer {VENICE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        print(f"Calling Venice Search API for query: {query[:100]}...")
+        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=120)
+        response.raise_for_status()
+        
+        full_api_response_json = response.json()
+        if "choices" not in full_api_response_json or not full_api_response_json["choices"]:
+            return {"error": "Search API response missing 'choices'", "query": query}
+            
+        content = full_api_response_json["choices"][0].get("message", {}).get("content")
+        if content is None:
+            return {"error": "Search API response missing 'content'", "query": query}
+            
+        return {"content": clean_text_content(content), "query": query}
+        
+    except Exception as e:
+        print(f"Error in Venice Search API call: {e}")
+        return {"error": str(e), "query": query}
+
 
 # --- Stage 2: Persona Generation & Definition ---
 def generate_expert_personas(business_problem):
     persona_generation_prompt = f"""
     Given the business problem: "{business_problem}"
 
-    Identify and define exactly 10 diverse expert personas that could offer unique and valuable insights.
-    Include a mix of traditional business roles and some non-traditional or creative/futuristic roles.
+    Identify and define exactly 15 diverse expert personas that could offer unique and valuable insights.
+    
+    IMPORTANT GUIDELINES:
+    - NO quantum computing, quantum physics, or quantum technology experts
+    - Focus on the widest breadth of relevant expertise
+    - Include traditional business disciplines (strategy, finance, operations, marketing, HR, legal)
+    - Include industry-specific experts relevant to the problem domain
+    - Include technology and digital transformation experts
+    - Include customer experience and behavioral experts
+    - Include risk management and compliance experts
+    - Include innovation and R&D experts
+    - Include sustainability and ESG experts
+    - Include international/global market experts
+    - Include data analytics and AI/ML experts (non-quantum)
+    - Include supply chain and logistics experts
+    - Include regulatory and policy experts
+
+    Each expert should have distinct expertise that doesn't significantly overlap with others.
+    Ensure the experts collectively cover all major aspects that could impact the business problem.
 
     Your response MUST be a JSON object adhering to the specified schema. 
-    The JSON should contain a single key "personas", which is an array of 10 persona objects.
+    The JSON should contain a single key "personas", which is an array of 15 persona objects.
     Each persona object must have 'name' (string), 'description' (string), and 'focus_areas' (array of strings).
     """
     messages = [{"role": "user", "content": persona_generation_prompt}]
@@ -333,8 +399,109 @@ def get_insights_from_persona(business_problem, persona_profile):
             error_message = api_response_data.get("details", api_response_data.get("error", error_message))
         return {"persona_name": persona_name, "insights_and_analysis": [], "error": error_message}
 
+# --- Stage 3.2: Market Intelligence & Search-Based Analysis ---
+def generate_market_intelligence(business_problem):
+    """
+    Generate 5 market intelligence reports using Venice AI search functionality.
+    Covers: Key Players, Consulting Firm Insights, Porter's Five Forces, Threats, Latest Trends
+    """
+    print("\n--- Stage 3.2: Generating Market Intelligence ---")
+    
+    # Define search queries for different market intelligence areas
+    search_queries = [
+        {
+            "type": "key_players",
+            "title": "Key Market Players & Competitors",
+            "query": f"Who are the key market players, competitors, and industry leaders related to: {business_problem}? Include market share, recent developments, and competitive positioning."
+        },
+        {
+            "type": "consulting_insights", 
+            "title": "Top Consulting Firm Recommendations",
+            "query": f"What are the latest recommendations from top consulting firms (McKinsey, BCG, Bain, Deloitte, PwC, Accenture) regarding: {business_problem}? Include recent reports and strategic advice."
+        },
+        {
+            "type": "porters_five",
+            "title": "Porter's Five Forces Analysis",
+            "query": f"Analyze Porter's Five Forces (competitive rivalry, supplier power, buyer power, threat of substitutes, barriers to entry) for the industry/market related to: {business_problem}"
+        },
+        {
+            "type": "threats_risks",
+            "title": "Market Threats & Emerging Risks", 
+            "query": f"What are the current and emerging threats, risks, and challenges in the market/industry related to: {business_problem}? Include regulatory, technological, and economic threats."
+        },
+        {
+            "type": "latest_trends",
+            "title": "Latest Market Trends & Innovations",
+            "query": f"What are the latest market trends, innovations, technologies, and future developments related to: {business_problem}? Include emerging opportunities and disruptions."
+        }
+    ]
+    
+    market_intelligence = []
+    
+    for search_item in search_queries:
+        print(f"Generating {search_item['title']}...")
+        search_result = call_venice_search_api(search_item["query"], SEARCH_ANALYSIS_MODEL)
+        
+        if search_result.get("error"):
+            print(f"Error in search for {search_item['type']}: {search_result['error']}")
+            intelligence_item = {
+                "type": search_item["type"],
+                "title": search_item["title"],
+                "content": f"Error retrieving data: {search_result['error']}",
+                "key_insights": [],
+                "confidence_level": "Low"
+            }
+        else:
+            # Process the search result into structured intelligence
+            content = search_result.get("content", "No content retrieved")
+            
+            intelligence_item = {
+                "type": search_item["type"],
+                "title": search_item["title"],
+                "content": content,
+                "key_insights": extract_key_insights_from_content(content),
+                "confidence_level": "High" if len(content) > 200 else "Medium"
+            }
+        
+        market_intelligence.append(intelligence_item)
+    
+    return market_intelligence
+
+def extract_key_insights_from_content(content):
+    """
+    Extract key insights from search content using text analysis.
+    Returns a list of key insights/bullet points.
+    """
+    if not content or len(content) < 50:
+        return ["Limited information available"]
+    
+    # Simple extraction - look for sentences that contain key insight indicators
+    import re
+    
+    # Split into sentences and filter for key insights
+    sentences = re.split(r'[.!?]+', content)
+    key_insights = []
+    
+    insight_indicators = [
+        "key", "important", "significant", "major", "critical", "essential",
+        "trend", "growth", "increase", "decrease", "risk", "opportunity",
+        "recommendation", "strategy", "should", "must", "leaders", "market"
+    ]
+    
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if len(sentence) > 20 and len(sentence) < 200:
+            # Check if sentence contains insight indicators
+            sentence_lower = sentence.lower()
+            if any(indicator in sentence_lower for indicator in insight_indicators):
+                key_insights.append(sentence)
+                if len(key_insights) >= 5:  # Limit to top 5 insights per section
+                    break
+    
+    return key_insights if key_insights else ["Analysis completed - see full content for details"]
+
 # --- Stage 3.5: Synthesis Report Generation ---
-def generate_synthesis_report(original_problem, all_expert_insights, persona_definitions_for_context):
+def generate_synthesis_report(original_problem, all_expert_insights, persona_definitions_for_context, market_intelligence=None):
     print("\n--- Stage 3.5: Generating Synthesis Report ---")
     
     # Prepare the context for the synthesis model
@@ -360,6 +527,18 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
                     insights_context += f"    Opportunities: {opportunities_list}\n"
         else:
             insights_context += "  No specific insights provided.\n"
+    
+    # Add market intelligence context
+    if market_intelligence:
+        insights_context += "\n--- Market Intelligence & Real-Time Analysis ---\n"
+        for intel in market_intelligence:
+            insights_context += f"\n**{intel.get('title', 'Market Analysis')}**\n"
+            insights_context += f"  Confidence: {intel.get('confidence_level', 'Medium')}\n"
+            if intel.get('key_insights'):
+                for insight in intel['key_insights']:
+                    insights_context += f"  • {insight}\n"
+            insights_context += f"  Full Content: {intel.get('content', 'No content')[:300]}...\n"
+    
     insights_context += "\n---\n"
 
     synthesis_prompt = f"""
@@ -508,8 +687,12 @@ def handle_process_problem():
             })
             print(f"Failed {idx+1}/{len(personas)}: {persona_name} - continuing with next persona")
     
-    # Call the new synthesis function
-    synthesis_report = generate_synthesis_report(business_problem_text, all_insights_by_persona, personas)
+    # Generate market intelligence 
+    print("\n--- Stage 3.2: Generating Market Intelligence ---")
+    market_intelligence = generate_market_intelligence(business_problem_text)
+    
+    # Call the new synthesis function with market intelligence
+    synthesis_report = generate_synthesis_report(business_problem_text, all_insights_by_persona, personas, market_intelligence)
 
     # Stage 4 is now effectively handled by the synthesis report generation and what's returned below.
     print("\n--- Processing Complete (including synthesis) ---")
@@ -518,7 +701,19 @@ def handle_process_problem():
         "generated_personas_count": len(personas) if isinstance(personas, list) else 0,
         "persona_definitions": personas,
         "expert_insights": all_insights_by_persona,
-        "synthesis_report": synthesis_report # Add the new report here
+        "market_intelligence": market_intelligence,
+        "synthesis_report": synthesis_report,
+        "analysis_summary": {
+            "total_experts": TOTAL_EXPERTS,
+            "regular_experts": len(personas) if isinstance(personas, list) else 0,
+            "search_experts": len(market_intelligence) if market_intelligence else 0,
+            "models_used": {
+                "persona_generation": PERSONA_GENERATION_MODEL,
+                "expert_analysis": INSIGHT_GENERATION_MODEL,
+                "market_intelligence": SEARCH_ANALYSIS_MODEL,
+                "synthesis": SYNTHESIS_MODEL
+            }
+        }
     }
     return jsonify(final_output)
 
