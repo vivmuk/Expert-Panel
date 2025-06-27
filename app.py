@@ -18,11 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- Configuration ---
-VENICE_API_KEY = os.environ.get('VENICE_API_KEY', 'ntmhtbP2fr_pOQsmuLPuN_nm6lm2INWKiNcvrdEfEC')  # Load from environment variable with fallback
-if not VENICE_API_KEY:
-    logger.error("VENICE_API_KEY environment variable is required")
-    logger.error("Please set the VENICE_API_KEY environment variable in your deployment platform")
-    raise ValueError("VENICE_API_KEY environment variable is required")
+VENICE_API_KEY = 'ntmhtbP2fr_pOQsmuLPuN_nm6lm2INWKiNcvrdEfEC'  # Venice AI API key
 VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
 PERSONA_GENERATION_MODEL = "qwen-2.5-qwq-32b"
 INSIGHT_GENERATION_MODEL = "qwen-2.5-qwq-32b"
@@ -37,10 +33,10 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 
 limiter = Limiter(
-    app,
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
 )
+limiter.init_app(app)
 
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
