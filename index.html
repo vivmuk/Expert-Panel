@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Expert Panel - Strategic Business Analysis</title>
+    <title>The AI Partner - Strategic Business Consulting</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1193,8 +1193,8 @@
 </head>
 <body>
     <header class="header">
-        <h1>🧠 Mindful Expert</h1>
-        <div class="subtitle">Strategic Business Analysis Powered by Multiple AI Experts</div>
+        <h1>🧠 The AI Partner</h1>
+        <div class="subtitle">Strategic consulting for small businesses. Get partner-level insights without the partner-level price tag.</div>
     </header>
 
     <div class="main-content-wrapper">
@@ -1207,7 +1207,7 @@
 
         <main class="container" id="right-panel-container">
             <div class="input-section">
-                <p>Enter your business problem. The system will orchestrate 20 AI experts for insights and an action plan.</p>
+                <p>Describe your business challenge. Our AI partners will analyze your problem from every angle and deliver strategic insights that would cost $50,000+ from traditional consulting firms.</p>
                 
                 <!-- Examples Section -->
                 <div class="examples-section" style="margin-bottom: 20px; padding: 20px; background: var(--bg-color); border: 2px solid var(--border-color);">
@@ -1247,10 +1247,10 @@
                 <div class="processing-notification" id="processingNotification">
                     <h3>
                         <span>🧠</span>
-                        Generating Expert Analysis
+                        Your AI Partners at Work
                     </h3>
                     <div class="modern-spinner"></div>
-                    <p id="processingStatus">AI experts are analyzing your problem...</p>
+                    <p id="processingStatus">Your AI partners are analyzing your business challenge...</p>
                     
                     <div class="progress-info">
                         <div class="progress-bar-modern">
@@ -1262,7 +1262,7 @@
                     <!-- Animated Persona Generation Section -->
                     <div class="persona-generation-section" id="personaGenerationSection" style="display: none;">
                         <h4 style="margin: 0 0 20px 0; color: var(--text-color); font-size: 1.2em; font-weight: 600;">
-                            🎯 Generating Expert Personas
+                            🎯 Your AI Partners
                         </h4>
                         <div class="persona-list" id="personaList" style="display: grid; gap: 12px; max-height: 300px; overflow-y: auto;">
                             <!-- Personas will be added here dynamically -->
@@ -1318,21 +1318,21 @@
 
         // Educational text messages about the platform's value
         const educationalMessages = [
-            "Multiple perspectives reveal blind spots that single viewpoints often miss.",
-            "Diverse expert opinions lead to more robust and comprehensive business solutions.",
-            "AI-powered expert panels can analyze complex problems faster than traditional consulting.",
-            "Different specializations bring unique insights that strengthen decision-making.",
-            "Cross-functional analysis helps identify risks and opportunities across all business areas.",
-            "Expert diversity reduces cognitive bias and improves strategic thinking quality.",
-            "Venice AI enables access to world-class expertise without geographical limitations.",
-            "Collaborative intelligence combines human expertise with AI processing power.",
-            "Multi-expert analysis provides confidence through consensus and highlights areas of disagreement.",
-            "Strategic problems benefit from marketing, financial, operational, and technical perspectives simultaneously.",
-            "AI expert panels democratize access to high-level business consulting and strategic advice.",
-            "Synthesized expert opinions create actionable insights that individual consultants might miss.",
-            "Real-time expert analysis accelerates decision-making in fast-paced business environments.",
-            "Comprehensive expert review helps validate assumptions and challenge conventional thinking.",
-            "AI-orchestrated expertise scales personalized business consulting to any organization size."
+            "Get partner-level strategic insights without the $50,000+ consulting bill.",
+            "Small businesses deserve the same strategic thinking as Fortune 500 companies.",
+            "Our AI partners work 24/7 and never charge by the hour.",
+            "Strategic consulting shouldn't be a luxury reserved for big corporations.",
+            "Get multiple expert perspectives for the price of a coffee.",
+            "Why pay $500/hour when AI partners deliver better insights?",
+            "Traditional consulting firms are expensive. AI partners are effective.",
+            "Strategic insights that would cost $100,000+ from McKinsey, delivered instantly.",
+            "Small business problems deserve big business thinking.",
+            "Our AI partners don't have conflicts of interest - just your best interests.",
+            "Get the strategic analysis that would take months and cost six figures.",
+            "Why hire one expensive consultant when you can have 20 AI partners?",
+            "Strategic consulting democratized for every business size.",
+            "Partner-level insights without the partner-level overhead.",
+            "Your business deserves strategic thinking, not just tactical advice."
         ];
 
         function startEducationalTextRotation() {
@@ -1479,7 +1479,7 @@
                     <div class="persona-name">${name}</div>
                     <div class="persona-role">${role}</div>
                 </div>
-                <div class="persona-status generating">Generating...</div>
+                <div class="persona-status generating">Joining the team...</div>
             `;
             
             personaList.appendChild(personaItem);
@@ -1540,16 +1540,8 @@
                 await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 200));
             }
             
-            // Simulate persona completion
-            for (let i = 0; i < personas.length; i++) {
-                await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
-                updatePersonaStatus(i, 'Complete');
-            }
-            
-            // Hide persona generation after completion
-            setTimeout(() => {
-                hidePersonaGeneration();
-            }, 2000);
+            // Keep personas visible and update their status as the process continues
+            // Don't hide the persona generation section - let it stay visible
         }
 
         // Example problems for quick testing
@@ -1627,21 +1619,21 @@
                 
                 // Start persona generation animation
                 const mockPersonas = [
-                    { name: "Marketing Strategist", role: "Digital Marketing Expert" },
-                    { name: "Financial Analyst", role: "Investment & Risk Specialist" },
-                    { name: "Technology Consultant", role: "Digital Transformation Expert" },
-                    { name: "Operations Manager", role: "Process Optimization Specialist" },
-                    { name: "Customer Experience", role: "User Journey Expert" },
-                    { name: "Strategic Planner", role: "Business Strategy Consultant" },
-                    { name: "Data Scientist", role: "Analytics & Insights Expert" },
-                    { name: "Legal Advisor", role: "Compliance & Risk Specialist" },
-                    { name: "Innovation Lead", role: "Product Development Expert" },
-                    { name: "Sales Strategist", role: "Revenue Growth Specialist" },
-                    { name: "HR Director", role: "Talent & Culture Expert" },
-                    { name: "Supply Chain", role: "Logistics & Operations" },
-                    { name: "Product Manager", role: "Product Strategy Expert" },
-                    { name: "Market Researcher", role: "Industry Analysis Expert" },
-                    { name: "Business Analyst", role: "Performance Optimization" }
+                    { name: "Sarah Chen", role: "Marketing Partner" },
+                    { name: "Michael Rodriguez", role: "Financial Partner" },
+                    { name: "Dr. James Kim", role: "Technology Partner" },
+                    { name: "Lisa Thompson", role: "Operations Partner" },
+                    { name: "David Park", role: "Customer Experience Partner" },
+                    { name: "Amanda Foster", role: "Strategic Planning Partner" },
+                    { name: "Dr. Robert Singh", role: "Data & Analytics Partner" },
+                    { name: "Jennifer Walsh", role: "Legal & Compliance Partner" },
+                    { name: "Marcus Johnson", role: "Innovation Partner" },
+                    { name: "Elena Rodriguez", role: "Sales & Growth Partner" },
+                    { name: "Dr. Sarah Williams", role: "Talent & Culture Partner" },
+                    { name: "Alex Chen", role: "Supply Chain Partner" },
+                    { name: "Rachel Green", role: "Product Strategy Partner" },
+                    { name: "Dr. Kevin O'Brien", role: "Market Intelligence Partner" },
+                    { name: "Michelle Davis", role: "Performance Partner" }
                 ];
                 
                 // Start the persona animation
@@ -1679,32 +1671,44 @@
                     allProcessedItemNames.push("Synthesis Report");
                 }
                 
-                updateProgress(`Personas generated. Collecting insights...`, STAGE_PERSONA_GENERATION_COMPLETE);
+                updateProgress(`AI Partners analyzing your problem...`, STAGE_PERSONA_GENERATION_COMPLETE);
                 await new Promise(resolve => setTimeout(resolve, 300));
 
+                // Update persona statuses to show they're working
                 if (data.expert_insights) {
-                    for (let i = 0; i < data.expert_insights.length; i++) {
-                        updateProgress(`Insights: ${data.expert_insights[i].persona_name}...`, STAGE_PERSONA_INSIGHT_COLLECTION_START + i);
-                        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
+                    for (let i = 0; i < Math.min(data.expert_insights.length, 15); i++) {
+                        updatePersonaStatus(i, 'Analyzing your challenge...');
+                        await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
                     }
                 }
                 
-                if (data.search_findings) {
-                    updateProgress(`Processing: ${data.search_findings.persona_name}...`, STAGE_SEARCH_ASSISTANT_START);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                // Show market intelligence gathering
+                updateProgress('Gathering market intelligence...', STAGE_SEARCH_ASSISTANT_START);
+                await new Promise(resolve => setTimeout(resolve, 800));
+                
+                // Update some personas to show market research
+                for (let i = 10; i < 15; i++) {
+                    updatePersonaStatus(i, 'Researching market trends...');
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
 
-                updateProgress('Synthesizing report...', STAGE_SYNTHESIS_START);
-                await new Promise(resolve => setTimeout(resolve, 1200)); 
+                updateProgress('Synthesizing strategic insights...', STAGE_SYNTHESIS_START);
+                await new Promise(resolve => setTimeout(resolve, 800)); 
+                
+                // Update all personas to complete
+                for (let i = 0; i < 15; i++) {
+                    updatePersonaStatus(i, 'Complete');
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
 
-                updateProgress('Finalizing results...', STAGE_DISPLAY_RESULTS);
+                updateProgress('Finalizing your strategic report...', STAGE_DISPLAY_RESULTS);
                 displayResults(data);
 
                 if (data.synthesis_report || data.expert_insights || data.market_intelligence) {
                     downloadButton.style.display = 'inline-block';
                 }
 
-                updateProgress("Processing complete!", STAGE_ALL_COMPLETE);
+                updateProgress("Strategic analysis complete!", STAGE_ALL_COMPLETE);
 
             } catch (error) {
                 console.error('Error submitting problem:', error);
