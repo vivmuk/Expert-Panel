@@ -210,6 +210,16 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
         # Clean the structured content to remove [REF] tags and other unwanted formatting
         cleaned_content = clean_insights_data(structured_content)
         
+        # Extract usage data if available
+        usage_data = full_api_response_json.get("usage", {})
+        if usage_data:
+            cleaned_content["_api_usage"] = {
+                "prompt_tokens": usage_data.get("prompt_tokens", 0),
+                "completion_tokens": usage_data.get("completion_tokens", 0),
+                "total_tokens": usage_data.get("total_tokens", 0),
+                "model": model_id
+            }
+        
         return cleaned_content
         
     except requests.exceptions.Timeout:
@@ -288,7 +298,19 @@ def call_venice_search_api(query, model_id="llama-3.1-405b"):
             return {"error": "Search API response missing 'content'", "query": query}
         
         print(f"Content length: {len(content)} characters")
-        return {"content": clean_text_content(content), "query": query}
+        
+        # Extract usage data if available
+        usage_data = full_api_response_json.get("usage", {})
+        result = {"content": clean_text_content(content), "query": query}
+        if usage_data:
+            result["_api_usage"] = {
+                "prompt_tokens": usage_data.get("prompt_tokens", 0),
+                "completion_tokens": usage_data.get("completion_tokens", 0),
+                "total_tokens": usage_data.get("total_tokens", 0),
+                "model": model_id
+            }
+        
+        return result
         
     except Exception as e:
         print(f"Error in Venice Search API call: {e}")
@@ -1004,10 +1026,24 @@ def handle_process_problem():
     if not business_problem_text:
         return jsonify({"error": "Missing 'business_problem' in request"}), 400
 
+    # Initialize token usage tracking
+    token_usage = {
+        "orchestrator": {"input_tokens": 0, "output_tokens": 0, "model": PERSONA_GENERATION_MODEL},
+        "personas": {"input_tokens": 0, "output_tokens": 0, "model": INSIGHT_GENERATION_MODEL},
+        "search_reports": {"input_tokens": 0, "output_tokens": 0, "model": "llama-3.1-405b"},
+        "synthesis": {"input_tokens": 0, "output_tokens": 0, "model": SYNTHESIS_MODEL}
+    }
+
     print(f"\n--- Received problem: {business_problem_text[:100]}... ---")
 
     print("\n--- Stage 2: Generating Expert Personas ---")
     personas = generate_expert_personas(business_problem_text)
+
+    # Track orchestrator token usage
+    if isinstance(personas, dict) and "_api_usage" in personas:
+        usage = personas["_api_usage"]
+        token_usage["orchestrator"]["input_tokens"] = usage.get("prompt_tokens", 0)
+        token_usage["orchestrator"]["output_tokens"] = usage.get("completion_tokens", 0)
 
     if not personas: 
         print("Could not generate personas. Aborting.")
@@ -1026,6 +1062,13 @@ def handle_process_problem():
         
         try:
             persona_insights = get_insights_from_persona(business_problem_text, persona)
+            
+            # Track persona token usage
+            if isinstance(persona_insights, dict) and "_api_usage" in persona_insights:
+                usage = persona_insights["_api_usage"]
+                token_usage["personas"]["input_tokens"] += usage.get("prompt_tokens", 0)
+                token_usage["personas"]["output_tokens"] += usage.get("completion_tokens", 0)
+            
             all_insights_by_persona.append(persona_insights)
             print(f"Completed {idx+1}/{len(personas)}: {persona_name}")
         except Exception as e:
@@ -1041,8 +1084,20 @@ def handle_process_problem():
     print("\n--- Stage 3.2: Generating Market Intelligence ---")
     market_intelligence = generate_market_intelligence(business_problem_text)
     
+    # Track search reports token usage
+    if isinstance(market_intelligence, dict) and "_api_usage" in market_intelligence:
+        usage = market_intelligence["_api_usage"]
+        token_usage["search_reports"]["input_tokens"] = usage.get("prompt_tokens", 0)
+        token_usage["search_reports"]["output_tokens"] = usage.get("completion_tokens", 0)
+    
     # Call the new synthesis function with market intelligence
     synthesis_report = generate_synthesis_report(business_problem_text, all_insights_by_persona, personas, market_intelligence)
+    
+    # Track synthesis token usage
+    if isinstance(synthesis_report, dict) and "_api_usage" in synthesis_report:
+        usage = synthesis_report["_api_usage"]
+        token_usage["synthesis"]["input_tokens"] = usage.get("prompt_tokens", 0)
+        token_usage["synthesis"]["output_tokens"] = usage.get("completion_tokens", 0)
 
     # Stage 4 is now effectively handled by the synthesis report generation and what's returned below.
     print("\n--- Processing Complete (including synthesis) ---")
@@ -1053,6 +1108,7 @@ def handle_process_problem():
         "expert_insights": all_insights_by_persona,
         "market_intelligence": market_intelligence,
         "synthesis_report": synthesis_report,
+        "token_usage": token_usage,
         "analysis_summary": {
             "total_experts": TOTAL_EXPERTS,
             "regular_experts": len(personas) if isinstance(personas, list) else 0,
