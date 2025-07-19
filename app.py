@@ -34,7 +34,7 @@ SEARCH_EXPERTS = 5    # Market intelligence and search-based analysis
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
-CORS(app, resources={r"/*":{"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/*":{"origins": ["http://127.0.0.1:5000", "http://localhost:5000", "https://prajnaconsulting.netlify.app"]}}, supports_credentials=True)
 
 # Add rate limiting and caching
 from flask_limiter import Limiter
@@ -51,11 +51,16 @@ cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 @app.before_request
 def handle_preflight():
-    if request.method == "OPTIONS" and request.path in ["/process_problem", "/test_venice"]:
+    if request.method == "OPTIONS" and request.path in ["/process_problem", "/test_venice", "/health"]:
         response = jsonify(success=True) # Or app.make_response('')
-        response.headers.add("Access-Control-Allow-Origin", "*")
+        origin = request.headers.get('Origin')
+        allowed_origins = ["http://127.0.0.1:5000", "http://localhost:5000", "https://prajnaconsulting.netlify.app"]
+        if origin in allowed_origins:
+            response.headers.add("Access-Control-Allow-Origin", origin)
+        else:
+            response.headers.add("Access-Control-Allow-Origin", "http://127.0.0.1:5000")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+        response.headers.add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")
         return response
 
