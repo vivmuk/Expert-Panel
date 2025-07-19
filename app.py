@@ -228,7 +228,7 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
         print(f"Unexpected error in call_venice_api for model {model_id}, schema {schema_name_for_api}: {e}")
         return {"error": "An unexpected error occurred", "model_id": model_id, "details": str(e)}
 
-def call_venice_search_api(query, model_id="qwen-2.5-qwq-32b"):
+def call_venice_search_api(query, model_id="venice-uncensored"):
     """
     Call Venice AI search API for real-time information gathering.
     """
@@ -240,9 +240,9 @@ def call_venice_search_api(query, model_id="qwen-2.5-qwq-32b"):
                 "content": query
             }
         ],
-        "search": True,  # Enable search functionality
+        "web_search": True,  # Enable web search functionality
         "temperature": 0.7,
-        "max_completion_tokens": 2000
+        "max_tokens": 2000
     }
     headers = {
         "Authorization": f"Bearer {VENICE_API_KEY}",
@@ -350,8 +350,14 @@ def get_insights_from_persona(business_problem, persona_profile):
     
     Your response MUST be a JSON object adhering to the specified schema.
     The JSON should contain 'persona_name' (string, matching "{persona_name}") and 'insights_and_analysis' (array of objects).
-    Each item in 'insights_and_analysis' must have 'insight' (string), 'supporting_reasoning' (string), 'confidence_level' (enum: "High", "Medium", "Low"), 
-    and optionally 'identified_risks' (array of strings) and 'identified_opportunities' (array of strings).
+    Each item in 'insights_and_analysis' must have:
+    - 'insight' (string): Your key insight or recommendation
+    - 'supporting_reasoning' (string): Detailed reasoning for your insight
+    - 'confidence_level' (enum: "High", "Medium", "Low"): Your confidence in this insight
+    - 'implementation_ideas' (array of 3 strings): Three specific, actionable ideas on how to accomplish this insight
+    - Optionally 'identified_risks' (array of strings) and 'identified_opportunities' (array of strings)
+    
+    For each insight, provide exactly 3 implementation ideas that are specific, actionable, and practical.
     """
     messages = [{"role": "user", "content": insight_prompt}]
 
@@ -369,9 +375,10 @@ def get_insights_from_persona(business_problem, persona_profile):
                         "identified_risks": {"type": ["array", "null"], "items": {"type": "string"}},
                         "identified_opportunities": {"type": ["array", "null"], "items": {"type": "string"}},
                         "supporting_reasoning": {"type": "string"},
-                        "confidence_level": {"type": "string", "enum": ["High", "Medium", "Low"]}
+                        "confidence_level": {"type": "string", "enum": ["High", "Medium", "Low"]},
+                        "implementation_ideas": {"type": "array", "items": {"type": "string"}}
                     },
-                    "required": ["insight", "supporting_reasoning", "confidence_level"],
+                    "required": ["insight", "supporting_reasoning", "confidence_level", "implementation_ideas"],
                     "additionalProperties": False
                 }
             }
@@ -402,159 +409,165 @@ def get_insights_from_persona(business_problem, persona_profile):
 # --- Stage 3.2: Market Intelligence & Search-Based Analysis ---
 def generate_market_intelligence(business_problem):
     """
-    Generate 5 market intelligence reports using Venice AI search functionality.
-    Covers: Key Players, Consulting Firm Insights, Porter's Five Forces, Threats, Latest Trends
+    Generate 5 dynamic market intelligence reports using Venice AI search functionality.
+    Queries are generated based on the specific business problem context.
     """
     print("\n--- Stage 3.2: Generating Market Intelligence ---")
     
-    # Define enhanced search queries for different market intelligence areas
-    search_queries = [
+    # Generate dynamic search queries based on the business problem
+    search_queries = generate_dynamic_search_queries(business_problem)
+    
+    market_intelligence = []
+    
+    for idx, search_item in enumerate(search_queries):
+        print(f"Generating {search_item['title']} ({idx+1}/5)...")
+        
+        # Add delay between searches to avoid hitting model limits
+        if idx > 0:
+            import time
+            print(f"Waiting 2 seconds before next search to avoid rate limits...")
+            time.sleep(2)
+        
+        search_result = call_venice_search_api(search_item["query"], "venice-uncensored")
+        
+        if search_result.get("error"):
+            print(f"Error in search for {search_item['type']}: {search_result['error']}")
+            intelligence_item = {
+                "type": search_item["type"],
+                "title": search_item["title"],
+                "content": f"Error retrieving data: {search_result['error']}",
+                "key_insights": [],
+                "confidence_level": "Low"
+            }
+        else:
+            # Process the search result into structured intelligence
+            content = search_result.get("content", "No content retrieved")
+            
+            intelligence_item = {
+                "type": search_item["type"],
+                "title": search_item["title"],
+                "content": content,
+                "key_insights": extract_key_insights_from_content(content),
+                "confidence_level": "High" if len(content) > 200 else "Medium"
+            }
+        
+        market_intelligence.append(intelligence_item)
+    
+    return market_intelligence
+
+def generate_dynamic_search_queries(business_problem):
+    """
+    Generate dynamic search queries based on the business problem context.
+    Each query is tailored to the specific problem domain.
+    """
+    
+    # Extract key terms and context from the business problem
+    problem_lower = business_problem.lower()
+    
+    # Determine the industry/domain context
+    industry_keywords = {
+        "tech": ["software", "technology", "ai", "machine learning", "digital", "app", "platform"],
+        "healthcare": ["health", "medical", "patient", "hospital", "pharma", "biotech"],
+        "finance": ["financial", "banking", "investment", "fintech", "payment", "insurance"],
+        "retail": ["retail", "ecommerce", "consumer", "shopping", "marketplace"],
+        "manufacturing": ["manufacturing", "production", "supply chain", "logistics", "industrial"],
+        "education": ["education", "learning", "training", "school", "university", "edtech"]
+    }
+    
+    detected_industry = "general"
+    for industry, keywords in industry_keywords.items():
+        if any(keyword in problem_lower for keyword in keywords):
+            detected_industry = industry
+            break
+    
+    # Generate contextual queries
+    queries = [
         {
-            "type": "key_players",
-            "title": "Key Market Players & Competitors",
-            "query": f"""Search for comprehensive competitive landscape analysis related to: {business_problem}
+            "type": "market_size",
+            "title": f"Current Market Size & Growth Analysis",
+            "query": f"""Search for current market size, growth rates, and market dynamics for: {business_problem}
+
+Focus on the last 6 months (mid-2024 onwards) and find:
+- Total addressable market (TAM) size and growth projections
+- Market penetration rates and adoption trends
+- Key market segments and their growth rates
+- Geographic market distribution and expansion opportunities
+- Market maturity indicators and saturation levels
+- Revenue models and monetization trends in this space
+- Customer acquisition costs and lifetime value metrics
+
+Include specific figures, percentages, and company examples where available."""
+        },
+        {
+            "type": "current_solutions",
+            "title": f"Current Solutions & Market Landscape",
+            "query": f"""Search for existing solutions and approaches currently being used to address: {business_problem}
 
 Find information about:
-- Top 5-10 market leaders and their market share percentages
-- Recent mergers, acquisitions, and strategic partnerships in this space
-- Competitive positioning and differentiation strategies
-- Revenue figures, growth rates, and financial performance of key players
-- Geographic presence and market penetration
-- Recent product launches, innovations, or strategic initiatives
-- Venture capital investments and funding rounds in this sector
+- Current market leaders and their solution approaches
+- Traditional vs. innovative solution methods
+- Technology stack and tools commonly used
+- Implementation strategies and best practices
+- Success rates and performance metrics
+- Customer satisfaction and adoption rates
+- Integration challenges and limitations
 
-Focus on data from the last 6 months (since mid-2024) and include specific company names, figures, and dates where available."""
+Focus on solutions from the last 6 months and include specific company names and case studies."""
         },
         {
-            "type": "consulting_insights", 
-            "title": "Top Consulting Firm Recommendations",
-            "query": f"""Search for recent strategic consulting reports and recommendations from top-tier firms regarding: {business_problem}
+            "type": "ai_applications",
+            "title": f"AI & Technology Applications",
+            "query": f"""Search for how AI, machine learning, and advanced technologies are being applied to solve: {business_problem}
 
-Look for insights from:
-- McKinsey & Company reports and articles
-- Boston Consulting Group (BCG) research and perspectives  
-- Bain & Company insights and case studies
-- Deloitte industry reports and strategic recommendations
-- PwC analysis and market outlooks
-- Accenture research and technology insights
+Look for:
+- AI/ML applications and use cases in this domain
+- Automation opportunities and implementations
+- Data analytics and predictive modeling approaches
+- Emerging technology integrations (IoT, blockchain, etc.)
+- AI-powered tools and platforms
+- Success stories and ROI metrics
+- Implementation challenges and lessons learned
+- Future technology trends and innovations
 
-Focus on:
-- Published reports, white papers, and thought leadership from the last 6 months (mid-2024 onwards)
-- Strategic frameworks and methodologies recommended for similar challenges
-- Industry benchmarks and best practices
-- Digital transformation recommendations
-- Cost optimization and efficiency strategies
-- Future-focused strategic advice and predictions"""
+Focus on developments from the last 6 months and include specific AI tools, platforms, and company examples."""
         },
         {
-            "type": "porters_five",
-            "title": "Porter's Five Forces Analysis",
-            "query": f"""Conduct a comprehensive Porter's Five Forces analysis for the industry/market context of: {business_problem}
+            "type": "competitive_landscape",
+            "title": f"Competitive Landscape & Key Players",
+            "query": f"""Search for comprehensive competitive analysis and key players in: {business_problem}
 
-Analyze and provide specific details for each force:
+Analyze:
+- Top 10-15 companies and startups in this space
+- Market share distribution and competitive positioning
+- Recent funding rounds and investment trends
+- Strategic partnerships and acquisitions
+- Product differentiation and unique value propositions
+- Geographic presence and expansion strategies
+- Technology stack and innovation capabilities
+- Customer base and target markets
 
-1. COMPETITIVE RIVALRY:
-- Number of competitors and market concentration
-- Price competition intensity and profit margins
-- Product differentiation levels
-- Exit barriers and switching costs
-
-2. SUPPLIER POWER:
-- Number of suppliers and concentration
-- Switching costs for suppliers
-- Forward integration threats
-- Input cost pressures and supply chain disruptions
-
-3. BUYER POWER:
-- Customer concentration and purchasing volume
-- Price sensitivity and elasticity
-- Backward integration potential
-- Availability of substitute products
-
-4. THREAT OF SUBSTITUTES:
-- Alternative solutions and technologies
-- Performance-to-price ratios of substitutes
-- Customer propensity to substitute
-- Disruptive innovation threats
-
-5. BARRIERS TO ENTRY:
-- Capital requirements and economies of scale
-- Regulatory requirements and licensing
-- Technology and expertise barriers
-- Brand loyalty and network effects
-
-Include recent examples from the last 6 months, specific companies, and quantitative data where available."""
+Include recent data from the last 6 months with specific company names, funding amounts, and market positions."""
         },
         {
-            "type": "threats_risks",
-            "title": "Market Threats & Emerging Risks", 
-            "query": f"""Identify and analyze current and emerging threats, risks, and challenges for businesses dealing with: {business_problem}
+            "type": "future_trends",
+            "title": f"Future Trends & Opportunities",
+            "query": f"""Search for emerging trends, future opportunities, and disruptive forces affecting: {business_problem}
 
-Search for comprehensive risk assessment covering:
+Identify:
+- Emerging market trends and consumer behavior shifts
+- Technology disruption and innovation opportunities
+- Regulatory changes and compliance requirements
+- New business models and revenue streams
+- Partnership and collaboration opportunities
+- Investment and funding trends
+- Talent and skill requirements
+- Risk factors and potential challenges
 
-REGULATORY & COMPLIANCE RISKS:
-- New legislation and regulatory changes (last 6 months)
-- Compliance requirements and penalties
-- Data privacy and security regulations
-- Environmental and sustainability mandates
-
-TECHNOLOGICAL THREATS:
-- Disruptive technologies and innovation threats
-- Cybersecurity risks and data breaches
-- Technology obsolescence risks
-- AI and automation displacement
-
-ECONOMIC & MARKET RISKS:
-- Economic downturn and recession impacts
-- Inflation, interest rate changes, and currency fluctuations
-- Supply chain disruptions and geopolitical tensions
-- Market saturation and declining demand
-
-COMPETITIVE THREATS:
-- New entrants and disruptors
-- Price wars and margin compression
-- Technology disruption from startups
-- Platform and ecosystem competition
-
-Include specific examples from the last 6 months, recent incidents, probability assessments, and potential impact levels."""
-        },
-        {
-            "type": "latest_trends",
-            "title": "Latest Market Trends & Innovations",
-            "query": f"""Research the latest market trends, emerging technologies, and innovation developments relevant to: {business_problem}
-
-Focus on cutting-edge developments from the last 6 months (mid-2024 onwards):
-
-TECHNOLOGY TRENDS:
-- Artificial Intelligence and Machine Learning applications
-- Automation and robotics adoption
-- Cloud computing and edge technologies
-- Internet of Things (IoT) and connectivity solutions
-- Blockchain and Web3 applications
-
-BUSINESS MODEL INNOVATIONS:
-- Platform and ecosystem strategies
-- Subscription and as-a-Service models
-- Direct-to-consumer approaches
-- Circular economy and sustainability initiatives
-- Remote and hybrid work solutions
-
-MARKET OPPORTUNITIES:
-- Emerging market segments and demographics
-- Sustainability and ESG-driven opportunities
-- Digital transformation acceleration
-- Health and wellness trends
-- Gen Z and millennial consumption patterns
-
-INVESTMENT & FUNDING TRENDS:
-- Venture capital and private equity focus areas
-- IPO trends and valuations
-- Corporate innovation investments
-- Government funding and incentives
-
-Include specific company examples, investment amounts, growth projections, and adoption timelines from the last 6 months."""
+Focus on forward-looking insights from the last 6 months with specific predictions, timelines, and company examples."""
         }
     ]
+    
+    return queries
     
     market_intelligence = []
     

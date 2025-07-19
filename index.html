@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Expert Panel - Synthesis</title>
+    <title>AI Expert Panel - Strategic Business Analysis</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -1738,6 +1739,17 @@
                                                         <strong style="color: var(--secondary-color);">🌟 Opportunities:</strong> 
                                                         <span style="color: var(--secondary-color);">${item.identified_opportunities.join(', ')}</span>
                                                     </div>` : ''}
+                                                ${item.implementation_ideas && item.implementation_ideas.length > 0 ? `
+                                                    <div style="margin: 15px 0;">
+                                                        <strong style="color: var(--accent-green);">💡 Implementation Ideas:</strong>
+                                                        <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+                                                            ${item.implementation_ideas.map(idea => `
+                                                                <li style="margin-bottom: 5px; line-height: 1.5; color: var(--primary-darker);">
+                                                                    ${idea}
+                                                                </li>
+                                                            `).join('')}
+                                                        </ul>
+                                                    </div>` : ''}
                                             </div>
                                         </div>
                                     </div>`;
@@ -2265,6 +2277,26 @@
                                     maxWidth: usableWidth - 70,
                                     fontStyle: 'italic',
                                     lineHeightFactor: 1.5
+                                });
+                            }
+                            
+                            if (item.implementation_ideas && item.implementation_ideas.length > 0) {
+                                yPosition = addFormattedText(`💡 Implementation Ideas:`, leftMargin + 55, yPosition + 8, { 
+                                    fontSize: 9, 
+                                    color: '#059669', 
+                                    maxWidth: usableWidth - 70,
+                                    fontStyle: 'bold',
+                                    lineHeightFactor: 1.5
+                                });
+                                
+                                item.implementation_ideas.forEach((idea, ideaIndex) => {
+                                    yPosition = addFormattedText(`  ${ideaIndex + 1}. ${idea}`, leftMargin + 70, yPosition + 8, { 
+                                        fontSize: 9, 
+                                        color: '#374151', 
+                                        maxWidth: usableWidth - 85,
+                                        fontStyle: 'normal',
+                                        lineHeightFactor: 1.5
+                                    });
                                 });
                             }
                             
