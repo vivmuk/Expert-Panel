@@ -399,19 +399,52 @@
             background-color: color-mix(in srgb, var(--left-panel-text) 20%, transparent); /* Lighter bar background */
             border-radius: var(--border-radius-sm);
             padding: 3px; /* Increased padding */
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
         }
         .progress-bar-inner {
             display: block;
             height: 20px; /* Taller bar */
             width: 0%;
-            background: linear-gradient(90deg, var(--accent-orange), var(--accent-yellow)); /* Use accent gradient */
+            background: linear-gradient(90deg, 
+                var(--accent-green) 0%, 
+                var(--accent-purple) 25%, 
+                var(--accent-orange) 50%, 
+                var(--accent-yellow) 75%, 
+                var(--accent-green) 100%);
             border-radius: var(--border-radius-sm); /* Match outer radius */
             text-align: center;
             line-height: 20px;
             color: var(--text-color); /* Darker text for visibility on yellow/orange */
             font-weight: 600; /* Bolder */
             font-size: 0.85em;
-            transition: width 0.4s ease-in-out;
+            transition: width 0.8s ease;
+            position: relative;
+            animation: progressShimmer 2s linear infinite;
+        }
+
+        @keyframes progressShimmer {
+            0% { background-position: -200px 0; }
+            100% { background-position: 200px 0; }
+        }
+
+        .progress-bar-inner::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255,255,255,0.3) 50%, 
+                transparent 100%);
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
         #statusMessage {
             font-style: italic;
@@ -914,6 +947,18 @@
             box-shadow: var(--shadow-lg);
             position: relative;
             overflow: hidden;
+            animation: processingPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes processingPulse {
+            0%, 100% { 
+                box-shadow: var(--shadow-lg);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: var(--shadow-lg), 0 0 30px rgba(0, 123, 255, 0.3);
+                transform: scale(1.01);
+            }
         }
         
         /* Persona Generation Styles */
@@ -1026,7 +1071,36 @@
 
         .processing-notification h3 span {
             font-size: 1.5em;
-            animation: bounce 2s infinite;
+            animation: spin 2s linear infinite;
+        }
+
+        .processing-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--accent-green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+
+        .processing-spinner::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            border: 4px solid transparent;
+            border-top: 4px solid var(--accent-purple);
+            border-radius: 50%;
+            animation: spin 1.5s linear infinite reverse;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         @keyframes bounce {
@@ -1247,11 +1321,11 @@
                 
                 <!-- Modern Processing Notification -->
                 <div class="processing-notification" id="processingNotification">
+                    <div class="processing-spinner"></div>
                     <h3>
-                        <span>🧠</span>
+                        <span>🎯</span>
                         Your AI Partners at Work
                     </h3>
-                    <div class="modern-spinner"></div>
                     <p id="processingStatus">Your AI partners are analyzing your business challenge...</p>
                     
                     <div class="progress-info">
@@ -1346,18 +1420,61 @@
             "Get multiple expert perspectives for the price of a coffee.",
             "Why pay $500/hour when AI partners deliver better insights?",
             "Traditional consulting firms are expensive. AI partners are effective.",
-            "Strategic insights that would cost $100,000+ from McKinsey, delivered instantly.",
+            "Strategic insights that would cost $100,000+ from large consulting firms, delivered instantly.",
             "Small business problems deserve big business thinking.",
             "Our AI partners don't have conflicts of interest - just your best interests.",
             "Get the strategic analysis that would take months and cost six figures.",
             "Why hire one expensive consultant when you can have 20 AI partners?",
             "Strategic consulting democratized for every business size.",
             "Partner-level insights without the partner-level overhead.",
-            "Your business deserves strategic thinking, not just tactical advice."
+            "Your business deserves strategic thinking, not just tactical advice.",
+            "Bypass the traditional consulting bottleneck - get answers in minutes, not months.",
+            "Level the playing field against larger competitors with AI-powered strategy.",
+            "Reduce decision paralysis with clear, actionable strategic recommendations.",
+            "Access to specialized expertise across multiple domains simultaneously.",
+            "Real-time market analysis that adapts to changing business conditions.",
+            "Cost-effective alternative to hiring expensive strategy consultants.",
+            "No geographical limitations - expert insights available anywhere, anytime.",
+            "Rapid prototyping of strategic initiatives before major investments.",
+            "Continuous strategic monitoring without ongoing consulting fees.",
+            "Democratized access to high-level strategic thinking for small businesses.",
+            "Eliminate the need for multiple consultant meetings and presentations.",
+            "Get strategic insights that would cost $50,000+ from large consulting firms.",
+            "Transform complex business challenges into clear strategic roadmaps.",
+            "Access to cutting-edge AI models that large consulting firms use internally.",
+            "Rapid strategic pivots based on real-time market intelligence.",
+            "Comprehensive competitive analysis without the traditional consulting overhead.",
+            "Strategic planning that adapts to your business's unique constraints.",
+            "Immediate access to industry best practices and strategic frameworks."
+        ];
+
+        // Background processing messages that show what's happening
+        const backgroundMessages = [
+            "🔍 Analyzing market trends and competitive landscape...",
+            "📊 Gathering industry insights and best practices...",
+            "🎯 Evaluating strategic options and potential outcomes...",
+            "🌐 Researching current market conditions and opportunities...",
+            "🧠 Synthesizing expert perspectives and recommendations...",
+            "📋 Compiling comprehensive strategic analysis...",
+            "⚡ Finalizing actionable recommendations...",
+            "📈 Preparing executive summary and implementation plan...",
+            "🔬 Conducting deep-dive market research...",
+            "💡 Generating innovative strategic approaches...",
+            "📱 Analyzing digital transformation opportunities...",
+            "💰 Evaluating financial implications and ROI...",
+            "🚀 Identifying growth and scaling opportunities...",
+            "🛡️ Assessing risks and mitigation strategies...",
+            "🤝 Analyzing customer and stakeholder perspectives...",
+            "⚙️ Reviewing operational efficiency opportunities...",
+            "📈 Examining performance metrics and KPIs...",
+            "🌍 Researching global market trends and opportunities...",
+            "🔮 Forecasting future market developments...",
+            "📊 Creating data-driven strategic frameworks..."
         ];
 
         function startEducationalTextRotation() {
             const educationalTextElement = document.getElementById('educationalText');
+            const processingStatus = document.getElementById('processingStatus');
             if (!educationalTextElement) return;
 
             let currentIndex = 0;
@@ -1376,6 +1493,19 @@
                 }, 500); // Half second for fade transition
                 
             }, 7000); // Change every 7 seconds
+
+            // Also rotate background processing messages
+            if (processingStatus) {
+                let bgIndex = 0;
+                setInterval(() => {
+                    if (processingStatus.textContent.includes('Initializing') || 
+                        processingStatus.textContent.includes('Processing') ||
+                        processingStatus.textContent.includes('Analyzing')) {
+                        processingStatus.textContent = backgroundMessages[bgIndex % backgroundMessages.length];
+                        bgIndex++;
+                    }
+                }, 3000); // Change every 3 seconds
+            }
         }
 
         function stopEducationalTextRotation() {
@@ -1418,21 +1548,70 @@
             return '&#128100;'; // Default user icon
         }
 
-        function updateProgress(message, numericStage) {
-            currentProgressNumericStage = numericStage;
+        // Realistic progress simulation for 10-minute process
+        let progressSimulationInterval = null;
+        let currentSimulatedProgress = 0;
+        let progressStartTime = null;
+
+        function startRealisticProgressSimulation() {
+            progressStartTime = Date.now();
+            currentSimulatedProgress = 0;
+            
+            // Clear any existing simulation
+            if (progressSimulationInterval) {
+                clearInterval(progressSimulationInterval);
+            }
+            
+            // Update progress every 100ms for smooth animation
+            progressSimulationInterval = setInterval(() => {
+                const elapsed = (Date.now() - progressStartTime) / 1000; // seconds
+                const totalExpectedTime = 600; // 10 minutes in seconds
+                
+                // Realistic progress curve: slow start, faster middle, slow finish
+                let progressRatio = elapsed / totalExpectedTime;
+                
+                // Apply easing curve for more realistic progress
+                if (progressRatio < 0.1) {
+                    // Slow start (0-10% in first 10% of time)
+                    progressRatio = progressRatio * 0.5;
+                } else if (progressRatio > 0.8) {
+                    // Slow finish (80-100% in last 20% of time)
+                    progressRatio = 0.8 + (progressRatio - 0.8) * 0.3;
+                } else {
+                    // Faster middle section
+                    progressRatio = 0.05 + (progressRatio - 0.1) * 1.2;
+                }
+                
+                currentSimulatedProgress = Math.min(95, progressRatio * 100); // Cap at 95% until real completion
+                
+                updateProgressDisplay(currentSimulatedProgress);
+            }, 100);
+        }
+
+        function stopProgressSimulation() {
+            if (progressSimulationInterval) {
+                clearInterval(progressSimulationInterval);
+                progressSimulationInterval = null;
+            }
+        }
+
+        function updateProgressDisplay(percentage) {
             const progressBarFill = document.getElementById('progressBarFill');
             const progressText = document.getElementById('progressText');
             const processingStatus = document.getElementById('processingStatus');
             
-            const percentage = Math.min(100, Math.round((currentProgressNumericStage / TOTAL_PROGRESS_STAGES) * 100));
-            
-            // Update main processing notification
             if (progressBarFill) {
                 progressBarFill.style.width = percentage + '%';
             }
             if (progressText) {
-                progressText.textContent = percentage + '% Complete';
+                progressText.textContent = Math.round(percentage) + '% Complete';
             }
+        }
+
+        function updateProgress(message, numericStage) {
+            currentProgressNumericStage = numericStage;
+            const processingStatus = document.getElementById('processingStatus');
+            
             if (processingStatus) {
                 processingStatus.textContent = message;
             }
@@ -1759,7 +1938,8 @@
             submitButton.disabled = true;
             downloadButton.style.display = 'none';
             showProcessingNotification();
-            updateProgress('Initializing...', STAGE_IDLE);
+            startRealisticProgressSimulation();
+            updateProgress('Initializing AI Partners...', STAGE_IDLE);
 
             try {
                 // First test backend connectivity
@@ -1877,11 +2057,14 @@
                 
                 displayCostDashboard();
 
+                // Complete the progress simulation
+                stopProgressSimulation();
+                updateProgressDisplay(100);
+                updateProgress("Strategic analysis complete!", STAGE_ALL_COMPLETE);
+
                 if (data.synthesis_report || data.expert_insights || data.market_intelligence) {
                     downloadButton.style.display = 'inline-block';
                 }
-
-                updateProgress("Strategic analysis complete!", STAGE_ALL_COMPLETE);
 
             } catch (error) {
                 console.error('Error submitting problem:', error);
