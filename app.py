@@ -228,7 +228,7 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
         print(f"Unexpected error in call_venice_api for model {model_id}, schema {schema_name_for_api}: {e}")
         return {"error": "An unexpected error occurred", "model_id": model_id, "details": str(e)}
 
-def call_venice_search_api(query, model_id="venice-uncensored"):
+def call_venice_search_api(query, model_id="llama-3.1-405b"):
     """
     Call Venice AI search API for real-time information gathering.
     """
@@ -240,9 +240,16 @@ def call_venice_search_api(query, model_id="venice-uncensored"):
                 "content": query
             }
         ],
-        "web_search": True,  # Enable web search functionality
         "temperature": 0.7,
-        "max_tokens": 2000
+        "max_tokens": 4000,  # Increased for web search content
+        "top_p": 0.9,
+        "venice_parameters": {
+            "enable_web_search": "auto",
+            "enable_web_citations": True,
+            "include_search_results_in_stream": False,
+            "strip_thinking_response": True,
+            "disable_thinking": True
+        }
     }
     headers = {
         "Authorization": f"Bearer {VENICE_API_KEY}",
@@ -251,21 +258,37 @@ def call_venice_search_api(query, model_id="venice-uncensored"):
     
     try:
         print(f"Calling Venice Search API for query: {query[:100]}...")
+        print(f"Payload: {payload}")
+        print(f"Model: {model_id}")
+        
         response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=120)
-        response.raise_for_status()
+        
+        print(f"Response status: {response.status_code}")
+        print(f"Response headers: {dict(response.headers)}")
+        
+        if response.status_code != 200:
+            print(f"Error response: {response.text}")
+            return {"error": f"HTTP {response.status_code}: {response.text}", "query": query}
         
         full_api_response_json = response.json()
+        print(f"Response structure: {list(full_api_response_json.keys())}")
+        
         if "choices" not in full_api_response_json or not full_api_response_json["choices"]:
+            print(f"Missing choices in response: {full_api_response_json}")
             return {"error": "Search API response missing 'choices'", "query": query}
             
         content = full_api_response_json["choices"][0].get("message", {}).get("content")
         if content is None:
+            print(f"Missing content in response: {full_api_response_json['choices'][0]}")
             return {"error": "Search API response missing 'content'", "query": query}
-            
+        
+        print(f"Content length: {len(content)} characters")
         return {"content": clean_text_content(content), "query": query}
         
     except Exception as e:
         print(f"Error in Venice Search API call: {e}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
         return {"error": str(e), "query": query}
 
 
@@ -428,16 +451,20 @@ def generate_market_intelligence(business_problem):
             print(f"Waiting 2 seconds before next search to avoid rate limits...")
             time.sleep(2)
         
-        search_result = call_venice_search_api(search_item["query"], "venice-uncensored")
+        search_result = call_venice_search_api(search_item["query"], "llama-3.1-405b")
         
         if search_result.get("error"):
             print(f"Error in search for {search_item['type']}: {search_result['error']}")
+            
+            # Fallback: Generate basic market intelligence without web search
+            fallback_content = generate_fallback_market_intelligence(search_item["type"], business_problem)
+            
             intelligence_item = {
                 "type": search_item["type"],
                 "title": search_item["title"],
-                "content": f"Error retrieving data: {search_result['error']}",
-                "key_insights": [],
-                "confidence_level": "Low"
+                "content": f"Web search unavailable. Using AI-generated market intelligence based on current knowledge.\n\n{fallback_content}",
+                "key_insights": extract_key_insights_from_content(fallback_content),
+                "confidence_level": "Medium"
             }
         else:
             # Process the search result into structured intelligence
@@ -568,6 +595,77 @@ Focus on forward-looking insights from the last 6 months with specific predictio
     ]
     
     return queries
+
+def generate_fallback_market_intelligence(search_type, business_problem):
+    """
+    Generate fallback market intelligence when web search is unavailable.
+    Uses AI to generate insights based on current knowledge.
+    """
+    fallback_prompts = {
+        "market_size": f"""Based on current market knowledge, provide analysis of market size and growth for: {business_problem}
+
+Include:
+- Estimated market size and growth trends
+- Key market segments and their characteristics
+- Geographic distribution and expansion opportunities
+- Revenue models and monetization approaches
+- Market maturity indicators""",
+        
+        "current_solutions": f"""Based on current knowledge, describe existing solutions and approaches for: {business_problem}
+
+Include:
+- Common solution approaches and methodologies
+- Technology stacks and tools typically used
+- Implementation strategies and best practices
+- Success factors and common challenges
+- Market leaders and their approaches""",
+        
+        "ai_applications": f"""Based on current AI/ML knowledge, describe how AI technologies can be applied to: {business_problem}
+
+Include:
+- AI/ML use cases and applications
+- Automation opportunities and implementations
+- Data analytics and predictive modeling approaches
+- Emerging technology integrations
+- AI-powered tools and platforms""",
+        
+        "competitive_landscape": f"""Based on current market knowledge, analyze the competitive landscape for: {business_problem}
+
+Include:
+- Key players and market leaders
+- Competitive positioning and differentiation
+- Market share distribution
+- Strategic partnerships and acquisitions
+- Innovation capabilities and technology stack""",
+        
+        "future_trends": f"""Based on current trends and predictions, describe future opportunities for: {business_problem}
+
+Include:
+- Emerging market trends and opportunities
+- Technology disruption and innovation
+- Regulatory changes and compliance
+- New business models and revenue streams
+- Investment and funding trends"""
+    }
+    
+    prompt = fallback_prompts.get(search_type, f"Provide market intelligence analysis for: {business_problem}")
+    
+    try:
+        messages = [{"role": "user", "content": prompt}]
+        response = call_venice_api(
+            model_id="qwen-2.5-qwq-32b",
+            messages=messages,
+            schema_name_for_api="FallbackMarketIntelligence",
+            actual_json_schema={"type": "object", "properties": {"content": {"type": "string"}}, "required": ["content"]}
+        )
+        
+        if response and "content" in response:
+            return response["content"]
+        else:
+            return f"Unable to generate market intelligence for {search_type}. Please try again later."
+            
+    except Exception as e:
+        return f"Fallback market intelligence generation failed: {str(e)}"
     
     market_intelligence = []
     
@@ -828,33 +926,65 @@ def test_cors():
 @app.route('/test_venice', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def test_venice_api():
-    """Simple test endpoint to check Venice AI connectivity"""
+    """Test endpoint for Venice AI API functionality with Llama 405B and web search."""
     try:
-        print("Testing basic Venice AI connectivity...")
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        test_query = data.get('query', 'What is the current market size of AI in healthcare?')
+        
+        print(f"Testing Venice API with Llama 405B and query: {test_query}")
+        
+        # Test 1: Simple chat completion (no web search)
         simple_payload = {
-            "model": "qwen-2.5-qwq-32b",
-            "messages": [{"role": "user", "content": "Say hello"}],
+            "model": "llama-3.1-405b",
+            "messages": [
+                {
+                    "role": "user", 
+                    "content": "What is 2+2?"
+                }
+            ],
             "temperature": 0.7,
-            "max_completion_tokens": 50
+            "max_tokens": 100
         }
+        
         headers = {
             "Authorization": f"Bearer {VENICE_API_KEY}",
             "Content-Type": "application/json"
         }
         
-        print("Sending simple request to Venice AI...")
-        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=simple_payload, headers=headers, timeout=120) # Increased timeout to match main API calls
-        print(f"Venice AI response status: {response.status_code}")
+        print("Test 1: Simple chat completion...")
+        simple_response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=simple_payload, headers=headers, timeout=30)
+        print(f"Simple test status: {simple_response.status_code}")
         
-        if response.status_code == 200:
-            return jsonify({"status": "success", "message": "Venice AI is accessible", "response_preview": str(response.text)[:200]})
-        else:
-            return jsonify({"status": "error", "message": f"Venice AI returned status {response.status_code}", "details": response.text})
-            
-    except requests.exceptions.Timeout:
-        return jsonify({"status": "error", "message": "Venice AI request timed out after 120 seconds"})
+        simple_result = "Failed"
+        if simple_response.status_code == 200:
+            simple_data = simple_response.json()
+            simple_result = simple_data.get("choices", [{}])[0].get("message", {}).get("content", "No content")
+        
+        # Test 2: Web search with Llama 405B
+        print("Test 2: Web search with Llama 405B...")
+        search_result = call_venice_search_api(test_query, "llama-3.1-405b")
+        
+        return jsonify({
+            "test_query": test_query,
+            "simple_test": {
+                "status_code": simple_response.status_code,
+                "result": simple_result,
+                "response_text": simple_response.text[:500] if simple_response.status_code != 200 else "Success"
+            },
+            "web_search_test": search_result,
+            "status": "success"
+        })
+        
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Venice AI test failed: {str(e)}"})
+        print(f"Error in test_venice_api: {e}")
+        import traceback
+        return jsonify({
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
 
 @app.route('/process_problem', methods=['POST'])
 @cross_origin(supports_credentials=True)
