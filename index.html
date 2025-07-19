@@ -11,52 +11,52 @@
 
     <style>
         :root {
-            /* New Color Palette & Modern Look Variables */
-            --primary-color: #1e40af; /* Modern Blue */
-            --primary-darker: #1e3a8a; 
-            --secondary-color: #06b6d4; /* Cyan */
-            --accent-orange: #f59e0b;   
-            --accent-coral: #ef4444;    
-            --accent-yellow: #eab308;   
-            --accent-green: #10b981;
-            --accent-purple: #8b5cf6;
-            --light-green-bg: #f0fdf4;
+            /* Clean Black & White Color Palette */
+            --primary-color: #000000; /* Pure Black */
+            --primary-darker: #1a1a1a; 
+            --secondary-color: #333333; /* Dark Gray */
+            --accent-orange: #ff6b35;   
+            --accent-coral: #ff4757;    
+            --accent-yellow: #ffa502;   
+            --accent-green: #2ed573;
+            --accent-purple: #5f27cd;
+            --light-green-bg: #f8f9fa;
 
-            --text-color: #1f2937; 
-            --light-text-color: #6b7280; 
-            --bg-color: #f8fafc; 
+            --text-color: #000000; 
+            --light-text-color: #666666; 
+            --bg-color: #ffffff; 
             --panel-bg: #ffffff;         
-            --border-color: #e5e7eb;     
+            --border-color: #e0e0e0;     
             
-            --hover-bg-color: #e0f2fe;
-            --active-nav-bg: var(--accent-coral);
-            --active-nav-text: #FFFFFF;
+            --hover-bg-color: #f8f9fa;
+            --active-nav-bg: #000000;
+            --active-nav-text: #ffffff;
 
-            /* Left Panel Specifics for Pronounced Look */
-            --left-panel-bg: #205072; /* Dark Teal background for left panel */
-            --left-panel-text: #E0F2F1; /* Very light teal/white for text on dark panel */
-            --left-panel-header-text: #C4E8C2; /* Light Green for "Navigation" header */
-            --left-panel-nav-item-hover-bg: #329D9C; /* Medium Teal for nav item hover */
-            --left-panel-nav-item-hover-text: #FFFFFF;
-            --left-panel-nav-item-active-bg: var(--accent-orange); /* Orange for active nav items in left panel */
-            --left-panel-nav-item-active-text: #000000; /* Black text on orange for contrast */
-            --left-panel-border-color: #103A52; /* Darker border for left panel */
+            /* Left Panel - Clean Black */
+            --left-panel-bg: #000000; /* Pure black background */
+            --left-panel-text: #ffffff; /* Pure white text */
+            --left-panel-header-text: #ffffff; /* White header text */
+            --left-panel-nav-item-hover-bg: #333333; /* Dark gray hover */
+            --left-panel-nav-item-hover-text: #ffffff;
+            --left-panel-nav-item-active-bg: #ffffff; /* White active background */
+            --left-panel-nav-item-active-text: #000000; /* Black text on white */
+            --left-panel-border-color: #333333; /* Dark border */
 
-            --shadow-sm: 0 2px 5px rgba(0,0,0,0.07);
-            --shadow-md: 0 5px 12px rgba(0,0,0,0.09);
-            --shadow-lg: 0 8px 20px rgba(0,0,0,0.12);
-            --font-family: 'Inter', sans-serif;
-            --border-radius-sm: 6px;
-            --border-radius-md: 10px;
-            --border-radius-lg: 15px;
-            --border-radius-xl: 20px;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.15);
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.2);
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --border-radius-sm: 0px; /* Sharp edges */
+            --border-radius-md: 0px; /* Sharp edges */
+            --border-radius-lg: 0px; /* Sharp edges */
+            --border-radius-xl: 0px; /* Sharp edges */
             
-            /* Market Intelligence Specific Colors */
-            --market-intel-primary: #0f766e; /* Teal primary */
-            --market-intel-secondary: #14b8a6; /* Teal secondary */
-            --market-intel-bg: #f0fdfa; /* Light teal background */
-            --market-intel-border: #5eead4; /* Teal border */
-            --market-intel-accent: #0d9488; /* Teal accent */
+            /* Market Intelligence - Clean Black */
+            --market-intel-primary: #000000; /* Black primary */
+            --market-intel-secondary: #333333; /* Dark gray secondary */
+            --market-intel-bg: #f8f9fa; /* Light gray background */
+            --market-intel-border: #e0e0e0; /* Light gray border */
+            --market-intel-accent: #000000; /* Black accent */
         }
 
         body {
@@ -74,21 +74,23 @@
         .header {
             background: var(--panel-bg);
             color: var(--primary-color);
-            padding: 20px 40px; /* Increased padding */
+            padding: 30px 40px;
             text-align: center;
-            border-bottom: 1px solid var(--border-color);
-            box-shadow: var(--shadow-md);
+            border-bottom: 2px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
         }
         .header h1 {
             margin: 0;
-            font-size: 2.0em; /* Reduced for crisper look */
-            font-weight: 600;
+            font-size: 2.5em;
+            font-weight: 700;
+            letter-spacing: -0.02em;
         }
         .header .subtitle {
-            font-size: 0.95em; /* Smaller for better fit */
+            font-size: 1.1em;
             color: var(--light-text-color);
-            margin-top: 6px;
-            font-weight: 500;
+            margin-top: 8px;
+            font-weight: 400;
+            letter-spacing: 0.01em;
         }
 
         .main-content-wrapper {
@@ -104,43 +106,22 @@
         }
 
         #left-panel-nav {
-            width: 260px; /* Further reduced for better fit */
-            background: linear-gradient(135deg, var(--left-panel-bg) 0%, var(--primary-darker) 100%);
+            width: 280px;
+            background: var(--left-panel-bg);
             color: var(--left-panel-text);
-            padding: 25px;
-            border-right: 1px solid var(--left-panel-border-color);
-            box-shadow: 0 8px 32px rgba(32, 80, 114, 0.3);
+            padding: 30px;
+            border-right: 2px solid var(--left-panel-border-color);
+            box-shadow: var(--shadow-lg);
             display: flex;
             flex-direction: column;
-            border-radius: var(--border-radius-lg);
             transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
             position: relative;
             overflow: hidden;
-            flex-shrink: 0; /* Prevent shrinking */
-        }
-        
-        /* Add subtle pattern overlay */
-        #left-panel-nav::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-            pointer-events: none;
-            z-index: 0;
-        }
-        
-        #left-panel-nav > * {
-            position: relative;
-            z-index: 1;
+            flex-shrink: 0;
         }
         
         #left-panel-nav:hover {
-            box-shadow: 0 12px 40px rgba(32, 80, 114, 0.4); /* Enhanced hover shadow */
-            transform: translateY(-2px); /* Subtle lift effect */
+            box-shadow: var(--shadow-lg);
         }
 
         #left-panel-nav h3 {
@@ -926,15 +907,82 @@
         /* Enhanced Processing Notification */
         .processing-notification {
             display: none;
-            background: linear-gradient(135deg, var(--panel-bg) 0%, #f0f9ff 100%);
-            border: 2px solid var(--secondary-color);
-            border-radius: var(--border-radius-xl);
+            background: var(--panel-bg);
+            border: 2px solid var(--border-color);
             padding: 30px;
             margin-top: 25px;
-            box-shadow: var(--shadow-xl);
+            box-shadow: var(--shadow-lg);
             position: relative;
             overflow: hidden;
-            backdrop-filter: blur(10px);
+        }
+        
+        /* Persona Generation Styles */
+        .persona-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--bg-color);
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+            opacity: 0;
+            transform: translateX(-20px);
+            animation: slideInPersona 0.5s ease forwards;
+        }
+        
+        .persona-item.generating {
+            border-color: var(--accent-orange);
+            background: linear-gradient(90deg, var(--bg-color) 0%, rgba(255, 107, 53, 0.1) 100%);
+        }
+        
+        .persona-item.complete {
+            border-color: var(--accent-green);
+            background: linear-gradient(90deg, var(--bg-color) 0%, rgba(46, 213, 115, 0.1) 100%);
+        }
+        
+        .persona-icon {
+            font-size: 1.5em;
+            margin-right: 16px;
+            min-width: 24px;
+            text-align: center;
+        }
+        
+        .persona-info {
+            flex: 1;
+            text-align: left;
+        }
+        
+        .persona-name {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: var(--text-color);
+            margin: 0 0 4px 0;
+        }
+        
+        .persona-role {
+            font-size: 0.9em;
+            color: var(--light-text-color);
+            margin: 0;
+        }
+        
+        .persona-status {
+            font-size: 0.8em;
+            font-weight: 500;
+            margin-left: 12px;
+        }
+        
+        .persona-status.generating {
+            color: var(--accent-orange);
+        }
+        
+        .persona-status.complete {
+            color: var(--accent-green);
+        }
+        
+        @keyframes slideInPersona {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         .processing-notification::before {
@@ -1145,8 +1193,8 @@
 </head>
 <body>
     <header class="header">
-        <h1>AI Expert Panel</h1>
-        <div class="subtitle">20 AI Experts • Real-time Market Intelligence • Powered by Venice AI</div>
+        <h1>🧠 Mindful Expert</h1>
+        <div class="subtitle">Strategic Business Analysis Powered by Multiple AI Experts</div>
     </header>
 
     <div class="main-content-wrapper">
@@ -1162,34 +1210,33 @@
                 <p>Enter your business problem. The system will orchestrate 20 AI experts for insights and an action plan.</p>
                 
                 <!-- Examples Section -->
-                <div class="examples-section" style="margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; border: 1px solid #bae6fd;">
-                    <h4 style="margin: 0 0 15px 0; color: #0369a1; font-size: 1.1em;">💡 Example Problems to Try:</h4>
+                <div class="examples-section" style="margin-bottom: 20px; padding: 20px; background: var(--bg-color); border: 2px solid var(--border-color);">
+                    <h4 style="margin: 0 0 15px 0; color: var(--text-color); font-size: 1.1em; font-weight: 600;">💡 Example Problems to Try:</h4>
                     <div class="example-buttons" style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        <button class="example-btn" onclick="setExampleProblem('startup-marketing')" style="padding: 8px 16px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                        <button class="example-btn" onclick="setExampleProblem('startup-marketing')" style="padding: 10px 16px; background: var(--text-color); color: white; border: none; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease; font-weight: 500;">
                             🚀 Startup Marketing Strategy
                         </button>
-                        <button class="example-btn" onclick="setExampleProblem('digital-transformation')" style="padding: 8px 16px; background: #06b6d4; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                        <button class="example-btn" onclick="setExampleProblem('digital-transformation')" style="padding: 10px 16px; background: var(--text-color); color: white; border: none; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease; font-weight: 500;">
                             🔄 Digital Transformation
                         </button>
-                        <button class="example-btn" onclick="setExampleProblem('supply-chain')" style="padding: 8px 16px; background: #0891b2; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                        <button class="example-btn" onclick="setExampleProblem('supply-chain')" style="padding: 10px 16px; background: var(--text-color); color: white; border: none; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease; font-weight: 500;">
                             📦 Supply Chain Optimization
                         </button>
-                        <button class="example-btn" onclick="setExampleProblem('customer-retention')" style="padding: 8px 16px; background: #0e7490; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                        <button class="example-btn" onclick="setExampleProblem('customer-retention')" style="padding: 10px 16px; background: var(--text-color); color: white; border: none; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease; font-weight: 500;">
                             🤝 Customer Retention Crisis
                         </button>
-                        <button class="example-btn" onclick="setExampleProblem('ai-implementation')" style="padding: 8px 16px; background: #155e75; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                        <button class="example-btn" onclick="setExampleProblem('ai-implementation')" style="padding: 10px 16px; background: var(--text-color); color: white; border: none; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease; font-weight: 500;">
                             🤖 AI Implementation Strategy
                         </button>
                     </div>
                 </div>
-                <div class="time-notice" style="background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 10%, #fef3c7 100%); 
-                                                border: 2px solid #f59e0b; border-radius: 8px; padding: 15px 20px; 
-                                                margin-bottom: 20px; display: flex; align-items: center; gap: 12px;
-                                                box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);">
+                <div class="time-notice" style="background: var(--bg-color); 
+                                                border: 2px solid var(--border-color); padding: 15px 20px; 
+                                                margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
                     <span style="font-size: 1.2em;">⏱️</span>
                     <div>
-                        <strong style="color: #92400e; font-size: 0.95em;">Processing Time:</strong>
-                        <span style="color: #451a03; font-size: 0.9em; margin-left: 8px;">Analysis may take up to 10 minutes to complete</span>
+                        <strong style="color: var(--text-color); font-size: 0.95em;">Processing Time:</strong>
+                        <span style="color: var(--light-text-color); font-size: 0.9em; margin-left: 8px;">Analysis may take up to 10 minutes to complete</span>
                     </div>
                 </div>
                 <textarea id="businessProblem" placeholder="Describe your business problem here..."></textarea>
@@ -1212,13 +1259,23 @@
                         <div class="progress-text" id="progressText">0% Complete</div>
                     </div>
                     
+                    <!-- Animated Persona Generation Section -->
+                    <div class="persona-generation-section" id="personaGenerationSection" style="display: none;">
+                        <h4 style="margin: 0 0 20px 0; color: var(--text-color); font-size: 1.2em; font-weight: 600;">
+                            🎯 Generating Expert Personas
+                        </h4>
+                        <div class="persona-list" id="personaList" style="display: grid; gap: 12px; max-height: 300px; overflow-y: auto;">
+                            <!-- Personas will be added here dynamically -->
+                        </div>
+                    </div>
+                    
                     <!-- Educational Text Section -->
                     <div class="educational-text-container" style="margin-top: 25px; padding: 20px; 
-                                                                  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
-                                                                  border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.2);
+                                                                  background: var(--bg-color);
+                                                                  border: 2px solid var(--border-color);
                                                                   min-height: 60px; display: flex; align-items: center; justify-content: center;">
                         <p id="educationalText" style="margin: 0; font-size: 1.05em; line-height: 1.6; 
-                                                      color: var(--primary-color); text-align: center; 
+                                                      color: var(--text-color); text-align: center; 
                                                       font-weight: 500; transition: opacity 0.5s ease;">
                             Multiple perspectives reveal blind spots that single viewpoints often miss.
                         </p>
@@ -1389,6 +1446,112 @@
             }
         }
 
+        // Animated Persona Generation Functions
+        function showPersonaGeneration() {
+            const personaSection = document.getElementById('personaGenerationSection');
+            if (personaSection) {
+                personaSection.style.display = 'block';
+            }
+        }
+
+        function hidePersonaGeneration() {
+            const personaSection = document.getElementById('personaGenerationSection');
+            if (personaSection) {
+                personaSection.style.display = 'none';
+            }
+        }
+
+        function addPersonaToAnimation(persona, index) {
+            const personaList = document.getElementById('personaList');
+            if (!personaList) return;
+
+            const personaItem = document.createElement('div');
+            personaItem.className = 'persona-item generating';
+            personaItem.id = `persona-${index}`;
+            
+            const icon = getPersonaIcon(persona.name || persona.role || 'Expert');
+            const name = persona.name || `Expert ${index + 1}`;
+            const role = persona.role || persona.expertise || 'Business Expert';
+            
+            personaItem.innerHTML = `
+                <div class="persona-icon">${icon}</div>
+                <div class="persona-info">
+                    <div class="persona-name">${name}</div>
+                    <div class="persona-role">${role}</div>
+                </div>
+                <div class="persona-status generating">Generating...</div>
+            `;
+            
+            personaList.appendChild(personaItem);
+            
+            // Animate the persona item
+            setTimeout(() => {
+                personaItem.style.animationDelay = `${index * 0.2}s`;
+            }, 100);
+        }
+
+        function updatePersonaStatus(index, status) {
+            const personaItem = document.getElementById(`persona-${index}`);
+            if (!personaItem) return;
+
+            const statusElement = personaItem.querySelector('.persona-status');
+            if (statusElement) {
+                statusElement.textContent = status;
+                statusElement.className = `persona-status ${status === 'Complete' ? 'complete' : 'generating'}`;
+            }
+
+            if (status === 'Complete') {
+                personaItem.classList.remove('generating');
+                personaItem.classList.add('complete');
+            }
+        }
+
+        function getPersonaIcon(personaName) {
+            const name = personaName.toLowerCase();
+            if (name.includes('marketing') || name.includes('brand')) return '📢';
+            if (name.includes('financial') || name.includes('finance') || name.includes('accounting')) return '💰';
+            if (name.includes('technology') || name.includes('tech') || name.includes('digital')) return '💻';
+            if (name.includes('strategy') || name.includes('strategic')) return '🎯';
+            if (name.includes('customer') || name.includes('user') || name.includes('client')) return '👥';
+            if (name.includes('operations') || name.includes('operational')) return '⚙️';
+            if (name.includes('legal') || name.includes('compliance')) return '⚖️';
+            if (name.includes('risk') || name.includes('security')) return '🛡️';
+            if (name.includes('innovation') || name.includes('research')) return '🔬';
+            if (name.includes('sales') || name.includes('revenue')) return '📈';
+            if (name.includes('human') || name.includes('hr') || name.includes('talent')) return '👨‍💼';
+            if (name.includes('supply') || name.includes('logistics')) return '📦';
+            if (name.includes('product') || name.includes('development')) return '🚀';
+            if (name.includes('data') || name.includes('analytics')) return '📊';
+            return '🧠';
+        }
+
+        async function animatePersonaGeneration(personas) {
+            showPersonaGeneration();
+            
+            // Clear existing personas
+            const personaList = document.getElementById('personaList');
+            if (personaList) {
+                personaList.innerHTML = '';
+            }
+            
+            // Add each persona with animation
+            for (let i = 0; i < personas.length; i++) {
+                addPersonaToAnimation(personas[i], i);
+                await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 200));
+            }
+            
+            // Simulate persona completion
+            for (let i = 0; i < personas.length; i++) {
+                await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
+                updatePersonaStatus(i, 'Complete');
+            }
+            
+            // Hide persona generation after completion
+            setTimeout(() => {
+                hidePersonaGeneration();
+            }, 2000);
+        }
+
         // Example problems for quick testing
         function setExampleProblem(exampleType) {
             const businessProblemTextarea = document.getElementById('businessProblem');
@@ -1461,6 +1624,28 @@
 
                 await new Promise(resolve => setTimeout(resolve, 300));
                 updateProgress('Generating Expert Personas...', STAGE_PERSONA_GENERATION_START);
+                
+                // Start persona generation animation
+                const mockPersonas = [
+                    { name: "Marketing Strategist", role: "Digital Marketing Expert" },
+                    { name: "Financial Analyst", role: "Investment & Risk Specialist" },
+                    { name: "Technology Consultant", role: "Digital Transformation Expert" },
+                    { name: "Operations Manager", role: "Process Optimization Specialist" },
+                    { name: "Customer Experience", role: "User Journey Expert" },
+                    { name: "Strategic Planner", role: "Business Strategy Consultant" },
+                    { name: "Data Scientist", role: "Analytics & Insights Expert" },
+                    { name: "Legal Advisor", role: "Compliance & Risk Specialist" },
+                    { name: "Innovation Lead", role: "Product Development Expert" },
+                    { name: "Sales Strategist", role: "Revenue Growth Specialist" },
+                    { name: "HR Director", role: "Talent & Culture Expert" },
+                    { name: "Supply Chain", role: "Logistics & Operations" },
+                    { name: "Product Manager", role: "Product Strategy Expert" },
+                    { name: "Market Researcher", role: "Industry Analysis Expert" },
+                    { name: "Business Analyst", role: "Performance Optimization" }
+                ];
+                
+                // Start the persona animation
+                animatePersonaGeneration(mockPersonas);
                 
                 const response = await fetch(`${BACKEND_URL}/process_problem`, {
                     method: 'POST',
