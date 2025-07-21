@@ -1356,6 +1356,16 @@
                             Multiple perspectives reveal blind spots that single viewpoints often miss.
                         </p>
                     </div>
+                    
+                    <!-- Mobile Warning -->
+                    <div id="mobileWarning" style="display: none; margin-top: 20px; padding: 15px; 
+                                                  background: rgba(255, 193, 7, 0.1); 
+                                                  border: 1px solid rgba(255, 193, 7, 0.3); 
+                                                  border-radius: 4px;">
+                        <p style="margin: 0; font-size: 0.9em; color: var(--text-color); text-align: center;">
+                            📱 <strong>Mobile Users:</strong> Keep this app active and don't switch to other apps during processing to avoid connection issues.
+                        </p>
+                    </div>
                 </div>
             </div>
             
@@ -1525,9 +1535,17 @@
 
         function showProcessingNotification() {
             const processingNotification = document.getElementById('processingNotification');
+            const mobileWarning = document.getElementById('mobileWarning');
+            
             if (processingNotification) {
                 processingNotification.classList.add('visible');
             }
+            
+            // Show mobile warning for mobile devices
+            if (isMobileDevice && mobileWarning) {
+                mobileWarning.style.display = 'block';
+            }
+            
             startEducationalTextRotation();
         }
 
@@ -1916,6 +1934,32 @@
             }, 1000);
         }
 
+        // Mobile-friendly request handling
+        let currentRequestController = null;
+        let isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        let isPageVisible = true;
+        
+        // Handle page visibility changes (when user switches apps on mobile)
+        document.addEventListener('visibilitychange', function() {
+            isPageVisible = !document.hidden;
+            
+            if (!isPageVisible && currentRequestController && isMobileDevice) {
+                console.log('Page hidden - this may cause connection issues on mobile');
+                // Don't abort immediately, but warn the user
+                const mobileWarning = document.getElementById('mobileWarning');
+                if (mobileWarning) {
+                    mobileWarning.style.background = 'rgba(255, 0, 0, 0.1)';
+                    mobileWarning.style.borderColor = 'rgba(255, 0, 0, 0.3)';
+                    mobileWarning.querySelector('p').innerHTML = '⚠️ <strong>Warning:</strong> You switched away from the app. This may cause connection issues. Return to the app immediately.';
+                }
+            } else if (isPageVisible && mobileWarning) {
+                // Reset warning when user returns
+                mobileWarning.style.background = 'rgba(255, 193, 7, 0.1)';
+                mobileWarning.style.borderColor = 'rgba(255, 193, 7, 0.3)';
+                mobileWarning.querySelector('p').innerHTML = '📱 <strong>Mobile Users:</strong> Keep this app active and don\'t switch to other apps during processing to avoid connection issues.';
+            }
+        });
+        
         async function submitProblem() {
             const problemText = document.getElementById('businessProblem').value;
             const resultsContentDiv = document.getElementById('results-content');
@@ -1989,11 +2033,31 @@
                 // Start the persona animation
                 animatePersonaGeneration(mockPersonas);
                 
+                // Cancel any existing request
+                if (currentRequestController) {
+                    currentRequestController.abort();
+                }
+                
+                // Create new AbortController for this request
+                currentRequestController = new AbortController();
+                
+                // Mobile-friendly timeout (longer for mobile devices)
+                const timeoutDuration = isMobileDevice ? 900000 : 600000; // 15 min for mobile, 10 min for desktop
+                const timeoutId = setTimeout(() => {
+                    if (currentRequestController) {
+                        currentRequestController.abort();
+                    }
+                }, timeoutDuration);
+                
                 const response = await fetch(`${BACKEND_URL}/process_problem`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', },
                     body: JSON.stringify({ business_problem: problemText }),
+                    signal: currentRequestController.signal
                 });
+                
+                // Clear timeout if request completes successfully
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({ error: "Failed to parse error from server." }));
@@ -2117,7 +2181,42 @@
 
             } catch (error) {
                 console.error('Error submitting problem:', error);
-                resultsContentDiv.innerHTML = `<div class="error content-section active" id="global-error-content"><strong>Error:</strong> ${error.message}<br>Please ensure the backend server is running and responding correctly.</div>`;
+                hideProcessingNotification();
+                stopProgressSimulation();
+                
+                let errorMessage = 'An error occurred while processing your request.';
+                
+                if (error.name === 'AbortError') {
+                    errorMessage = 'Request was cancelled or timed out. This can happen on mobile devices when the app goes to background. Please try again and keep the app active.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    if (isMobileDevice) {
+                        errorMessage = 'Connection lost. This is common on mobile devices. Please check your internet connection and try again. Keep the app active during processing.';
+                    } else {
+                        errorMessage = 'Failed to connect to the server. Please ensure the backend server is running and responding correctly.';
+                    }
+                } else if (error.message.includes('HTTP error')) {
+                    errorMessage = `Server error: ${error.message}`;
+                } else if (error.message.includes('timeout')) {
+                    errorMessage = 'Request timed out. Please try again.';
+                }
+                
+                resultsContentDiv.innerHTML = `
+                    <div class="error content-section active" id="global-error-content">
+                        <h3>⚠️ Processing Error</h3>
+                        <p><strong>Error:</strong> ${errorMessage}</p>
+                        ${isMobileDevice ? `
+                            <div style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); padding: 15px; border-radius: 4px; margin-top: 15px;">
+                                <h4>📱 Mobile Tips:</h4>
+                                <ul style="margin: 10px 0; padding-left: 20px;">
+                                    <li>Keep the app active and don't switch to other apps</li>
+                                    <li>Ensure your device doesn't go to sleep</li>
+                                    <li>Use a stable WiFi connection if possible</li>
+                                    <li>Try again if the connection is interrupted</li>
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
                 switchContent('global-error-content');
                 updateProgress('Error occurred.', STAGE_ALL_COMPLETE);
             } finally {

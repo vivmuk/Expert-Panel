@@ -141,7 +141,7 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
         print(f"About to call Venice AI API for model {model_id}, schema {schema_name_for_api}")
         print(f"Venice API URL: {VENICE_CHAT_COMPLETIONS_URL}")
         print(f"Timeout set to: 120 seconds")
-        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=120) # Increased timeout to 2 minutes for longer processing
+        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=300) # Increased timeout to 5 minutes for mobile compatibility
         print(f"Venice AI API call completed successfully for {model_id}")
         response_obj_for_logging = response
         response.raise_for_status()
@@ -276,7 +276,7 @@ def call_venice_search_api(query, model_id="llama-3.1-405b"):
         print(f"Payload: {payload}")
         print(f"Model: {model_id}")
         
-        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=120)
+        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=300)
         
         print(f"Response status: {response.status_code}")
         print(f"Response headers: {dict(response.headers)}")
