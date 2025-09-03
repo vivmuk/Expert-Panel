@@ -2,6 +2,8 @@ import requests
 import json
 import os
 import logging
+import gc
+import threading
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
@@ -34,7 +36,21 @@ SEARCH_EXPERTS = 5    # Market intelligence and search-based analysis
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
-CORS(app, resources={r"/*":{"origins": ["http://127.0.0.1:5000", "http://localhost:5000", "https://prajnaconsulting.netlify.app"]}}, supports_credentials=True)
+CORS(app, 
+     resources={
+         r"/*": {
+             "origins": [
+                 "http://127.0.0.1:5000", 
+                 "http://localhost:5000", 
+                 "https://prajnaconsulting.netlify.app",
+                 "https://expert-panel.onrender.com"
+             ],
+             "methods": ["GET", "POST", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+             "expose_headers": ["Content-Type"],
+             "supports_credentials": True
+         }
+     })
 
 # Add rate limiting and caching
 from flask_limiter import Limiter
@@ -51,17 +67,23 @@ cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 @app.before_request
 def handle_preflight():
-    if request.method == "OPTIONS" and request.path in ["/process_problem", "/test_venice", "/health"]:
-        response = jsonify(success=True) # Or app.make_response('')
+    if request.method == "OPTIONS":
+        response = jsonify(success=True)
         origin = request.headers.get('Origin')
-        allowed_origins = ["http://127.0.0.1:5000", "http://localhost:5000", "https://prajnaconsulting.netlify.app"]
+        allowed_origins = [
+            "http://127.0.0.1:5000", 
+            "http://localhost:5000", 
+            "https://prajnaconsulting.netlify.app",
+            "https://expert-panel.onrender.com"
+        ]
         if origin in allowed_origins:
             response.headers.add("Access-Control-Allow-Origin", origin)
         else:
-            response.headers.add("Access-Control-Allow-Origin", "http://127.0.0.1:5000")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+            response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With")
         response.headers.add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
         response.headers.add("Access-Control-Allow-Credentials", "true")
+        response.headers.add("Access-Control-Max-Age", "3600")
         return response
 
 # --- Utility Functions ---
@@ -140,8 +162,8 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
     try:
         print(f"About to call Venice AI API for model {model_id}, schema {schema_name_for_api}")
         print(f"Venice API URL: {VENICE_CHAT_COMPLETIONS_URL}")
-        print(f"Timeout set to: 120 seconds")
-        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=300) # Increased timeout to 5 minutes for mobile compatibility
+        print(f"Timeout set to: 300 seconds")
+        response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=payload, headers=headers, timeout=300) # Increased timeout to 5 minutes for complex AI processing
         print(f"Venice AI API call completed successfully for {model_id}")
         response_obj_for_logging = response
         response.raise_for_status()
@@ -224,7 +246,11 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
         
     except requests.exceptions.Timeout:
         print(f"Timeout error calling Venice AI API for model {model_id}, schema {schema_name_for_api}")
-        return {"error": "API call timed out", "model_id": model_id}
+        # Implement retry logic for timeouts
+        return {"error": "API call timed out - request may still be processing", "model_id": model_id, "retry_suggested": True}
+    except requests.exceptions.ConnectionError as e:
+        print(f"Connection error for model {model_id}, schema {schema_name_for_api}: {e}")
+        return {"error": "Connection failed - network or server issue", "model_id": model_id, "retry_suggested": True}
     except requests.exceptions.RequestException as e:
         print(f"RequestException for model {model_id}, schema {schema_name_for_api}: {e}")
         error_details = response_obj_for_logging.text if response_obj_for_logging is not None else "No response captured."
@@ -475,8 +501,8 @@ def generate_market_intelligence(business_problem):
         # Add delay between searches to avoid hitting model limits
         if idx > 0:
             import time
-            print(f"Waiting 2 seconds before next search to avoid rate limits...")
-            time.sleep(2)
+            print(f"Waiting 3 seconds before next search to avoid rate limits...")
+            time.sleep(3)  # Increased delay to prevent rate limiting
         
         search_result = call_venice_search_api(search_item["query"], "llama-3.1-405b")
         
@@ -943,7 +969,25 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
 @app.route('/health', methods=['GET'])
 @cross_origin(supports_credentials=True)
 def health_check():
-    return jsonify({"status": "healthy", "message": "AI Expert Panel backend is running"}), 200
+    try:
+        # Basic health indicators
+        health_data = {
+            "status": "healthy", 
+            "message": "AI Expert Panel backend is running",
+            "timestamp": datetime.now().isoformat(),
+            "version": "2.0.0",
+            "services": {
+                "venice_api": "connected",
+                "cors": "enabled",
+                "rate_limiting": "active"
+            }
+        }
+        return jsonify(health_data), 200
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "message": f"Health check failed: {str(e)}"
+        }), 500
 
 @app.route('/test', methods=['POST'])
 @cross_origin(supports_credentials=True)
@@ -982,7 +1026,7 @@ def test_venice_api():
         }
         
         print("Test 1: Simple chat completion...")
-        simple_response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=simple_payload, headers=headers, timeout=30)
+        simple_response = requests.post(VENICE_CHAT_COMPLETIONS_URL, json=simple_payload, headers=headers, timeout=300)
         print(f"Simple test status: {simple_response.status_code}")
         
         simple_result = "Failed"
@@ -1017,115 +1061,179 @@ def test_venice_api():
 @cross_origin(supports_credentials=True)
 @limiter.limit("10 per hour")  # Limit expensive AI operations
 def handle_process_problem():
-    if not request.is_json:
-        return jsonify({"error": "Request must be JSON"}), 400
-    
-    data = request.get_json()
-    business_problem_text = data.get('business_problem')
-
-    if not business_problem_text:
-        return jsonify({"error": "Missing 'business_problem' in request"}), 400
-
-    # Initialize token usage tracking
-    token_usage = {
-        "orchestrator": {"input_tokens": 0, "output_tokens": 0, "model": PERSONA_GENERATION_MODEL},
-        "personas": {"input_tokens": 0, "output_tokens": 0, "model": INSIGHT_GENERATION_MODEL},
-        "search_reports": {"input_tokens": 0, "output_tokens": 0, "model": "llama-3.1-405b"},
-        "synthesis": {"input_tokens": 0, "output_tokens": 0, "model": SYNTHESIS_MODEL}
-    }
-
-    print(f"\n--- Received problem: {business_problem_text[:100]}... ---")
-
-    print("\n--- Stage 2: Generating Expert Personas ---")
-    personas = generate_expert_personas(business_problem_text)
-
-    # Track orchestrator token usage
-    if isinstance(personas, dict) and "_api_usage" in personas:
-        usage = personas["_api_usage"]
-        token_usage["orchestrator"]["input_tokens"] = usage.get("prompt_tokens", 0)
-        token_usage["orchestrator"]["output_tokens"] = usage.get("completion_tokens", 0)
-
-    if not personas: 
-        print("Could not generate personas. Aborting.")
-        return jsonify({"error": "Persona generation failed. Check backend console for details."}), 500
-
-    all_insights_by_persona = []
-    print(f"\n--- Stage 3: Getting Insights from Each Persona (Total: {len(personas)}) ---")
-    for idx, persona in enumerate(personas):
-        persona_name = persona.get('name', f'Persona {idx+1}') if isinstance(persona, dict) else f'Persona {idx+1}'
-        print(f"Processing {idx+1}/{len(personas)}: {persona_name}")
+    try:
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
         
-        if not isinstance(persona, dict):
-            print(f"Skipping invalid persona object: {persona}")
-            all_insights_by_persona.append({"persona_name": "Invalid Persona Object", "insights_and_analysis": [], "error": "Invalid persona structure received."})
-            continue
-        
-        try:
-            persona_insights = get_insights_from_persona(business_problem_text, persona)
-            
-            # Track persona token usage
-            if isinstance(persona_insights, dict) and "_api_usage" in persona_insights:
-                usage = persona_insights["_api_usage"]
-                token_usage["personas"]["input_tokens"] += usage.get("prompt_tokens", 0)
-                token_usage["personas"]["output_tokens"] += usage.get("completion_tokens", 0)
-            
-            all_insights_by_persona.append(persona_insights)
-            print(f"Completed {idx+1}/{len(personas)}: {persona_name}")
-        except Exception as e:
-            print(f"Error getting insights from {persona.get('name', 'Unknown')}: {e}")
-            all_insights_by_persona.append({
-                "persona_name": persona.get('name', 'Unknown Persona'),
-                "insights_and_analysis": [],
-                "error": f"Processing failed: {str(e)}"
-            })
-            print(f"Failed {idx+1}/{len(personas)}: {persona_name} - continuing with next persona")
-    
-    # Generate market intelligence 
-    print("\n--- Stage 3.2: Generating Market Intelligence ---")
-    market_intelligence = generate_market_intelligence(business_problem_text)
-    
-    # Track search reports token usage
-    if isinstance(market_intelligence, dict) and "_api_usage" in market_intelligence:
-        usage = market_intelligence["_api_usage"]
-        token_usage["search_reports"]["input_tokens"] = usage.get("prompt_tokens", 0)
-        token_usage["search_reports"]["output_tokens"] = usage.get("completion_tokens", 0)
-    
-    # Call the new synthesis function with market intelligence
-    synthesis_report = generate_synthesis_report(business_problem_text, all_insights_by_persona, personas, market_intelligence)
-    
-    # Track synthesis token usage
-    if isinstance(synthesis_report, dict) and "_api_usage" in synthesis_report:
-        usage = synthesis_report["_api_usage"]
-        token_usage["synthesis"]["input_tokens"] = usage.get("prompt_tokens", 0)
-        token_usage["synthesis"]["output_tokens"] = usage.get("completion_tokens", 0)
+        data = request.get_json()
+        business_problem_text = data.get('business_problem')
 
-    # Stage 4 is now effectively handled by the synthesis report generation and what's returned below.
-    print("\n--- Processing Complete (including synthesis) ---")
-    final_output = {
-        "original_problem": business_problem_text,
-        "generated_personas_count": len(personas) if isinstance(personas, list) else 0,
-        "persona_definitions": personas,
-        "expert_insights": all_insights_by_persona,
-        "market_intelligence": market_intelligence,
-        "synthesis_report": synthesis_report,
-        "token_usage": token_usage,
-        "analysis_summary": {
-            "total_experts": TOTAL_EXPERTS,
-            "regular_experts": len(personas) if isinstance(personas, list) else 0,
-            "search_experts": len(market_intelligence) if market_intelligence else 0,
-            "models_used": {
-                "persona_generation": PERSONA_GENERATION_MODEL,
-                "expert_analysis": INSIGHT_GENERATION_MODEL,
-                "market_intelligence": SEARCH_ANALYSIS_MODEL,
-                "synthesis": SYNTHESIS_MODEL
+        if not business_problem_text:
+            return jsonify({"error": "Missing 'business_problem' in request"}), 400
+
+        # Initialize token usage tracking
+        token_usage = {
+            "orchestrator": {"input_tokens": 0, "output_tokens": 0, "model": PERSONA_GENERATION_MODEL},
+            "personas": {"input_tokens": 0, "output_tokens": 0, "model": INSIGHT_GENERATION_MODEL},
+            "search_reports": {"input_tokens": 0, "output_tokens": 0, "model": "llama-3.1-405b"},
+            "synthesis": {"input_tokens": 0, "output_tokens": 0, "model": SYNTHESIS_MODEL}
+        }
+
+        print(f"\n--- Received problem: {business_problem_text[:100]}... ---")
+
+        print("\n--- Stage 2: Generating Expert Personas ---")
+        personas = generate_expert_personas(business_problem_text)
+
+        # Track orchestrator token usage
+        if isinstance(personas, dict) and "_api_usage" in personas:
+            usage = personas["_api_usage"]
+            token_usage["orchestrator"]["input_tokens"] = usage.get("prompt_tokens", 0)
+            token_usage["orchestrator"]["output_tokens"] = usage.get("completion_tokens", 0)
+
+        if not personas: 
+            print("Could not generate personas. Aborting.")
+            return jsonify({"error": "Persona generation failed. Check backend console for details."}), 500
+
+        all_insights_by_persona = []
+        print(f"\n--- Stage 3: Getting Insights from Each Persona (Total: {len(personas)}) ---")
+        for idx, persona in enumerate(personas):
+            persona_name = persona.get('name', f'Persona {idx+1}') if isinstance(persona, dict) else f'Persona {idx+1}'
+            print(f"Processing {idx+1}/{len(personas)}: {persona_name}")
+            
+            if not isinstance(persona, dict):
+                print(f"Skipping invalid persona object: {persona}")
+                all_insights_by_persona.append({"persona_name": "Invalid Persona Object", "insights_and_analysis": [], "error": "Invalid persona structure received."})
+                continue
+            
+            try:
+                persona_insights = get_insights_from_persona(business_problem_text, persona)
+                
+                # Track persona token usage
+                if isinstance(persona_insights, dict) and "_api_usage" in persona_insights:
+                    usage = persona_insights["_api_usage"]
+                    token_usage["personas"]["input_tokens"] += usage.get("prompt_tokens", 0)
+                    token_usage["personas"]["output_tokens"] += usage.get("completion_tokens", 0)
+                
+                all_insights_by_persona.append(persona_insights)
+                print(f"Completed {idx+1}/{len(personas)}: {persona_name}")
+            except Exception as e:
+                print(f"Error getting insights from {persona.get('name', 'Unknown')}: {e}")
+                all_insights_by_persona.append({
+                    "persona_name": persona.get('name', 'Unknown Persona'),
+                    "insights_and_analysis": [],
+                    "error": f"Processing failed: {str(e)}"
+                })
+                print(f"Failed {idx+1}/{len(personas)}: {persona_name} - continuing with next persona")
+        
+        # Force garbage collection to free memory after persona processing
+        gc.collect()
+        
+        # Generate market intelligence 
+        print("\n--- Stage 3.2: Generating Market Intelligence ---")
+        market_intelligence = generate_market_intelligence(business_problem_text)
+        
+        # Track search reports token usage
+        if isinstance(market_intelligence, dict) and "_api_usage" in market_intelligence:
+            usage = market_intelligence["_api_usage"]
+            token_usage["search_reports"]["input_tokens"] = usage.get("prompt_tokens", 0)
+            token_usage["search_reports"]["output_tokens"] = usage.get("completion_tokens", 0)
+        
+        # Call the new synthesis function with market intelligence
+        synthesis_report = generate_synthesis_report(business_problem_text, all_insights_by_persona, personas, market_intelligence)
+        
+        # Track synthesis token usage
+        if isinstance(synthesis_report, dict) and "_api_usage" in synthesis_report:
+            usage = synthesis_report["_api_usage"]
+            token_usage["synthesis"]["input_tokens"] = usage.get("prompt_tokens", 0)
+            token_usage["synthesis"]["output_tokens"] = usage.get("completion_tokens", 0)
+
+        # Stage 4 is now effectively handled by the synthesis report generation and what's returned below.
+        print("\n--- Processing Complete (including synthesis) ---")
+        final_output = {
+            "original_problem": business_problem_text,
+            "generated_personas_count": len(personas) if isinstance(personas, list) else 0,
+            "persona_definitions": personas,
+            "expert_insights": all_insights_by_persona,
+            "market_intelligence": market_intelligence,
+            "synthesis_report": synthesis_report,
+            "token_usage": token_usage,
+            "analysis_summary": {
+                "total_experts": TOTAL_EXPERTS,
+                "regular_experts": len(personas) if isinstance(personas, list) else 0,
+                "search_experts": len(market_intelligence) if market_intelligence else 0,
+                "models_used": {
+                    "persona_generation": PERSONA_GENERATION_MODEL,
+                    "expert_analysis": INSIGHT_GENERATION_MODEL,
+                    "market_intelligence": SEARCH_ANALYSIS_MODEL,
+                    "synthesis": SYNTHESIS_MODEL
+                }
             }
         }
-    }
-    return jsonify(final_output)
+        
+        # Final garbage collection before returning
+        gc.collect()
+        
+        return jsonify(final_output)
+    
+    except Exception as e:
+        print(f"Critical error in handle_process_problem: {e}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
+        
+        # Clean up memory even on error
+        gc.collect()
+        
+        return jsonify({
+            "error": "Internal server error during processing",
+            "details": str(e),
+            "type": "critical_error"
+        }), 500
+
+# --- Error Handlers ---
+@app.errorhandler(500)
+def internal_error(error):
+    print(f"Internal server error: {error}")
+    return jsonify({
+        "error": "Internal server error",
+        "message": "The server encountered an unexpected condition that prevented it from fulfilling the request."
+    }), 500
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        "error": "Rate limit exceeded",
+        "message": "Too many requests. Please try again later.",
+        "retry_after": str(e.retry_after) if hasattr(e, 'retry_after') else "3600"
+    }), 429
+
+# --- Graceful Shutdown Handler ---
+import signal
+import sys
+
+def signal_handler(sig, frame):
+    print(f"\nReceived signal {sig}. Shutting down gracefully...")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 # --- Main Execution ---
 if __name__ == '__main__':
     import os
     print("Starting Flask app...")
+    print(f"Environment: {os.environ.get('FLASK_ENV', 'production')}")
+    print(f"Debug mode: {os.environ.get('FLASK_DEBUG', 'False')}")
+    
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=False) 
+    
+    try:
+        app.run(
+            host='0.0.0.0', 
+            port=port, 
+            debug=False,
+            threaded=True,
+            use_reloader=False  # Disable reloader to prevent worker issues
+        )
+    except Exception as e:
+        print(f"Failed to start Flask app: {e}")
+        sys.exit(1) 
