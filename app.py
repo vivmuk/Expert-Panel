@@ -24,10 +24,10 @@ VENICE_API_KEY = 'ntmhtbP2fr_pOQsmuLPuN_nm6lm2INWKiNcvrdEfEC'  # Venice AI API k
 VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
 
 # Model Configuration
-PERSONA_GENERATION_MODEL = "llama-3.1-405b"      # Llama 405B for expert orchestration
-INSIGHT_GENERATION_MODEL = "qwen3-235b"          # Qwen 235B for individual expert analysis  
-SEARCH_ANALYSIS_MODEL = "qwen-2.5-qwq-32b"      # Qwen QWQ for search-based market analysis
-SYNTHESIS_MODEL = "qwen3-235b"                    # Qwen 235B for final synthesis
+PERSONA_GENERATION_MODEL = "qwen3-235b"          # Venice Large 1.1 for expert orchestration
+INSIGHT_GENERATION_MODEL = "llama-3.1-405b"      # Llama 3.1 405B for individual expert analysis  
+SEARCH_ANALYSIS_MODEL = "mistral-32-24b"         # Venice Medium (3.2 beta) for search-based market analysis
+SYNTHESIS_MODEL = "qwen3-235b"                    # Venice Large 1.1 for final synthesis
 
 # Expert Configuration
 TOTAL_EXPERTS = 20
@@ -504,7 +504,7 @@ def generate_market_intelligence(business_problem):
             print(f"Waiting 3 seconds before next search to avoid rate limits...")
             time.sleep(3)  # Increased delay to prevent rate limiting
         
-        search_result = call_venice_search_api(search_item["query"], "llama-3.1-405b")
+        search_result = call_venice_search_api(search_item["query"], SEARCH_ANALYSIS_MODEL)
         
         if search_result.get("error"):
             print(f"Error in search for {search_item['type']}: {search_result['error']}")
@@ -1075,7 +1075,7 @@ def handle_process_problem():
         token_usage = {
             "orchestrator": {"input_tokens": 0, "output_tokens": 0, "model": PERSONA_GENERATION_MODEL},
             "personas": {"input_tokens": 0, "output_tokens": 0, "model": INSIGHT_GENERATION_MODEL},
-            "search_reports": {"input_tokens": 0, "output_tokens": 0, "model": "llama-3.1-405b"},
+            "search_reports": {"input_tokens": 0, "output_tokens": 0, "model": SEARCH_ANALYSIS_MODEL},
             "synthesis": {"input_tokens": 0, "output_tokens": 0, "model": SYNTHESIS_MODEL}
         }
 
