@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
@@ -44,7 +45,7 @@
     </script>
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Nunito', 'Inter', sans-serif;
             background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         }
         .step-connector {
@@ -112,6 +113,7 @@
         .gradient-bg { /* hero */
             background: var(--primary-color) !important;
             color: #ffffff;
+            border-radius: 0 !important;
         }
         .glass-effect {
             backdrop-filter: none !important;
@@ -154,6 +156,14 @@
         .container .text-secondary-700 { color: var(--light-text-color) !important; }
         .container .bg-secondary-900 { background-color: var(--primary-color) !important; }
         .container .bg-white\/80 { background-color: rgba(255,255,255,0.95) !important; }
+
+        /* Square corners for boxes */
+        .rounded-2xl, .rounded-xl, .rounded-3xl { border-radius: 0 !important; }
+        .work-chart-card { padding: 12px !important; }
+        /* Compact spacing */
+        #chart-container .space-y-6 > * + * { margin-top: 12px !important; }
+        #chart-container .space-y-4 > * + * { margin-top: 8px !important; }
+        .step-connector { height: 2px !important; width: 36px !important; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -714,8 +724,8 @@ Return ONLY a JSON object of the form:
 
         function buildPdfFlow(data) {
             const { currentProcess, futureProcess } = data;
-            const cardWidth = 320;
-            const spacing = 40;
+            const cardWidth = 220;
+            const spacing = 24;
             const maxSteps = Math.max(currentProcess.steps?.length || 0, futureProcess.steps?.length || 0);
             const width = Math.max(1200, (cardWidth + spacing) * maxSteps + 120);
 
@@ -784,7 +794,7 @@ Return ONLY a JSON object of the form:
             (steps || []).forEach((step, index) => {
                 const ownerColor = ownerColors[step.owner] || 'bg-secondary-100 text-secondary-800 border-secondary-200';
                 const card = document.createElement('div');
-                card.className = 'relative work-chart-card border-2 border-secondary-200 rounded-2xl p-4 mr-10';
+                card.className = 'relative work-chart-card border-2 border-secondary-200 rounded-2xl p-3 mr-6';
                 card.style.width = `${cardWidth}px`;
                 card.innerHTML = `
                     <div class="flex items-start justify-between">
@@ -794,14 +804,14 @@ Return ONLY a JSON object of the form:
                                 <span class="text-sm font-semibold text-secondary-900">${step.step}</span>
                             </div>
                             <div class="text-secondary-800 font-medium">${step.task}</div>
-                            <div class="grid grid-cols-2 gap-3 mt-3 text-sm text-secondary-700">
+                            <div class="grid grid-cols-2 gap-2 mt-2 text-sm text-secondary-700">
                                 <div>🎯 <span class="font-semibold text-secondary-900">Target:</span> ${step.successTarget}</div>
                                 <div>⚖️ <span class="font-semibold text-secondary-900">Rule:</span> ${step.rule}</div>
                             </div>
                         </div>
                         <div class="text-right">
                             <div class="text-sm text-secondary-600">Time</div>
-                            <div class="text-lg font-extrabold text-secondary-900">${formatTime(step.estimatedTimeMinutes || 0)}</div>
+                            <div class="text-base font-extrabold text-secondary-900">${formatTime(step.estimatedTimeMinutes || 0)}</div>
                             ${showCompute && step.compute ? `<div class=\"mt-2 text-xs text-secondary-600\">${step.compute.modelId} · in ${formatTokens(step.compute.estimatedInputTokens)} · out ${formatTokens(step.compute.estimatedOutputTokens)}</div>` : ''}
                         </div>
                     </div>`;
@@ -943,17 +953,17 @@ Return ONLY a JSON object of the form:
             col.className = '';
 
             const container = document.createElement('div');
-            container.className = `bg-white p-6 rounded-2xl shadow-lg border-2 ${isDraft ? 'border-dashed border-secondary-300' : 'border-secondary-200'}`;
+            container.className = `bg-white p-4 rounded-2xl shadow-lg border-2 ${isDraft ? 'border-dashed border-secondary-300' : 'border-secondary-200'}`;
 
             const heading = document.createElement('div');
-            heading.className = 'flex items-center justify-between mb-4';
+            heading.className = 'flex items-center justify-between mb-3';
             heading.innerHTML = `
-                <h3 class="text-xl font-bold text-secondary-900">${title}</h3>
+                <h3 class="text-lg font-bold text-secondary-900">${title}</h3>
                 <span class="text-sm text-secondary-600">${process.name || ''}</span>
             `;
 
             const list = document.createElement('div');
-            list.className = 'space-y-4';
+            list.className = 'space-y-3';
 
             process.steps.forEach((step, idx) => {
                 const ownerColors = {
@@ -964,7 +974,7 @@ Return ONLY a JSON object of the form:
                 const ownerColor = ownerColors[step.owner] || 'bg-secondary-100 text-secondary-800 border-secondary-200';
 
                 const card = document.createElement('div');
-                card.className = 'work-chart-card border-2 border-secondary-200 rounded-xl p-4';
+                card.className = 'work-chart-card border-2 border-secondary-200 rounded-xl p-3';
                 card.innerHTML = `
                     <div class="flex items-start justify-between">
                         <div class="pr-4">
@@ -973,14 +983,14 @@ Return ONLY a JSON object of the form:
                                 <span class="text-sm font-semibold text-secondary-900">${step.step}</span>
                             </div>
                             <div class="text-secondary-800 font-medium">${step.task}</div>
-                            <div class="grid grid-cols-2 gap-3 mt-3 text-sm text-secondary-700">
+                            <div class="grid grid-cols-2 gap-2 mt-2 text-sm text-secondary-700">
                                 <div>🎯 <span class="font-semibold text-secondary-900">Target:</span> ${step.successTarget}</div>
                                 <div>⚖️ <span class="font-semibold text-secondary-900">Rule:</span> ${step.rule}</div>
                             </div>
                         </div>
                         <div class="text-right">
                             <div class="text-sm text-secondary-600">Time</div>
-                            <div class="text-lg font-extrabold text-secondary-900">${formatTime(step.estimatedTimeMinutes || 0)}</div>
+                            <div class="text-base font-extrabold text-secondary-900">${formatTime(step.estimatedTimeMinutes || 0)}</div>
                             ${step.compute ? `<div class=\"mt-2 text-xs text-secondary-600\">${step.compute.modelId} · in ${formatTokens(step.compute.estimatedInputTokens)} · out ${formatTokens(step.compute.estimatedOutputTokens)}</div>` : ''}
                         </div>
                     </div>
@@ -991,13 +1001,13 @@ Return ONLY a JSON object of the form:
             const totals = calculateTotals(process.steps || []);
             const computeTotals = calculateComputeTotals(process.steps || []);
             const footer = document.createElement('div');
-            footer.className = 'mt-4 pt-4 border-t border-secondary-200 flex items-center justify-between';
+            footer.className = 'mt-3 pt-3 border-t border-secondary-200 flex items-center justify-between';
             footer.innerHTML = `
                 <div class="text-sm text-secondary-700">Assumptions: ${(process.assumptions || []).slice(0,3).join(' • ')}</div>
                 <div class="text-right">
                     <div class="text-sm text-secondary-600">Total Time</div>
-                    <div class="text-lg font-extrabold text-secondary-900">${formatTime(totals.minutes)}</div>
-                    ${computeTotals.totalCost ? `<div class=\"text-sm text-secondary-600 mt-1\">Compute Cost</div><div class=\"text-lg font-extrabold text-secondary-900\">${formatCurrency(computeTotals.totalCost)}</div>` : ''}
+                    <div class="text-base font-extrabold text-secondary-900">${formatTime(totals.minutes)}</div>
+                    ${computeTotals.totalCost ? `<div class=\"text-sm text-secondary-600 mt-1\">Compute Cost</div><div class=\"text-base font-extrabold text-secondary-900\">${formatCurrency(computeTotals.totalCost)}</div>` : ''}
                 </div>
             `;
 
