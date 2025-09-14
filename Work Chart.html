@@ -89,6 +89,71 @@
             transform: translateY(-2px);
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
+        
+        /* --- Flat theme to match AI Partner (black/white with accents) --- */
+        :root {
+            --primary-color: #000000;
+            --secondary-color: #333333;
+            --bg-color: #ffffff;
+            --panel-bg: #ffffff;
+            --text-color: #000000;
+            --light-text-color: #666666;
+            --border-color: #e0e0e0;
+            --accent-orange: #ff6b35;
+            --accent-yellow: #ffa502;
+            --accent-green: #2ed573;
+            --accent-purple: #5f27cd;
+        }
+
+        body {
+            background: var(--bg-color) !important;
+            color: var(--text-color);
+        }
+        .gradient-bg { /* hero */
+            background: var(--primary-color) !important;
+            color: #ffffff;
+        }
+        .glass-effect {
+            backdrop-filter: none !important;
+            background: var(--panel-bg) !important;
+            border: 2px solid var(--border-color) !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06), 0 1px 8px rgba(0,0,0,0.05);
+        }
+        .comparison-table {
+            background: var(--panel-bg) !important;
+            border: 2px solid var(--border-color);
+        }
+        .step-connector {
+            background: var(--text-color) !important;
+        }
+        .step-connector::after {
+            border-left-color: var(--text-color) !important;
+        }
+        /* Primary flat buttons */
+        #generate-btn,
+        #autofill-btn,
+        #refine-btn,
+        #download-pdf-btn,
+        #download-html-btn {
+            background: var(--secondary-color) !important;
+            color: #ffffff !important;
+            border: 2px solid var(--secondary-color) !important;
+        }
+        #generate-btn:hover,
+        #autofill-btn:hover,
+        #refine-btn:hover,
+        #download-pdf-btn:hover,
+        #download-html-btn:hover {
+            background: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+        }
+        /* Top nav adjustments */
+        nav a { color: var(--text-color); }
+        .container .border-secondary-200 { border-color: var(--border-color) !important; }
+        .container .text-secondary-900 { color: var(--text-color) !important; }
+        .container .text-secondary-700 { color: var(--light-text-color) !important; }
+        .container .bg-secondary-900 { background-color: var(--primary-color) !important; }
+        .container .bg-white\/80 { background-color: rgba(255,255,255,0.95) !important; }
     </style>
 </head>
 <body class="min-h-screen">
