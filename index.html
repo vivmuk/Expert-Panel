@@ -1328,7 +1328,12 @@
                 <div>• Market intelligence add‑ons when helpful</div>
                 <div>• Optional Work Chart to redesign workflows with Humans + AI</div>
             </div>
-            <button class="landing-enter" onclick="document.getElementById('landingOverlay').style.display='none'">Enter</button>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button class="landing-enter" onclick="document.getElementById('landingOverlay').style.display='none'">Explore Expert Panel</button>
+                <a href="Work Chart.html" target="_blank" rel="noopener" class="landing-enter" style="text-decoration: none; display: inline-block; text-align: center;">
+                    Open Work Chart
+                </a>
+            </div>
         </div>
     </div>
 
@@ -1337,9 +1342,81 @@
         <div class="subtitle">Strategic consulting for small businesses. Get partner-level insights without the partner-level price tag.</div>
     </header>
 
+    <!-- AI Partner overview and value proposition -->
+    <section id="ai-partner-info" style="max-width: 1100px; margin: 24px auto 0 auto; padding: 20px 16px;">
+        <div style="background: var(--panel-bg); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm); padding: 22px;">
+            <h2 style="margin: 0 0 8px 0; font-size: 1.6em; letter-spacing: -0.01em;">Meet your AI Partner</h2>
+            <p style="margin: 6px 0 16px 0; color: var(--light-text-color); font-size: 1.05em; line-height: 1.65;">
+                Our AI Partner brings a panel of specialized AI personas to analyze your challenge from multiple angles—strategy, finance, operations, GTM, and more. 
+                It compresses what traditionally takes weeks and six figures into minutes and dollars, <strong>revolutionizing and democratizing</strong> access to top‑tier strategy.
+            </p>
+
+            <!-- Comparison table: Traditional vs AI-powered -->
+            <div style="overflow-x: auto; margin: 14px 0 18px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid var(--border-color);">Dimension</th>
+                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid var(--border-color);">Traditional Consulting</th>
+                            <th style="text-align: left; padding: 12px; border-bottom: 2px solid var(--border-color);">AI‑Powered (The AI Partner)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Cost</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">$50,000–$250,000+ per engagement</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);"><strong>$</strong> pay‑as‑you‑go (tokens)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Speed</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Weeks to months</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Minutes to hours</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Availability</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Business hours, limited bandwidth</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">24/7, parallelized experts</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Perspective</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Small team, single POV</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Multi‑expert synthesis</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Transparency</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Opaque staffing & billable hours</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">Token‑level cost visibility</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px;">Deliverables</td>
+                            <td style="padding: 10px;">Slides + narrative after weeks</td>
+                            <td style="padding: 10px;">Instant report + exportable PDF/HTML</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Benefits list -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
+                <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 12px;">✅ Partner‑level thinking for small businesses</div>
+                <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 12px;">✅ Multi‑angle analysis reduces blind spots</div>
+                <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 12px;">✅ Clear, client‑ready deliverables</div>
+                <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 12px;">✅ Real‑time token cost tracking</div>
+                <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 12px;">✅ Scales with your needs—no long contracts</div>
+            </div>
+        </div>
+    </section>
+
     <div class="main-content-wrapper">
         <nav id="left-panel-nav">
             <h3>Navigation</h3>
+            <div class="quick-links" style="margin: 8px 8px 4px 8px;">
+                <a href="Work Chart.html" target="_blank" rel="noopener" 
+                   style="display: flex; align-items: center; padding: 15px 18px; text-decoration: none; color: var(--left-panel-text); border-radius: 12px; margin: 6px 0; border: 1px solid var(--left-panel-border-color);">
+                    <span class="nav-icon" style="margin-right: 12px;">📈</span>
+                    Work Chart
+                </a>
+            </div>
             <ul id="navigationList">
                 <!-- Navigation items will be populated dynamically -->
             </ul>
