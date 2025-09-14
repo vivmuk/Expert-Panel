@@ -306,9 +306,11 @@
             background: linear-gradient(135deg, #0ea5e9 0%, #1f2937 40%, #000000 100%);
             color: #ffffff;
             display: flex;
-            align-items: center;
+            align-items: flex-start; /* allow tall content */
             justify-content: center;
             z-index: 9999;
+            overflow-y: auto; /* make landing scrollable */
+            padding: 24px 0; /* breathing room for scroll */
         }
         .landing-card {
             background: rgba(255,255,255,0.06);
@@ -316,7 +318,8 @@
             box-shadow: 0 12px 40px rgba(0,0,0,0.5);
             backdrop-filter: blur(10px);
             border-radius: 0px;
-            max-width: 900px;
+            max-width: 1100px; /* wider to fit tables */
+            width: calc(100% - 32px);
             padding: 40px 36px;
         }
         .landing-title {
@@ -1437,7 +1440,7 @@
                     </div>
                 </div>
             </div>
-            <div class="landing-cta-row" style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div class="landing-cta-row" style="position: sticky; bottom: 0; margin-top: 10px; display: flex; gap: 12px; flex-wrap: wrap; background: rgba(0,0,0,0.25); padding: 10px; backdrop-filter: blur(6px);">
                 <a href="#main" onclick="document.getElementById('landingOverlay').style.display='none'" 
                    class="landing-enter landing-enter-link" 
                    style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; min-width: 240px;">
