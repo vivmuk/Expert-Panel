@@ -25,7 +25,7 @@ VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
 
 # Model Configuration - Updated October 2025 (Beta Models Enabled)
 # Custom configuration optimized for expert panel workflow
-PERSONA_GENERATION_MODEL = "hermes-3-llama-3.1-405b"  # Hermes 3 Llama 405B - most powerful for orchestration
+PERSONA_GENERATION_MODEL = "qwen3-235b"               # Venice Large 1.1 - stable, reliable orchestration
 INSIGHT_GENERATION_MODEL = "qwen3-next-80b"           # Qwen 3 Next 80B - 262K context, excellent reasoning
 SEARCH_ANALYSIS_MODEL = "mistral-32-24b"              # Mistral 32 24B - optimal for market analysis
 SYNTHESIS_MODEL = "qwen3-next-80b"                    # Qwen 3 Next 80B - powerful synthesis with huge context
