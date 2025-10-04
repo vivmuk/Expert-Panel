@@ -303,53 +303,212 @@
         .landing-overlay {
             position: fixed;
             inset: 0;
-            background: linear-gradient(135deg, #0ea5e9 0%, #1f2937 40%, #000000 100%);
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #0f172a 100%);
             color: #ffffff;
             display: flex;
-            align-items: flex-start; /* allow tall content */
+            align-items: flex-start;
             justify-content: center;
             z-index: 9999;
-            overflow-y: auto; /* make landing scrollable */
-            padding: 24px 0; /* breathing room for scroll */
+            overflow-y: auto;
+            padding: 40px 20px;
         }
         .landing-card {
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
-            border-radius: 0px;
-            max-width: 1100px; /* wider to fit tables */
-            width: calc(100% - 32px);
-            padding: 40px 36px;
+            background: rgba(255,255,255,0.03);
+            border: 2px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            max-width: 1200px;
+            width: 100%;
+            padding: 60px 50px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .landing-hero {
+            text-align: center;
+            margin-bottom: 50px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .landing-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .landing-title {
-            margin: 0 0 12px 0;
-            font-size: 2.4em;
-            font-weight: 800;
-            letter-spacing: -0.02em;
+            margin: 0 0 20px 0;
+            font-size: 3.5em;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
         }
         .landing-subtitle {
-            margin: 0 0 24px 0;
-            font-size: 1.1em;
-            color: #e5e7eb;
+            margin: 0 auto 30px;
+            font-size: 1.3em;
+            color: #d1d5db;
+            max-width: 800px;
+            line-height: 1.6;
+            font-weight: 300;
         }
-        .landing-list {
+        .landing-stats {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        .landing-stat {
+            text-align: center;
+        }
+        .landing-stat-number {
+            font-size: 2.5em;
+            font-weight: 800;
+            color: #10b981;
+            display: block;
+        }
+        .landing-stat-label {
+            font-size: 0.9em;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .landing-section {
+            margin: 40px 0;
+        }
+        .landing-section-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            margin-bottom: 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .landing-features {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px 20px;
-            margin: 16px 0 28px 0;
-            color: #e5e7eb;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        .landing-feature {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 30px;
+            transition: all 0.3s ease;
+        }
+        .landing-feature:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(16,185,129,0.5);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(16,185,129,0.2);
+        }
+        .landing-feature-icon {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+        .landing-feature-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+        .landing-feature-desc {
+            color: #d1d5db;
+            line-height: 1.6;
+            font-size: 0.95em;
+        }
+        .landing-comparison {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 35px;
+            margin: 30px 0;
+        }
+        .landing-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .landing-table th {
+            background: rgba(16,185,129,0.1);
+            color: #10b981;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid rgba(16,185,129,0.3);
+        }
+        .landing-table td {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            color: #d1d5db;
+        }
+        .landing-table tr:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        .landing-cta-section {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
         .landing-enter {
-            background: #000000;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: #ffffff;
-            border: 2px solid #ffffff;
-            padding: 14px 22px;
+            border: none;
+            padding: 18px 50px;
+            font-size: 1.2em;
             font-weight: 700;
             cursor: pointer;
-            transition: transform 0.15s ease, background 0.2s ease;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(16,185,129,0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        .landing-enter:hover { transform: translateY(-1px); background: #111827; }
+        .landing-enter:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(16,185,129,0.4);
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+        .landing-trust {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+            opacity: 0.7;
+        }
+        .landing-trust-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            color: #9ca3af;
+        }
+        .landing-highlight {
+            color: #10b981;
+            font-weight: 600;
+        }
         
         .input-section > * {
             position: relative;
@@ -1318,22 +1477,172 @@
     </style>
 </head>
 <body>
-    <!-- Minimal landing overlay (one button to enter) -->
+    <!-- Enhanced landing overlay -->
     <div id="landingOverlay" class="landing-overlay">
         <div class="landing-card">
-            <div class="landing-title">The AI Partner</div>
-            <div class="landing-subtitle">We bring a panel of expert AI personas to analyze your business challenge, synthesize their perspectives, and present a boardroom-ready report—fast.</div>
-            <div style="border-top: 1px solid rgba(255,255,255,0.25); margin: 12px 0 18px 0;"></div>
-            <div style="font-weight:700; margin-bottom: 6px;">What we’re building</div>
-            <div class="landing-list">
-                <div>• Multi-expert analysis across strategy, finance, GTM, and ops</div>
-                <div>• Clean, client-ready deliverables (PDF and HTML)</div>
-                <div>• Market intelligence add‑ons when helpful</div>
-                <div>• Optional Work Chart to redesign workflows with Humans + AI</div>
+            <!-- Hero Section -->
+            <div class="landing-hero">
+                <div class="landing-badge">🚀 AI-Powered Strategic Consulting</div>
+                <h1 class="landing-title">The AI Partner</h1>
+                <p class="landing-subtitle">
+                    Get Fortune 500-level strategic insights without the Fortune 500 price tag. 
+                    Our AI expert panel delivers multi-perspective analysis in minutes, not months.
+                </p>
+                
+                <!-- Stats -->
+                <div class="landing-stats">
+                    <div class="landing-stat">
+                        <span class="landing-stat-number">20</span>
+                        <span class="landing-stat-label">AI Experts</span>
+                    </div>
+                    <div class="landing-stat">
+                        <span class="landing-stat-number">99%</span>
+                        <span class="landing-stat-label">Cost Savings</span>
+                    </div>
+                    <div class="landing-stat">
+                        <span class="landing-stat-number">24/7</span>
+                        <span class="landing-stat-label">Availability</span>
+                    </div>
+                </div>
             </div>
 
-            <!-- Landing tables (visible on load) -->
-            <div style="margin: 12px 0 18px 0; display: grid; gap: 10px;">
+            <!-- Key Features -->
+            <div class="landing-section">
+                <h2 class="landing-section-title">Why Choose The AI Partner?</h2>
+                <div class="landing-features">
+                    <div class="landing-feature">
+                        <div class="landing-feature-icon">🧠</div>
+                        <h3 class="landing-feature-title">Multi-Expert Analysis</h3>
+                        <p class="landing-feature-desc">
+                            20 specialized AI personas analyze your challenge across strategy, finance, operations, marketing, and more.
+                        </p>
+                    </div>
+                    <div class="landing-feature">
+                        <div class="landing-feature-icon">⚡</div>
+                        <h3 class="landing-feature-title">Lightning Fast</h3>
+                        <p class="landing-feature-desc">
+                            Get comprehensive strategic reports in minutes instead of waiting weeks for traditional consultants.
+                        </p>
+                    </div>
+                    <div class="landing-feature">
+                        <div class="landing-feature-icon">💰</div>
+                        <h3 class="landing-feature-title">Affordable Excellence</h3>
+                        <p class="landing-feature-desc">
+                            Pay-as-you-go token model. Get $250K+ worth of insights for a fraction of the cost.
+                        </p>
+                    </div>
+                    <div class="landing-feature">
+                        <div class="landing-feature-icon">📊</div>
+                        <h3 class="landing-feature-title">Real-Time Market Intel</h3>
+                        <p class="landing-feature-desc">
+                            Web-connected AI searches current market data, trends, and competitive landscape for you.
+                        </p>
+                    </div>
+                    <div class="landing-feature">
+                        <div class="landing-feature-icon">📄</div>
+                        <h3 class="landing-feature-title">Boardroom-Ready Reports</h3>
+                        <p class="landing-feature-desc">
+                            Export professional PDF and HTML reports ready to share with stakeholders immediately.
+                        </p>
+                    </div>
+                    <div class="landing-feature">
+                        <div class="landing-feature-icon">🎯</div>
+                        <h3 class="landing-feature-title">Actionable Insights</h3>
+                        <p class="landing-feature-desc">
+                            Not just analysis—get specific, prioritized action steps with implementation roadmaps.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparison Section -->
+            <div class="landing-section">
+                <h2 class="landing-section-title">Traditional vs AI-Powered Consulting</h2>
+                <div class="landing-comparison">
+                    <table class="landing-table">
+                        <thead>
+                            <tr>
+                                <th>Dimension</th>
+                                <th>Traditional</th>
+                                <th><span class="landing-highlight">AI-Powered</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Cost</strong></td>
+                                <td>$50,000–$250,000+ per engagement</td>
+                                <td><span class="landing-highlight">$ pay-as-you-go (tokens)</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Speed</strong></td>
+                                <td>Weeks to months</td>
+                                <td><span class="landing-highlight">Minutes to hours</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Availability</strong></td>
+                                <td>Business hours, limited bandwidth</td>
+                                <td><span class="landing-highlight">24/7, parallelized experts</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Perspective</strong></td>
+                                <td>Small team, single POV</td>
+                                <td><span class="landing-highlight">Multi-expert synthesis</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Transparency</strong></td>
+                                <td>Opaque staffing & billable hours</td>
+                                <td><span class="landing-highlight">Token-level cost visibility</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Deliverables</strong></td>
+                                <td>Slides + narrative after weeks</td>
+                                <td><span class="landing-highlight">Instant report + exportable PDF/HTML</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Trust Indicators -->
+            <div class="landing-trust">
+                <div class="landing-trust-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Secure & Private</span>
+                </div>
+                <div class="landing-trust-item">
+                    <i class="fas fa-globe"></i>
+                    <span>Web-Connected Intelligence</span>
+                </div>
+                <div class="landing-trust-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Real-Time Analysis</span>
+                </div>
+            </div>
+
+            <!-- CTA Section -->
+            <div class="landing-cta-section">
+                <h2 style="font-size: 1.8em; margin-bottom: 15px; color: #ffffff;">Ready to Transform Your Strategy?</h2>
+                <p style="color: #d1d5db; margin-bottom: 30px; font-size: 1.1em;">
+                    Join forward-thinking businesses leveraging AI for strategic advantage
+                </p>
+                <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                    <button onclick="document.getElementById('landingOverlay').style.display='none'" class="landing-enter">
+                        <i class="fas fa-rocket"></i> Start Your Analysis
+                    </button>
+                    <a href="Work Chart.html" target="_blank" rel="noopener" 
+                       style="background: rgba(255,255,255,0.1); color: #ffffff; padding: 18px 40px; 
+                              border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 1.1em;
+                              border: 2px solid rgba(255,255,255,0.3); transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 10px;"
+                       onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+                       onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                        <i class="fas fa-chart-network"></i> Explore Work Chart
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin: 12px 0 18px 0; display: grid; gap: 10px; display: none;">
                 <!-- Traditional vs AI-Powered table -->
                 <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.2); padding: 12px;">
                     <div style="font-weight: 700; margin-bottom: 8px;">Traditional vs AI‑Powered Consulting</div>
@@ -1745,12 +2054,26 @@
             total: { inputTokens: 0, outputTokens: 0, cost: 0 }
         };
         
-        // Venice AI pricing per million tokens (based on the rate card)
+        // Venice AI pricing per million tokens (Oct 2025 - with Beta Models)
         const VENICE_PRICING = {
-            'llama-3.1-405b': { input: 1.50, output: 6.00 }, // Venice Large
-            'qwen3-235b': { input: 1.50, output: 6.00 }, // Venice Large
-            'qwen-2.5-qwq-32b': { input: 0.50, output: 2.00 }, // Venice Medium
-            'qwen3-4b': { input: 0.15, output: 0.60 } // Venice Small
+            // Beta Models (requires beta access)
+            'qwen3-next-80b': { input: 0.70, output: 2.80 }, // Qwen 3 Next 80B - 262K context
+            'qwen3-coder-480b-a35b-instruct': { input: 0.75, output: 3.00 }, // Qwen 3 Coder 480B
+            'hermes-3-llama-3.1-405b': { input: 1.10, output: 3.00 }, // Hermes 3 Llama 405B
+            
+            // Stable Models from Venice API
+            'qwen3-4b': { input: 0.05, output: 0.15 }, // Venice Small
+            'qwen3-235b': { input: 0.90, output: 4.50 }, // Venice Large 1.1
+            'llama-3.3-70b': { input: 0.70, output: 2.80 }, // Llama 3.3 70B (Default)
+            'llama-3.2-3b': { input: 0.15, output: 0.60 }, // Llama 3.2 3B
+            'mistral-31-24b': { input: 0.50, output: 2.00 }, // Venice Medium 3.1
+            'mistral-32-24b': { input: 0.50, output: 2.00 }, // Venice Medium 3.2
+            'venice-uncensored': { input: 0.20, output: 0.90 }, // Venice Uncensored 1.1
+            
+            // Legacy/Other models
+            'llama-3.1-405b': { input: 1.50, output: 6.00 }, // Llama 3.1 405B
+            'qwen-2.5-qwq-32b': { input: 0.50, output: 2.00 }, // Venice Reasoning
+            'deepseek-r1-671b': { input: 3.50, output: 14.00 } // DeepSeek R1
         };
 
         // Educational text messages about the platform's value

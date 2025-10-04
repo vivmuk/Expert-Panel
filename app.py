@@ -23,11 +23,24 @@ logger = logging.getLogger(__name__)
 VENICE_API_KEY = 'ntmhtbP2fr_pOQsmuLPuN_nm6lm2INWKiNcvrdEfEC'  # Venice AI API key
 VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
 
-# Model Configuration
-PERSONA_GENERATION_MODEL = "qwen3-235b"          # Venice Large 1.1 for expert orchestration
-INSIGHT_GENERATION_MODEL = "llama-3.1-405b"      # Llama 3.1 405B for individual expert analysis  
-SEARCH_ANALYSIS_MODEL = "mistral-32-24b"         # Venice Medium (3.2 beta) for search-based market analysis
-SYNTHESIS_MODEL = "qwen3-235b"                    # Venice Large 1.1 for final synthesis
+# Model Configuration - Updated October 2025 (Beta Models Enabled)
+# Custom configuration optimized for expert panel workflow
+PERSONA_GENERATION_MODEL = "hermes-3-llama-3.1-405b"  # Hermes 3 Llama 405B - most powerful for orchestration
+INSIGHT_GENERATION_MODEL = "qwen3-next-80b"           # Qwen 3 Next 80B - 262K context, excellent reasoning
+SEARCH_ANALYSIS_MODEL = "mistral-32-24b"              # Mistral 32 24B - optimal for market analysis
+SYNTHESIS_MODEL = "qwen3-next-80b"                    # Qwen 3 Next 80B - powerful synthesis with huge context
+
+# Alternative Option B: Cost-Optimized (Good Balance)
+# PERSONA_GENERATION_MODEL = "qwen3-235b"        # Venice Large - reliable, proven
+# INSIGHT_GENERATION_MODEL = "llama-3.3-70b"     # Llama 3.3 70B - newer than 3.1, much cheaper
+# SEARCH_ANALYSIS_MODEL = "mistral-32-24b"       # Venice Medium - keep as is
+# SYNTHESIS_MODEL = "qwen3-235b"                  # Venice Large - solid synthesis
+
+# Alternative Option C: Maximum Power (Highest Quality & Cost)
+# PERSONA_GENERATION_MODEL = "deepseek-r1-671b"  # DeepSeek R1 671B - reasoning capability
+# INSIGHT_GENERATION_MODEL = "llama-3.1-405b"    # Llama 3.1 405B - maximum capability
+# SEARCH_ANALYSIS_MODEL = "mistral-32-24b"       # Venice Medium - keep as is
+# SYNTHESIS_MODEL = "deepseek-r1-671b"            # DeepSeek R1 671B - best synthesis
 
 # Expert Configuration
 TOTAL_EXPERTS = 20
