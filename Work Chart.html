@@ -285,6 +285,15 @@
                         </button>
                     </div>
                 </div>
+                
+                <!-- AI Agents & Tools Section -->
+                <div id="ai-tools-section" class="hidden glass-effect p-8 rounded-3xl shadow-xl mt-8">
+                    <h3 class="text-3xl font-bold mb-6 text-secondary-900">🤖 AI Agents & Tools Required</h3>
+                    <p class="text-secondary-700 mb-6 text-lg">The following AI capabilities are needed for the AI-assisted workflow:</p>
+                    <div id="ai-tools-container" class="space-y-4">
+                        <!-- AI tools will be listed here -->
+                    </div>
+                </div>
             </div>
             
             <!-- Error Section -->
@@ -318,6 +327,8 @@
         const pdfCredits = document.getElementById('pdf-credits');
         const errorBox = document.getElementById('error-box');
         const errorMessage = document.getElementById('error-message');
+        const aiToolsSection = document.getElementById('ai-tools-section');
+        const aiToolsContainer = document.getElementById('ai-tools-container');
         
         const btnText = document.getElementById('btn-text');
         const btnLoader = document.getElementById('btn-loader');
@@ -571,13 +582,13 @@ Rules:
 - The current process must assign owner = "Human" for every step.
 - The future process can use owner = "Human", "Agent", or "Hybrid".
 - For every step, estimate time in minutes. Do NOT include human labor cost.
-- For Agent or Hybrid steps, include a compute object: { "modelId": string, "estimatedInputTokens": number, "estimatedOutputTokens": number, "notes": string }.
+- For Agent or Hybrid steps, include a compute object: { "modelId": string, "estimatedInputTokens": number, "estimatedOutputTokens": number, "notes": string, "tools": ["list of tools/capabilities needed"] }.
 - Keep step lists aligned where possible so comparisons are clear.
 - Ask enough clarifying questions to resolve ambiguities (no hard limit; include as many as needed).
 Return ONLY JSON with this exact structure:
 {
   "currentProcess": {"name": "string", "steps": [{"step": "string", "task": "string", "owner": "Human", "successTarget": "string", "rule": "string", "estimatedTimeMinutes": number}], "assumptions": ["string"]},
-  "futureProcess": {"name": "string", "steps": [{"step": "string", "task": "string", "owner": "Human|Agent|Hybrid", "successTarget": "string", "rule": "string", "estimatedTimeMinutes": number, "compute": {"modelId": "string", "estimatedInputTokens": number, "estimatedOutputTokens": number, "notes": "string"}}], "assumptions": ["string"]},
+  "futureProcess": {"name": "string", "steps": [{"step": "string", "task": "string", "owner": "Human|Agent|Hybrid", "successTarget": "string", "rule": "string", "estimatedTimeMinutes": number, "compute": {"modelId": "string", "estimatedInputTokens": number, "estimatedOutputTokens": number, "notes": "string", "tools": ["string"]}}], "assumptions": ["string"]},
   "questions": ["string"]
 }`;
 
@@ -591,6 +602,7 @@ Return ONLY JSON with this exact structure:
                 initialWorkChart = data.futureProcess?.steps?.map(s => ({ step: s.step, task: s.task, owner: s.owner, successTarget: s.successTarget, rule: s.rule })) || [];
                 renderComparison(initialComparison, true);
                 renderQuestions(data.questions || []);
+                renderAITools(data.futureProcess);
                 outputSection.classList.remove('hidden');
                 questionsSection.classList.remove('hidden');
                 downloadPdfBtn.classList.remove('hidden');
@@ -625,11 +637,11 @@ Return ONLY JSON with this exact structure:
 Constraints:
 - Current process must keep owner = "Human" for all steps.
 - Estimate time (minutes) for each step. Do NOT include human labor cost.
-- For Agent or Hybrid steps, include/adjust the compute object: { modelId, estimatedInputTokens, estimatedOutputTokens, notes }.
+- For Agent or Hybrid steps, include/adjust the compute object: { modelId, estimatedInputTokens, estimatedOutputTokens, notes, tools: ["list of tools/capabilities needed"] }.
 Return ONLY JSON of the form:
 {
   "currentProcess": {"name": "string", "steps": [{"step": "string", "task": "string", "owner": "Human", "successTarget": "string", "rule": "string", "estimatedTimeMinutes": number}], "assumptions": ["string"]},
-  "futureProcess": {"name": "string", "steps": [{"step": "string", "task": "string", "owner": "Human|Agent|Hybrid", "successTarget": "string", "rule": "string", "estimatedTimeMinutes": number, "compute": {"modelId": "string", "estimatedInputTokens": number, "estimatedOutputTokens": number, "notes": "string"}}], "assumptions": ["string"]}
+  "futureProcess": {"name": "string", "steps": [{"step": "string", "task": "string", "owner": "Human|Agent|Hybrid", "successTarget": "string", "rule": "string", "estimatedTimeMinutes": number, "compute": {"modelId": "string", "estimatedInputTokens": number, "estimatedOutputTokens": number, "notes": "string", "tools": ["string"]}}], "assumptions": ["string"]}
 }`;
 
             const userPrompt = `Original Workflow: "${workflowInput.value.trim()}"
@@ -645,6 +657,7 @@ ${answers.map(a => `- Q: ${a.question}\n  A: ${a.answer}`).join('\n')}`;
             if (data && data.currentProcess && data.futureProcess) {
                 initialComparison = data;
                 renderComparison(data, false);
+                renderAITools(data.futureProcess);
                 questionsSection.classList.add('hidden');
                 downloadPdfBtn.classList.remove('hidden');
                 downloadHtmlBtn.classList.remove('hidden');
@@ -732,7 +745,6 @@ Return ONLY a JSON object of the form:
             const totalsCurrent = calculateTotals(currentProcess.steps || []);
             const totalsFuture = calculateTotals(futureProcess.steps || []);
             const savingsMinutes = Math.max(0, totalsCurrent.minutes - totalsFuture.minutes);
-            const computeTotals = calculateComputeTotals(futureProcess.steps || []);
 
             const root = document.createElement('div');
             root.id = 'pdf-flow-root';
@@ -744,7 +756,7 @@ Return ONLY a JSON object of the form:
             root.style.width = `${width}px`;
 
             const header = document.createElement('div');
-            header.className = 'grid grid-cols-4 gap-4 mb-6';
+            header.className = 'grid grid-cols-3 gap-4 mb-6';
             header.innerHTML = `
                 <div class="bg-white border-2 border-secondary-200 rounded-2xl p-5 shadow">
                     <div class="text-secondary-600 text-sm">Current Total Time</div>
@@ -757,11 +769,6 @@ Return ONLY a JSON object of the form:
                 <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 shadow">
                     <div class="text-emerald-700 text-sm">Estimated Time Savings</div>
                     <div class="text-2xl font-extrabold text-emerald-900">${formatTime(savingsMinutes)}</div>
-                </div>
-                <div class="bg-white border-2 border-secondary-200 rounded-2xl p-5 shadow">
-                    <div class="text-secondary-600 text-sm">Estimated Compute Cost (Future)</div>
-                    <div class="text-2xl font-extrabold text-secondary-900">${formatCurrency(computeTotals.totalCost)}</div>
-                    <div class="text-xs text-secondary-600">${computeTotals.breakdownLabel}</div>
                 </div>`;
 
             const lanes = document.createElement('div');
@@ -922,20 +929,6 @@ Return ONLY a JSON object of the form:
                         <div class="text-2xl font-extrabold text-emerald-900">${formatTime(savingsMinutes)}</div>
                     </div>
                 </div>
-                <div class="mt-3 grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
-                    <div class="bg-white border-2 ${isDraft ? 'border-dashed border-secondary-300' : 'border-secondary-200'} rounded-2xl p-5 shadow lg:col-start-3">
-                        <div class="text-secondary-600 text-sm">Estimated Compute Cost — Future Workflow</div>
-                        <div class="text-2xl font-extrabold text-secondary-900">${formatCurrency(computeTotals.totalCost)}</div>
-                        <div class="text-xs text-secondary-600">${computeTotals.breakdownLabel}</div>
-                    </div>
-                </div>
-                <div class="mt-1 grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
-                    <div class="bg-white border-2 ${isDraft ? 'border-dashed border-secondary-300' : 'border-secondary-200'} rounded-2xl p-5 shadow lg:col-start-3">
-                        <div class="text-secondary-600 text-sm">Compute Cost of This Analysis</div>
-                        <div class="text-2xl font-extrabold text-secondary-900">${formatCurrency(analysisTotals.totalCost)}</div>
-                        <div class="text-xs text-secondary-600">${analysisTotals.breakdownLabel}</div>
-                    </div>
-                </div>
             `;
 
             const grid = document.createElement('div');
@@ -999,7 +992,6 @@ Return ONLY a JSON object of the form:
             });
 
             const totals = calculateTotals(process.steps || []);
-            const computeTotals = calculateComputeTotals(process.steps || []);
             const footer = document.createElement('div');
             footer.className = 'mt-3 pt-3 border-t border-secondary-200 flex items-center justify-between';
             footer.innerHTML = `
@@ -1007,7 +999,6 @@ Return ONLY a JSON object of the form:
                 <div class="text-right">
                     <div class="text-sm text-secondary-600">Total Time</div>
                     <div class="text-base font-extrabold text-secondary-900">${formatTime(totals.minutes)}</div>
-                    ${computeTotals.totalCost ? `<div class=\"text-sm text-secondary-600 mt-1\">Compute Cost</div><div class=\"text-base font-extrabold text-secondary-900\">${formatCurrency(computeTotals.totalCost)}</div>` : ''}
                 </div>
             `;
 
@@ -1071,34 +1062,42 @@ Return ONLY a JSON object of the form:
             const totalsCurrent = calculateTotals(currentProcess.steps || []);
             const totalsFuture = calculateTotals(futureProcess.steps || []);
             const savingsMinutes = Math.max(0, totalsCurrent.minutes - totalsFuture.minutes);
-            const savingsCost = Math.max(0, totalsCurrent.cost - totalsFuture.cost);
 
             const escape = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
+            const getOwnerBadge = (owner) => {
+                const badges = {
+                    'Human': 'bg-blue-100 text-blue-800 border-blue-200',
+                    'Agent': 'bg-purple-100 text-purple-800 border-purple-200',
+                    'Hybrid': 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                };
+                return badges[owner] || 'bg-gray-100 text-gray-800 border-gray-200';
+            };
+
             const renderSteps = (steps) => steps.map(s => `
-                <div class="border border-slate-200 rounded-xl p-4 bg-white">
+                <div class="border-2 border-slate-200 rounded-xl p-4 bg-white">
                     <div class="flex items-start justify-between">
                         <div class="pr-4">
-                            <div class="text-sm font-semibold text-slate-900 mb-1">${escape(s.step)}</div>
-                            <div class="text-slate-700">${escape(s.task)}</div>
-                            <div class="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-600">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-xs font-semibold px-2 py-1 rounded-full border ${getOwnerBadge(s.owner)}">${escape(s.owner)}</span>
+                                <span class="text-sm font-bold text-slate-900">${escape(s.step)}</span>
+                            </div>
+                            <div class="text-slate-800 font-medium mb-3">${escape(s.task)}</div>
+                            <div class="grid grid-cols-2 gap-3 text-sm text-slate-600">
                                 <div>🎯 <span class="font-semibold text-slate-900">Target:</span> ${escape(s.successTarget)}</div>
                                 <div>⚖️ <span class="font-semibold text-slate-900">Rule:</span> ${escape(s.rule)}</div>
                             </div>
                         </div>
-                        <div class="text-right">
+                        <div class="text-right flex-shrink-0">
                             <div class="text-xs uppercase tracking-wide text-slate-500">Time</div>
-                            <div class="text-lg font-extrabold text-slate-900">${formatTime(s.estimatedTimeMinutes || 0)}</div>
-                            <div class="mt-1 text-xs uppercase tracking-wide text-slate-500">Cost</div>
-                            <div class="text-lg font-extrabold text-slate-900">${formatCurrency(s.estimatedCostUSD || 0)}</div>
+                            <div class="text-xl font-extrabold text-slate-900">${formatTime(s.estimatedTimeMinutes || 0)}</div>
+                            ${s.compute ? `<div class="mt-2 text-xs text-slate-600">${escape(s.compute.modelId)}</div>` : ''}
                         </div>
                     </div>
                 </div>
             `).join('');
 
             const assumptions = (arr) => (arr || []).map(a => `<li class="leading-relaxed">${escape(a)}</li>`).join('');
-
-            const computeTotals = calculateComputeTotals(futureProcess.steps || []);
 
             return `<!DOCTYPE html>
 <html lang="en">
@@ -1123,24 +1122,16 @@ Return ONLY a JSON object of the form:
 
     <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
       <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow">
-        <div class="text-slate-500 text-sm">Current Total</div>
+        <div class="text-slate-500 text-sm">Current Total Time</div>
         <div class="text-2xl font-extrabold text-slate-900">${formatTime(totalsCurrent.minutes)}</div>
       </div>
       <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow">
-        <div class="text-slate-500 text-sm">Future Total</div>
+        <div class="text-slate-500 text-sm">Future Total Time</div>
         <div class="text-2xl font-extrabold text-slate-900">${formatTime(totalsFuture.minutes)}</div>
       </div>
       <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 shadow">
-        <div class="text-emerald-700 text-sm">Estimated Savings</div>
+        <div class="text-emerald-700 text-sm">Estimated Time Savings</div>
         <div class="text-2xl font-extrabold text-emerald-900">${formatTime(savingsMinutes)}</div>
-      </div>
-    </section>
-
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-      <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow lg:col-start-3">
-        <div class="text-slate-500 text-sm">Estimated Compute Cost (Future)</div>
-        <div class="text-2xl font-extrabold text-slate-900">${formatCurrency(computeTotals.totalCost)}</div>
-        <div class="text-xs text-slate-500">${computeTotals.breakdownLabel}</div>
       </div>
     </section>
 
@@ -1186,6 +1177,99 @@ Return ONLY a JSON object of the form:
                 `;
                 questionsContainer.appendChild(questionDiv);
             });
+        }
+        
+        function renderAITools(futureProcess) {
+            if (!futureProcess || !futureProcess.steps) return;
+            
+            const toolsMap = new Map();
+            const agentSteps = [];
+            
+            futureProcess.steps.forEach(step => {
+                if ((step.owner === 'Agent' || step.owner === 'Hybrid') && step.compute) {
+                    agentSteps.push({
+                        step: step.step,
+                        owner: step.owner,
+                        modelId: step.compute.modelId,
+                        notes: step.compute.notes,
+                        tools: step.compute.tools || []
+                    });
+                    
+                    // Collect unique tools
+                    if (step.compute.tools && Array.isArray(step.compute.tools)) {
+                        step.compute.tools.forEach(tool => {
+                            if (!toolsMap.has(tool)) {
+                                toolsMap.set(tool, []);
+                            }
+                            toolsMap.get(tool).push(step.step);
+                        });
+                    }
+                }
+            });
+            
+            if (agentSteps.length === 0) {
+                aiToolsSection.classList.add('hidden');
+                return;
+            }
+            
+            aiToolsSection.classList.remove('hidden');
+            aiToolsContainer.innerHTML = '';
+            
+            // Render by step
+            agentSteps.forEach(item => {
+                const ownerColor = item.owner === 'Agent' ? 'bg-purple-500' : 'bg-emerald-500';
+                const card = document.createElement('div');
+                card.className = 'bg-white border-2 border-secondary-200 rounded-2xl p-6 shadow-lg';
+                card.innerHTML = `
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0 mt-1">
+                            <div class="w-12 h-12 ${ownerColor} rounded-xl flex items-center justify-center text-white font-bold text-xl">
+                                ${item.owner === 'Agent' ? '🤖' : '🤝'}
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-sm font-semibold px-3 py-1 rounded-full border ${ownerColor} text-white">${item.owner}</span>
+                                <span class="font-bold text-lg text-secondary-900">${item.step}</span>
+                            </div>
+                            <div class="text-base text-secondary-700 mb-3">
+                                <strong class="text-secondary-900">Model:</strong> ${item.modelId}
+                            </div>
+                            ${item.notes ? `<div class="text-base text-secondary-600 mb-3">${item.notes}</div>` : ''}
+                            ${item.tools.length > 0 ? `
+                                <div class="mt-3">
+                                    <div class="text-sm font-semibold text-secondary-800 mb-2">Required Capabilities:</div>
+                                    <div class="flex flex-wrap gap-2">
+                                        ${item.tools.map(tool => `<span class="text-sm px-3 py-1.5 bg-primary-100 border border-primary-300 rounded-lg text-primary-900 font-medium">${tool}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                aiToolsContainer.appendChild(card);
+            });
+            
+            // Render summary if multiple tools
+            if (toolsMap.size > 0) {
+                const summary = document.createElement('div');
+                summary.className = 'bg-gradient-to-r from-primary-50 to-emerald-50 border-2 border-primary-200 rounded-2xl p-6 mt-4 shadow-lg';
+                summary.innerHTML = `
+                    <h4 class="font-bold text-xl text-secondary-900 mb-4">📋 Capability Summary</h4>
+                    <div class="space-y-3 text-base">
+                        ${Array.from(toolsMap.entries()).map(([tool, steps]) => `
+                            <div class="flex items-start">
+                                <span class="font-medium text-secondary-900 mr-2">•</span>
+                                <div>
+                                    <span class="font-semibold text-secondary-900">${tool}</span>
+                                    <span class="text-secondary-600"> — used in ${steps.length} step${steps.length > 1 ? 's' : ''}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                aiToolsContainer.appendChild(summary);
+            }
         }
         
         function setLoadingState(button, loader, textElement, isLoading) {
