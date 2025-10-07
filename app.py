@@ -27,7 +27,7 @@ VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
 # Custom configuration optimized for expert panel workflow
 PERSONA_GENERATION_MODEL = "qwen3-235b"               # Venice Large 1.1 - stable, reliable orchestration
 INSIGHT_GENERATION_MODEL = "qwen3-next-80b"           # Qwen 3 Next 80B - 262K context, excellent reasoning
-SEARCH_ANALYSIS_MODEL = "mistral-32-24b"              # Mistral 32 24B - optimal for market analysis
+SEARCH_ANALYSIS_MODEL = "llama-3.3-70b"               # Llama 3.3 70B - reliable for web search
 SYNTHESIS_MODEL = "qwen3-next-80b"                    # Qwen 3 Next 80B - powerful synthesis with huge context
 
 # Alternative Option B: Cost-Optimized (Good Balance)
@@ -282,9 +282,10 @@ def call_venice_api(model_id, messages, schema_name_for_api, actual_json_schema)
         print(f"Unexpected error in call_venice_api for model {model_id}, schema {schema_name_for_api}: {e}")
         return {"error": "An unexpected error occurred", "model_id": model_id, "details": str(e)}
 
-def call_venice_search_api(query, model_id="llama-3.1-405b"):
+def call_venice_search_api(query, model_id="llama-3.3-70b"):
     """
     Call Venice AI search API for real-time information gathering.
+    Uses standard chat completions with simplified parameters.
     """
     payload = {
         "model": model_id,
@@ -295,15 +296,8 @@ def call_venice_search_api(query, model_id="llama-3.1-405b"):
             }
         ],
         "temperature": 0.7,
-        "max_tokens": 4000,  # Increased for web search content
-        "top_p": 0.9,
-        "venice_parameters": {
-            "enable_web_search": "auto",
-            "enable_web_citations": True,
-            "include_search_results_in_stream": False,
-            "strip_thinking_response": True,
-            "disable_thinking": True
-        }
+        "max_completion_tokens": 4000,
+        "top_p": 0.9
     }
     headers = {
         "Authorization": f"Bearer {VENICE_API_KEY}",
@@ -963,7 +957,7 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
     }
 
     api_response_data = call_venice_api(
-        model_id=INSIGHT_GENERATION_MODEL, # Can use the same model, or a more powerful one if available/needed
+        model_id=SYNTHESIS_MODEL,
         messages=messages,
         schema_name_for_api="SynthesisReportGenerator",
         actual_json_schema=actual_schema_for_synthesis
