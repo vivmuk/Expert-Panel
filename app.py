@@ -989,29 +989,10 @@ def health_check():
     Health check endpoint for Railway.
     Railway uses healthcheck.railway.app as hostname.
     This endpoint must return 200 OK for deployments to succeed.
+    Keep this FAST - no DB calls, minimal logging, always 200.
     """
-    try:
-        # Basic health indicators
-        health_data = {
-            "status": "healthy", 
-            "message": "AI Expert Panel backend is running",
-            "timestamp": datetime.now().isoformat(),
-            "version": "2.0.0",
-            "services": {
-                "venice_api": "connected",
-                "cors": "enabled",
-                "rate_limiting": "active"
-            }
-        }
-        # Log healthcheck requests (helps debug Railway issues)
-        logger.info(f"Health check requested from {request.remote_addr} (Host: {request.headers.get('Host', 'unknown')})")
-        return jsonify(health_data), 200
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}", exc_info=True)
-        return jsonify({
-            "status": "unhealthy",
-            "message": f"Health check failed: {str(e)}"
-        }), 500
+    # Return immediate 200 OK - no try/except to avoid any delays
+    return jsonify({"status": "ok"}), 200
 
 @app.route('/test', methods=['POST'])
 @cross_origin(supports_credentials=True)
