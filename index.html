@@ -1891,9 +1891,11 @@
 
     <script>
         // Configuration for backend URL
-        const BACKEND_URL = window.location.hostname === 'localhost' ? 
+        // Use same origin when deployed (frontend and backend on same domain)
+        // Use localhost for local development
+        const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 
             'http://127.0.0.1:5000' : 
-            'https://expert-panel.onrender.com';
+            '';  // Empty string means same origin - frontend and backend on same domain
 
         const STAGE_IDLE = -1;
         const STAGE_INIT = 0;
