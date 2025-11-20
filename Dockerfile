@@ -31,5 +31,6 @@ RUN useradd --create-home --shell /bin/bash app && \
     chown -R app:app /app
 USER app
 
-# Use CMD with start.sh script which handles PORT correctly
-CMD ["/bin/bash", "/app/start.sh"] 
+# Use CMD in shell form to ensure environment variable expansion
+# Shell form ensures $PORT is expanded by bash before execution
+CMD /bin/bash /app/start.sh 
