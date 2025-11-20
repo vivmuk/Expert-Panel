@@ -982,6 +982,14 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
 
 
 # --- API Endpoints ---
+@app.route('/favicon.ico')
+def favicon():
+    """
+    Favicon endpoint to prevent 404 errors in browser logs.
+    Returns 204 No Content (standard for missing favicons).
+    """
+    return '', 204
+
 @app.route('/health', methods=['GET'])
 @cross_origin(supports_credentials=False)
 def health_check():
