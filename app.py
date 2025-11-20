@@ -49,19 +49,16 @@ SEARCH_EXPERTS = 5    # Market intelligence and search-based analysis
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
+# Allow all origins for Railway healthchecks and flexibility
+# Railway uses healthcheck.railway.app as hostname for healthchecks
 CORS(app, 
      resources={
          r"/*": {
-             "origins": [
-                 "http://127.0.0.1:5000", 
-                 "http://localhost:5000", 
-                 "https://prajnaconsulting.netlify.app",
-                 "https://expert-panel.onrender.com"
-             ],
+             "origins": "*",  # Allow all origins for Railway compatibility
              "methods": ["GET", "POST", "OPTIONS"],
              "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
              "expose_headers": ["Content-Type"],
-             "supports_credentials": True
+             "supports_credentials": False  # Must be False when origins is "*"
          }
      })
 
@@ -80,6 +77,18 @@ cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 @app.before_request
 def handle_preflight():
+    # Allow Railway healthcheck hostname
+    hostname = request.headers.get('Host', '')
+    if 'healthcheck.railway.app' in hostname:
+        # Always allow Railway healthchecks
+        if request.method == "OPTIONS":
+            response = jsonify(success=True)
+            response.headers.add("Access-Control-Allow-Origin", "*")
+            response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With")
+            response.headers.add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+            response.headers.add("Access-Control-Max-Age", "3600")
+            return response
+    
     if request.method == "OPTIONS":
         response = jsonify(success=True)
         origin = request.headers.get('Origin')
@@ -91,11 +100,11 @@ def handle_preflight():
         ]
         if origin in allowed_origins:
             response.headers.add("Access-Control-Allow-Origin", origin)
+            response.headers.add("Access-Control-Allow-Credentials", "true")
         else:
             response.headers.add("Access-Control-Allow-Origin", "*")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With")
         response.headers.add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-        response.headers.add("Access-Control-Allow-Credentials", "true")
         response.headers.add("Access-Control-Max-Age", "3600")
         return response
 
@@ -974,8 +983,13 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
 
 # --- API Endpoints ---
 @app.route('/health', methods=['GET'])
-@cross_origin(supports_credentials=True)
+@cross_origin(supports_credentials=False)
 def health_check():
+    """
+    Health check endpoint for Railway.
+    Railway uses healthcheck.railway.app as hostname.
+    This endpoint must return 200 OK for deployments to succeed.
+    """
     try:
         # Basic health indicators
         health_data = {
@@ -989,8 +1003,11 @@ def health_check():
                 "rate_limiting": "active"
             }
         }
+        # Log healthcheck requests (helps debug Railway issues)
+        logger.info(f"Health check requested from {request.remote_addr} (Host: {request.headers.get('Host', 'unknown')})")
         return jsonify(health_data), 200
     except Exception as e:
+        logger.error(f"Health check failed: {str(e)}", exc_info=True)
         return jsonify({
             "status": "unhealthy",
             "message": f"Health check failed: {str(e)}"
