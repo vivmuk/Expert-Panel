@@ -1,5 +1,10 @@
 # Railway ignore file (similar to .gitignore)
 
+# Procfile - Railway should use Dockerfile instead
+Procfile
+Procfile.bak
+Procfile.*
+
 # Python
 __pycache__/
 *.py[cod]
@@ -47,6 +52,9 @@ index.html
 about.html
 Work Chart.html
 *.html
+
+# Old entrypoint script (not used anymore)
+docker-entrypoint.sh
 
 # Other
 node_modules/
