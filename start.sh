@@ -15,9 +15,11 @@ cd /app || {
 
 echo "=========================================="
 echo "Starting Expert Panel Application"
-echo "PORT: $PORT"
+echo "PORT: $PORT (from environment: ${PORT:-not set, using default 5000})"
 echo "Working Directory: $(pwd)"
 echo "Python Version: $(python3 --version 2>&1 || python --version 2>&1)"
+echo "Gunicorn Version: $(python3 -m gunicorn --version 2>&1 || echo 'not found')"
+echo "Health check will be available at: http://0.0.0.0:$PORT/health"
 echo "=========================================="
 
 # Check if app.py exists
@@ -42,7 +44,9 @@ fi
 echo "✓ App imported successfully"
 
 echo ""
-echo "Starting gunicorn on 0.0.0.0:$PORT"
+echo "✓ All pre-flight checks passed"
+echo "Starting gunicorn on 0.0.0.0:$PORT with 2 workers"
+echo "Application will be ready to accept connections shortly..."
 echo ""
 
 # Start gunicorn with all configuration
@@ -52,6 +56,7 @@ PYTHON_CMD=$(command -v python3 || command -v python)
 # Now exit on error for gunicorn
 set -e
 
+# Execute gunicorn - this replaces the current process
 exec $PYTHON_CMD -m gunicorn \
     --bind 0.0.0.0:$PORT \
     --workers 2 \
@@ -59,6 +64,7 @@ exec $PYTHON_CMD -m gunicorn \
     --keep-alive 2 \
     --max-requests 1000 \
     --max-requests-jitter 50 \
+    --preload \
     --access-logfile - \
     --error-logfile - \
     --log-level info \

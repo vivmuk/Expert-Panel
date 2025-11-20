@@ -30,13 +30,9 @@ RUN useradd --create-home --shell /bin/bash app && \
     chmod +x /app/start.sh
 USER app
 
-# Don't set PORT here - Railway will inject it at runtime via environment variable
-# EXPOSE is not needed - Railway handles port mapping internally and dynamically discovers ports
-# Railway will automatically detect which port the app listens on
+# Railway injects PORT at runtime - we don't set it here
+# Railway automatically discovers which port the app listens on
 
-# Note: Railway handles healthchecks via railway.json configuration
-# We don't need a Dockerfile HEALTHCHECK as Railway does this automatically
-
-# Run the application using start script which handles PORT correctly
-# Use shell form to ensure bash is used
+# Run the application
+# Railway will set the PORT environment variable which start.sh will use
 CMD ["/bin/bash", "/app/start.sh"] 
