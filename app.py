@@ -982,6 +982,22 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
 
 
 # --- API Endpoints ---
+@app.route('/')
+def root():
+    """
+    Root endpoint - provides API information.
+    Returns basic info about the API.
+    """
+    return jsonify({
+        "service": "AI Expert Panel API",
+        "status": "running",
+        "version": "2.0.0",
+        "endpoints": {
+            "health": "/health",
+            "process_problem": "/process_problem (POST)"
+        }
+    }), 200
+
 @app.route('/favicon.ico')
 def favicon():
     """
