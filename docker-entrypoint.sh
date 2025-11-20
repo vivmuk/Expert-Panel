@@ -1,17 +1,18 @@
 #!/bin/sh
 set -e
 
-# Railway sets PORT at runtime - use it or default to 5000
-export PORT="${PORT:-5000}"
+# Use Railway's PORT if set, otherwise use 8080
+PORT=${PORT:-8080}
 
 echo "=========================================="
 echo "Starting Expert Panel Application"
 echo "PORT: $PORT"
+echo "Working Directory: $(pwd)"
 echo "=========================================="
 
-# Execute gunicorn
+# Execute gunicorn with explicit port
 exec gunicorn \
-    --bind "0.0.0.0:${PORT}" \
+    --bind 0.0.0.0:$PORT \
     --workers 2 \
     --timeout 600 \
     --keep-alive 2 \
