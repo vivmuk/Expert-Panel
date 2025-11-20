@@ -47,19 +47,31 @@ Railway will need the following environment variables:
    - Value: `ntmhtbP2fr_pOQsmuLPuN_nm6lm2INWKiNcvrdEfEC`
    - Click **"Add"**
 
-### 4. Configure Build Settings (Optional)
+### 4. Configure Build Settings
+
+**Important:** Railway will detect and use the `Dockerfile` if present. To use NIXPACKS with Procfile instead:
+
+**Option A: Use Dockerfile (Recommended if you want Docker)**
+- Railway will automatically use Dockerfile
+- Dockerfile has been configured to use `$PORT` correctly
+- Uses `start.sh` script to properly handle PORT environment variable
+
+**Option B: Use NIXPACKS/Procfile**
+- If you prefer to use Procfile instead:
+  1. Go to **Settings** → **Service**
+  2. In **Build Settings**, select **"NIXPACKS"** as builder
+  3. Railway will use your `Procfile` instead of Dockerfile
 
 Railway will automatically:
-- Detect Python from `requirements.txt`
-- Use `Procfile` for the start command
 - Set `PORT` environment variable
 - Run health checks on `/health` endpoint
+- Use the start command from Dockerfile (CMD) or Procfile
 
 If you want to customize, you can:
 1. Go to **Settings** → **Build**
 2. Verify these settings:
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: (from Procfile) `gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 600 --keep-alive 2 --max-requests 1000 --max-requests-jitter 50 --preload app:app`
+   - **Build Command**: `pip install -r requirements.txt` (auto-detected)
+   - **Start Command**: Should match your Procfile or Dockerfile CMD
 
 ### 5. Deploy
 
@@ -105,10 +117,22 @@ Railway provides:
 - Verify Python version compatibility (Railway uses Python 3.11+)
 - Check build logs for specific errors
 
-### Application Won't Start
-- Verify `PORT` environment variable is being used (Railway sets this automatically)
+### Application Won't Start / Healthcheck Fails
+- **Port Issue**: Verify `PORT` environment variable is being used correctly
+  - Dockerfile uses `start.sh` script which properly expands `$PORT`
+  - Procfile uses `$PORT` correctly
+  - Check application logs for binding errors
 - Check that `gunicorn` is in `requirements.txt` ✅
-- Review application logs in Railway dashboard
+- **App Taking Too Long to Start**: The healthcheck times out if app doesn't respond within 100 seconds
+  - Check application startup logs for errors
+  - Verify dependencies are installing correctly
+  - Ensure Flask app initializes without errors
+- **Service Unavailable**: If healthcheck fails with "service unavailable"
+  - App might not be binding to the correct port
+  - Check logs to see if gunicorn started successfully
+  - Verify the `/health` endpoint responds correctly
+  - Increase `healthcheckTimeout` in `railway.json` if app takes longer to start
+- Review application logs in Railway dashboard for specific errors
 
 ### API Calls Fail
 - Verify `VENICE_API_KEY` environment variable is set correctly

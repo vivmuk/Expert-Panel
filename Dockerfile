@@ -6,6 +6,7 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better Docker layer caching
@@ -20,16 +21,24 @@ COPY . .
 # Create logs directory
 RUN mkdir -p logs
 
+# Copy start script and make executable
+COPY start.sh /app/start.sh
+
 # Create a non-root user
-RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+RUN useradd --create-home --shell /bin/bash app && \
+    chown -R app:app /app && \
+    chmod +x /app/start.sh
 USER app
 
-# Expose port
-EXPOSE 5000
+# Set PORT environment variable with default (Railway will override)
+ENV PORT=5000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
+# Expose port (Railway sets PORT dynamically)
+EXPOSE $PORT
 
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "app:app"] 
+# Health check (Railway also does healthchecks, but this is a fallback)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Run the application using start script which handles PORT correctly
+CMD ["/app/start.sh"] 
