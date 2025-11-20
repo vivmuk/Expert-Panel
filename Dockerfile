@@ -34,10 +34,8 @@ USER app
 # EXPOSE is not needed - Railway handles port mapping internally and dynamically discovers ports
 # Railway will automatically detect which port the app listens on
 
-# Health check (Railway does its own healthchecks via railway.json, but this is a fallback)
-# Use sh -c to properly expand PORT environment variable at runtime
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
-    CMD sh -c 'curl -f http://localhost:${PORT:-5000}/health || exit 1'
+# Note: Railway handles healthchecks via railway.json configuration
+# We don't need a Dockerfile HEALTHCHECK as Railway does this automatically
 
 # Run the application using start script which handles PORT correctly
 # Use shell form to ensure bash is used
