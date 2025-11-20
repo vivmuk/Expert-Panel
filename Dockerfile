@@ -21,14 +21,14 @@ COPY . .
 # Create logs directory
 RUN mkdir -p logs
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Create a non-root user
 RUN useradd --create-home --shell /bin/bash app && \
     chown -R app:app /app
 USER app
 
-# Set default PORT (Railway will override this at runtime)
-ENV PORT=5000
-
-# Railway injects PORT at runtime
-# Use shell form of CMD so environment variables are expanded
-CMD gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 600 --keep-alive 2 --max-requests 1000 --max-requests-jitter 50 --preload --access-logfile - --error-logfile - --log-level info --capture-output --enable-stdio-inheritance --forwarded-allow-ips="*" app:app 
+# Use ENTRYPOINT for better Railway compatibility
+ENTRYPOINT ["/docker-entrypoint.sh"] 
