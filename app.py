@@ -5,7 +5,7 @@ import logging
 import gc
 import threading
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS, cross_origin
 
 # Configure logging
@@ -48,7 +48,8 @@ REGULAR_EXPERTS = 15  # Traditional expert analysis
 SEARCH_EXPERTS = 5    # Market intelligence and search-based analysis
 
 # --- Flask App Initialization ---
-app = Flask(__name__)
+# Set static folder to current directory to serve HTML files
+app = Flask(__name__, static_folder='.', static_url_path='')
 # Allow all origins for Railway healthchecks and flexibility
 # Railway uses healthcheck.railway.app as hostname for healthchecks
 CORS(app, 
@@ -985,18 +986,10 @@ def generate_synthesis_report(original_problem, all_expert_insights, persona_def
 @app.route('/')
 def root():
     """
-    Root endpoint - provides API information.
-    Returns basic info about the API.
+    Root endpoint - serves the main frontend application.
+    Returns the index.html file.
     """
-    return jsonify({
-        "service": "AI Expert Panel API",
-        "status": "running",
-        "version": "2.0.0",
-        "endpoints": {
-            "health": "/health",
-            "process_problem": "/process_problem (POST)"
-        }
-    }), 200
+    return send_from_directory('.', 'index.html')
 
 @app.route('/favicon.ico')
 def favicon():
