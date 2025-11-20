@@ -1,0 +1,55 @@
+# Railway ignore file (similar to .gitignore)
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Logs
+*.log
+app.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Development files
+.env
+.env.local
+.env.*.local
+
+# Test files
+test_*.py
+*_test.py
+tests/
+
+# Documentation
+*.md
+!README.md
+
+# Frontend files (if not needed for backend)
+frontend/
+index.html
+about.html
+Work Chart.html
+*.html
+
+# Other
+node_modules/
+.git/
+.gitignore
+
