@@ -3650,14 +3650,35 @@
             doc.save('AI_Expert_Panel_Report.pdf');
         }
 
-        // Fancy HTML export with expert tabs
+        // Professional HTML export with consulting-style design
         function downloadHTML() {
             if (!globalReportData) {
                 alert("No report data available to download.");
                 return;
             }
             const data = globalReportData;
-            const escapeHtml = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const generatedDate = new Date().toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+
+            const escapeHtml = (s) => {
+                if (!s) return '';
+                const div = document.createElement('div');
+                div.textContent = String(s);
+                return div.innerHTML;
+            };
+
+            const formatText = (text) => {
+                if (!text) return '';
+                return String(text)
+                    .replace(/\n\n+/g, '</p><p>')
+                    .replace(/\n/g, '<br>')
+                    .replace(/^/, '<p>')
+                    .replace(/$/, '</p>');
+            };
+
             const experts = (data.expert_insights || []).map((p, i) => ({
                 name: p.persona_name || `Expert ${i+1}`,
                 insights: p.insights_and_analysis || [],
@@ -3667,161 +3688,721 @@
             const defFor = (name) => personaDefinitions.find(d => d.name === name) || {};
             const market = data.market_intelligence || [];
 
-            const tabs = [
-                data.synthesis_report ? { id: 'tab-synthesis', label: 'Synthesis' } : null,
-                ...experts.map((e, i)=>({ id:`tab-expert-${i}`, label:e.name })),
-                market.length ? { id:'tab-market', label:'Market Intel' } : null
-            ].filter(Boolean);
+            const buildCoverPage = () => {
+                return `
+        <div class="cover-page">
+            <div class="cover-content">
+                <h1 class="cover-title">AI Expert Panel Report</h1>
+                <p class="cover-subtitle">${escapeHtml(data.original_problem || 'Business Analysis')}</p>
+                <div class="cover-meta">
+                    <p>Generated on ${generatedDate}</p>
+                    <p>AI Expert Panel</p>
+                </div>
+            </div>
+        </div>`;
+            };
 
-            function expertPanelHTML() {
-                return experts.map((e, i)=>{
-                    const def = defFor(e.name);
-                    const insightBlocks = e.error ? `<div class="warn">Error: ${escapeHtml(e.error)}</div>` :
-                        (e.insights.map((it, idx)=>`
-                            <div class="insight">
-                                <div class="insight-num">${idx+1}</div>
-                                <div class="insight-body">
-                                    <div class="insight-title">${escapeHtml(it.insight || '')}</div>
-                                    ${it.supporting_reasoning ? `<div class="muted">${escapeHtml(it.supporting_reasoning)}</div>` : ''}
-                                    <div class="meta-row">
-                                        ${it.confidence_level ? `<span class="chip">Confidence: ${escapeHtml(it.confidence_level)}</span>` : ''}
-                                    </div>
-                                    ${it.identified_risks && it.identified_risks.length ? `<div class="risk">⚠ ${escapeHtml(it.identified_risks.join(', '))}</div>` : ''}
-                                    ${it.identified_opportunities && it.identified_opportunities.length ? `<div class="opp">★ ${escapeHtml(it.identified_opportunities.join(', '))}</div>` : ''}
-                                    ${(it.implementation_ideas||[]).length ? `<ul class="ideas">${it.implementation_ideas.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}
-                                </div>
-                            </div>
-                        `).join(''));
-                    return `
-                    <section id="panel-expert-${i}" class="panel hidden">
-                        <div class="panel-header">
-                            <div class="title">${escapeHtml(e.name)}</div>
-                            ${def.description ? `<div class="desc">${escapeHtml(def.description)}</div>`:''}
-                            ${def.focus_areas && def.focus_areas.length ? `<div class="muted">Focus: ${escapeHtml(def.focus_areas.join(', '))}</div>`:''}
-                        </div>
-                        ${insightBlocks}
-                    </section>`;
-                }).join('');
-            }
+            const buildTableOfContents = () => {
+                const tocItems = [];
+                let tocNum = 1;
+                
+                if (data.synthesis_report && !data.synthesis_report.error) {
+                    tocItems.push(`<a href="#synthesis" class="toc-item">
+                <span class="toc-number">${tocNum++}</span>
+                <span class="toc-title-text">Executive Summary</span>
+            </a>`);
+                }
+                
+                experts.forEach((e, i) => {
+                    if (!e.error) {
+                        tocItems.push(`<a href="#expert-${i}" class="toc-item">
+                <span class="toc-number">${tocNum++}</span>
+                <span class="toc-title-text">${escapeHtml(e.name)}</span>
+            </a>`);
+                    }
+                });
+                
+                if (market.length > 0) {
+                    tocItems.push(`<a href="#market-intelligence" class="toc-item">
+                <span class="toc-number">${tocNum++}</span>
+                <span class="toc-title-text">Market Intelligence</span>
+            </a>`);
+                }
+                
+                return `
+        <div class="toc-section" id="toc">
+            <h2 class="toc-title">Table of Contents</h2>
+            ${tocItems.join('')}
+        </div>`;
+            };
 
-            function synthesisHTML() {
+            const buildSynthesisSection = () => {
                 if (!data.synthesis_report || data.synthesis_report.error) return '';
                 const s = data.synthesis_report;
-                const actions = (s.actionable_next_steps||[]).map((a,i)=>`
-                    <div class="action">
-                        <div class="action-num">${i+1}</div>
-                        <div class="action-body">
-                            <div class="action-title">${escapeHtml(a.step_description||'')}</div>
-                            ${a.priority ? `<div class="chip chip-priority">Priority: ${escapeHtml(a.priority)}</div>`:''}
-                            ${a.suggested_rationale ? `<div class="muted">${escapeHtml(a.suggested_rationale)}</div>`:''}
+                
+                return `
+        <div class="content-section" id="synthesis">
+            <div class="section-header">
+                <h1 class="section-title">Executive Summary</h1>
+                ${data.original_problem ? `<p class="section-subtitle">${escapeHtml(data.original_problem)}</p>` : ''}
+            </div>
+            
+            ${s.cohesive_summary ? `
+            <div class="content-block">
+                <div class="content-text">${formatText(escapeHtml(s.cohesive_summary))}</div>
+            </div>
+            ` : ''}
+            
+            ${(s.key_themes || []).length > 0 ? `
+            <div class="content-block">
+                <h2>Key Themes</h2>
+                <ul class="content-list">
+                    ${s.key_themes.map(t => `<li>${escapeHtml(t)}</li>`).join('')}
+                </ul>
+            </div>
+            ` : ''}
+            
+            ${(s.potential_blind_spots || []).length > 0 ? `
+            <div class="content-block">
+                <h2>Potential Blind Spots</h2>
+                <ul class="content-list warn-list">
+                    ${s.potential_blind_spots.map(t => `<li>${escapeHtml(t)}</li>`).join('')}
+                </ul>
+            </div>
+            ` : ''}
+            
+            ${(s.actionable_next_steps || []).length > 0 ? `
+            <div class="content-block">
+                <h2>Actionable Next Steps</h2>
+                ${s.actionable_next_steps.map((a, i) => `
+                    <div class="action-box">
+                        <div class="action-number">${i + 1}</div>
+                        <div class="action-content">
+                            <div class="action-title">${escapeHtml(a.step_description || '')}</div>
+                            ${a.priority ? `<span class="priority-badge priority-${a.priority.toLowerCase()}">${escapeHtml(a.priority)}</span>` : ''}
+                            ${a.suggested_rationale ? `<div class="action-rationale">${formatText(escapeHtml(a.suggested_rationale))}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+            
+            <div class="section-navigation">
+                <a href="#toc" class="back-to-top-link">↑ Back to Table of Contents</a>
+            </div>
+            
+            <div class="page-break"></div>
+        </div>`;
+            };
+
+            const buildExpertSections = () => {
+                return experts.map((e, i) => {
+                    if (e.error) return '';
+                    const def = defFor(e.name);
+                    const insightBlocks = e.insights.map((it, idx) => `
+                    <div class="insight-box">
+                        <div class="insight-number">${idx + 1}</div>
+                        <div class="insight-content">
+                            <div class="insight-title">${escapeHtml(it.insight || '')}</div>
+                            ${it.supporting_reasoning ? `<div class="insight-reasoning">${formatText(escapeHtml(it.supporting_reasoning))}</div>` : ''}
+                            <div class="insight-meta">
+                                ${it.confidence_level ? `<span class="confidence-badge confidence-${it.confidence_level.toLowerCase()}">${escapeHtml(it.confidence_level)} Confidence</span>` : ''}
+                            </div>
+                            ${it.identified_risks && it.identified_risks.length > 0 ? `
+                            <div class="risk-box">
+                                <strong>⚠ Risks:</strong> ${it.identified_risks.map(r => escapeHtml(r)).join(', ')}
+                            </div>
+                            ` : ''}
+                            ${it.identified_opportunities && it.identified_opportunities.length > 0 ? `
+                            <div class="opportunity-box">
+                                <strong>★ Opportunities:</strong> ${it.identified_opportunities.map(o => escapeHtml(o)).join(', ')}
+                            </div>
+                            ` : ''}
+                            ${(it.implementation_ideas || []).length > 0 ? `
+                            <div class="implementation-box">
+                                <strong>Implementation Ideas:</strong>
+                                <ul class="ideas-list">
+                                    ${it.implementation_ideas.map(x => `<li>${escapeHtml(x)}</li>`).join('')}
+                                </ul>
+                            </div>
+                            ` : ''}
                         </div>
                     </div>
                 `).join('');
-                return `
-                <section id="panel-synthesis" class="panel">
-                    <div class="panel-header">
-                        <div class="title">Executive Summary</div>
-                        ${data.original_problem ? `<div class="muted">Problem: ${escapeHtml(data.original_problem)}</div>`:''}
-                    </div>
-                    ${s.cohesive_summary ? `<p class="lead">${escapeHtml(s.cohesive_summary)}</p>`:''}
-                    ${(s.key_themes||[]).length?`<h3>Key Themes</h3><ul class="bullets">${s.key_themes.map(t=>`<li>${escapeHtml(t)}</li>`).join('')}</ul>`:''}
-                    ${(s.potential_blind_spots||[]).length?`<h3>Potential Blind Spots</h3><ul class="bullets warn">${s.potential_blind_spots.map(t=>`<li>${escapeHtml(t)}</li>`).join('')}</ul>`:''}
-                    ${actions?`<h3>Actionable Next Steps</h3>${actions}`:''}
-                    <div class="cta-bar">
-                        <a id="workChartLink" href="#" class="cta">Design Work Chart (Humans + AI)</a>
-                    </div>
-                </section>`;
-            }
+                    
+                    return `
+        <div class="content-section" id="expert-${i}">
+            <div class="section-header">
+                <h1 class="section-title">${escapeHtml(e.name)}</h1>
+                ${def.description ? `<p class="section-subtitle">${escapeHtml(def.description)}</p>` : ''}
+                ${def.focus_areas && def.focus_areas.length > 0 ? `<p class="section-meta">Focus Areas: ${escapeHtml(def.focus_areas.join(', '))}</p>` : ''}
+            </div>
+            
+            <div class="content-block">
+                ${insightBlocks}
+            </div>
+            
+            <div class="section-navigation">
+                <a href="#toc" class="back-to-top-link">↑ Back to Table of Contents</a>
+            </div>
+            
+            ${i < experts.length - 1 ? '<div class="page-break"></div>' : ''}
+        </div>`;
+                }).join('');
+            };
 
-            function marketHTML() {
+            const buildMarketIntelligenceSection = () => {
                 if (!market.length) return '';
-                const blocks = market.map(m=>`
-                    <div class="mi">
-                        <div class="mi-title">${escapeHtml(m.title||'Market Analysis')}</div>
-                        <div class="muted">Confidence: ${escapeHtml(m.confidence_level||'Medium')}</div>
-                        ${(m.key_insights||[]).length?`<ul class="bullets">${m.key_insights.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}
-                        ${m.content?`<div class="mi-content">${escapeHtml(m.content)}</div>`:''}
+                
+                return `
+        <div class="content-section" id="market-intelligence">
+            <div class="section-header">
+                <h1 class="section-title">Market Intelligence</h1>
+                <p class="section-subtitle">Real-time market analysis and insights</p>
+            </div>
+            
+            <div class="content-block">
+                ${market.map(m => `
+                    <div class="market-box">
+                        <div class="market-header">
+                            <h3 class="market-title">${escapeHtml(m.title || 'Market Analysis')}</h3>
+                            <span class="confidence-badge confidence-${(m.confidence_level || 'medium').toLowerCase()}">${escapeHtml(m.confidence_level || 'Medium')} Confidence</span>
+                        </div>
+                        ${(m.key_insights || []).length > 0 ? `
+                        <div class="market-insights">
+                            <strong>Key Insights:</strong>
+                            <ul class="content-list">
+                                ${m.key_insights.map(x => `<li>${escapeHtml(x)}</li>`).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                        ${m.content ? `<div class="market-content">${formatText(escapeHtml(m.content))}</div>` : ''}
                     </div>
-                `).join('');
-                return `<section id="panel-market" class="panel hidden">${blocks}</section>`;
-            }
+                `).join('')}
+            </div>
+            
+            <div class="section-navigation">
+                <a href="#toc" class="back-to-top-link">↑ Back to Table of Contents</a>
+            </div>
+        </div>`;
+            };
 
-            const html = `<!DOCTYPE html><html><head>
-                <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>AI Expert Panel — Report</title>
-                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-                <style>
-                    body{font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;background:#f6f7f9;color:#111;margin:0}
-                    .hero{background:linear-gradient(120deg,#0ea5e9,#6366f1);color:#fff;padding:32px 24px}
-                    .hero h1{margin:0;font-size:28px;font-weight:800}
-                    .hero p{margin:8px 0 0 0;opacity:.9}
-                    .wrap{max-width:1100px;margin:0 auto;padding:24px}
-                    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 18px 0}
-                    .tab{background:#fff;border:1px solid #e5e7eb;padding:10px 14px;cursor:pointer;font-weight:600}
-                    .tab.active{background:#111;color:#fff;border-color:#111}
-                    .panel{background:#fff;border:1px solid #e5e7eb;padding:18px}
-                    .panel.hidden{display:none}
-                    .panel-header{margin-bottom:10px}
-                    .panel-header .title{font-weight:800;font-size:20px}
-                    .panel-header .desc{margin-top:6px}
-                    .lead{font-size:16px;line-height:1.7}
-                    .bullets{margin:8px 0 18px 18px}
-                    .bullets.warn li{color:#b91c1c}
-                    .insight{display:flex;gap:12px;margin:12px 0;border:1px solid #e5e7eb;padding:10px}
-                    .insight-num{width:28px;height:28px;background:#f59e0b;color:#fff;font-weight:800;border-radius:50%;display:flex;align-items:center;justify-content:center}
-                    .insight-title{font-weight:700}
-                    .chip{display:inline-block;background:#111;color:#fff;padding:2px 8px;margin-top:6px;font-size:12px}
-                    .chip-priority{background:#065f46}
-                    .risk{color:#b91c1c;margin-top:6px}
-                    .opp{color:#065f46;margin-top:6px}
-                    .ideas{margin:8px 0 0 18px}
-                    .mi{border:1px solid #e5e7eb;padding:12px;margin:10px 0}
-                    .mi-title{font-weight:800}
-                    .mi-content{white-space:pre-wrap;margin-top:8px}
-                    .cta-bar{margin-top:18px;display:flex;justify-content:flex-end}
-                    .cta{background:#0ea5e9;color:#fff;text-decoration:none;padding:10px 14px;font-weight:700;border:0}
-                    .warn{color:#b91c1c}
-                </style>
-            </head><body>
-                <div class="hero"><div class="wrap">
-                    <h1>AI Expert Panel — Client Report</h1>
-                    <p>${escapeHtml((data.original_problem || '').substring(0,240))}</p>
-                </div></div>
-                <div class="wrap">
-                    <div class="tabs">
-                        ${tabs.map((t,i)=>`<button class="tab ${i===0?'active':''}" data-target="${t.id}">${escapeHtml(t.label)}</button>`).join('')}
-                    </div>
-                    ${synthesisHTML()}
-                    ${expertPanelHTML()}
-                    ${marketHTML()}
-                </div>
-                <script>
-                    const tabs = Array.from(document.querySelectorAll('.tab'));
-                    function show(id){
-                        document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
-                        document.getElementById(id.replace('tab-','panel-')).classList.remove('hidden');
-                        tabs.forEach(t=>t.classList.remove('active'));
-                        const active = tabs.find(t=>t.dataset.target===id); if(active) active.classList.add('active');
-                    }
-                    tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.target)));
-                    // default
-                    if(tabs[0]) show(tabs[0].dataset.target);
-                    // Work Chart deep link
-                    const wc = document.getElementById('workChartLink');
-                    if (wc) {
-                        const problem = encodeURIComponent(${JSON.stringify((globalReportData||{}).original_problem||'')} );
-                        const actions = encodeURIComponent(JSON.stringify(((${JSON.stringify((globalReportData||{}).synthesis_report||{})}).actionable_next_steps)||[]));
-                        wc.href = 'Work%20Chart.html?workflow=' + problem + '&actions=' + actions;
-                    }
-                <\/script>
-            </body></html>`;
+            const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Expert Panel Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: 'Montserrat', sans-serif;
+      line-height: 1.7;
+      color: #1a1a1a;
+      background: #ffffff;
+      font-size: 14px;
+    }
+    
+    .document-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 50px;
+      background: white;
+    }
+    
+    /* Cover Page */
+    .cover-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid #e0e0e0;
+      margin-bottom: 40px;
+    }
+    
+    .cover-content {
+      text-align: center;
+    }
+    
+    .cover-title {
+      font-size: 42px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 16px;
+    }
+    
+    .cover-subtitle {
+      font-size: 20px;
+      color: #4a4a4a;
+      margin-bottom: 40px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .cover-meta {
+      font-size: 14px;
+      color: #666;
+      margin-top: 60px;
+    }
+    
+    .cover-meta p {
+      margin: 8px 0;
+    }
+    
+    /* Table of Contents */
+    .toc-section {
+      margin: 60px 0;
+      padding: 40px 0;
+      border-top: 1px solid #e0e0e0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .toc-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 30px;
+    }
+    
+    .toc-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+      text-decoration: none;
+      color: inherit;
+      transition: background-color 0.2s ease;
+    }
+    
+    .toc-item:hover {
+      background-color: #f8f9fa;
+      padding-left: 8px;
+      padding-right: 8px;
+      margin-left: -8px;
+      margin-right: -8px;
+    }
+    
+    .toc-number {
+      font-weight: 600;
+      color: #666;
+      margin-right: 12px;
+      min-width: 24px;
+    }
+    
+    .toc-title-text {
+      flex: 1;
+    }
+    
+    /* Content Sections */
+    .content-section {
+      margin: 80px 0;
+    }
+    
+    .section-header {
+      border-bottom: 2px solid #1a1a1a;
+      padding-bottom: 20px;
+      margin-bottom: 40px;
+    }
+    
+    .section-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 12px;
+    }
+    
+    .section-subtitle {
+      font-size: 16px;
+      color: #4a4a4a;
+      font-weight: 400;
+      margin-bottom: 8px;
+    }
+    
+    .section-meta {
+      font-size: 14px;
+      color: #666;
+      font-style: italic;
+    }
+    
+    /* Content Blocks */
+    .content-block {
+      margin: 30px 0;
+    }
+    
+    .content-block h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 16px;
+      margin-top: 30px;
+    }
+    
+    .content-block h2:first-child {
+      margin-top: 0;
+    }
+    
+    .content-text {
+      margin: 12px 0;
+      line-height: 1.8;
+    }
+    
+    .content-text p {
+      margin: 12px 0;
+    }
+    
+    .content-list {
+      list-style: disc;
+      padding-left: 24px;
+      color: #4a4a4a;
+      margin: 16px 0;
+    }
+    
+    .content-list li {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+    
+    .warn-list {
+      color: #b91c1c;
+    }
+    
+    /* Insight Boxes */
+    .insight-box {
+      border: 1px solid #e0e0e0;
+      border-left: 4px solid #f59e0b;
+      padding: 20px;
+      margin-bottom: 20px;
+      background: #fafafa;
+      display: flex;
+      gap: 16px;
+    }
+    
+    .insight-number {
+      width: 32px;
+      height: 32px;
+      background: #f59e0b;
+      color: #fff;
+      font-weight: 700;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+    
+    .insight-content {
+      flex: 1;
+    }
+    
+    .insight-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+    
+    .insight-reasoning {
+      font-size: 14px;
+      color: #4a4a4a;
+      margin: 12px 0;
+      line-height: 1.6;
+    }
+    
+    .insight-reasoning p {
+      margin: 8px 0;
+    }
+    
+    .insight-meta {
+      margin: 12px 0;
+    }
+    
+    .confidence-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .confidence-high {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #81c784;
+    }
+    
+    .confidence-medium {
+      background: #fff3e0;
+      color: #e65100;
+      border: 1px solid #ffb74d;
+    }
+    
+    .confidence-low {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef5350;
+    }
+    
+    .risk-box {
+      margin: 12px 0;
+      padding: 12px;
+      background: #ffebee;
+      border-left: 3px solid #c62828;
+      font-size: 13px;
+      color: #c62828;
+    }
+    
+    .opportunity-box {
+      margin: 12px 0;
+      padding: 12px;
+      background: #e8f5e9;
+      border-left: 3px solid #2e7d32;
+      font-size: 13px;
+      color: #2e7d32;
+    }
+    
+    .implementation-box {
+      margin: 12px 0;
+      padding: 12px;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      font-size: 13px;
+    }
+    
+    .ideas-list {
+      list-style: disc;
+      padding-left: 20px;
+      margin: 8px 0;
+    }
+    
+    .ideas-list li {
+      margin: 6px 0;
+      line-height: 1.5;
+    }
+    
+    /* Action Boxes */
+    .action-box {
+      border: 1px solid #e0e0e0;
+      border-left: 4px solid #1976d2;
+      padding: 20px;
+      margin-bottom: 20px;
+      background: #fafafa;
+      display: flex;
+      gap: 16px;
+    }
+    
+    .action-number {
+      width: 32px;
+      height: 32px;
+      background: #1976d2;
+      color: #fff;
+      font-weight: 700;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+    
+    .action-content {
+      flex: 1;
+    }
+    
+    .action-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+    
+    .priority-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-left: 8px;
+    }
+    
+    .priority-high {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef5350;
+    }
+    
+    .priority-medium {
+      background: #fff3e0;
+      color: #e65100;
+      border: 1px solid #ffb74d;
+    }
+    
+    .priority-low {
+      background: #e3f2fd;
+      color: #1976d2;
+      border: 1px solid #90caf9;
+    }
+    
+    .action-rationale {
+      font-size: 13px;
+      color: #4a4a4a;
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+    
+    .action-rationale p {
+      margin: 6px 0;
+    }
+    
+    /* Market Intelligence */
+    .market-box {
+      border: 1px solid #e0e0e0;
+      padding: 20px;
+      margin-bottom: 24px;
+      background: #fafafa;
+    }
+    
+    .market-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    
+    .market-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    .market-insights {
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    
+    .market-content {
+      margin-top: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #4a4a4a;
+    }
+    
+    .market-content p {
+      margin: 8px 0;
+    }
+    
+    /* Navigation */
+    .section-navigation {
+      margin-top: 60px;
+      padding-top: 30px;
+      border-top: 1px solid #e0e0e0;
+      text-align: center;
+    }
+    
+    .back-to-top-link {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #f8f9fa;
+      color: #1a1a1a;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      border: 1px solid #e0e0e0;
+    }
+    
+    .back-to-top-link:hover {
+      background: #1a1a1a;
+      color: #ffffff;
+      border-color: #1a1a1a;
+    }
+    
+    /* Floating Home Button */
+    .floating-home {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 50px;
+      height: 50px;
+      background: #1a1a1a;
+      color: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .floating-home:hover {
+      background: #4a4a4a;
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Page Break */
+    .page-break {
+      page-break-before: always;
+      margin: 60px 0;
+    }
+    
+    /* Print Styles */
+    @media print {
+      .floating-home {
+        display: none;
+      }
+      .page-break {
+        page-break-before: always;
+      }
+      body {
+        background: white;
+      }
+      .cover-page {
+        min-height: auto;
+        page-break-after: always;
+      }
+    }
+  </style>
+  <meta name="description" content="AI Expert Panel Report" />
+  <meta name="robots" content="noindex" />
+</head>
+<body>
+  <div class="document-container">
+    ${buildCoverPage()}
+    ${buildTableOfContents()}
+    ${buildSynthesisSection()}
+    ${buildExpertSections()}
+    ${buildMarketIntelligenceSection()}
+  </div>
+  
+  <a href="#toc" class="floating-home" title="Back to Table of Contents">⌂</a>
+</body>
+</html>`;
 
             const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = 'AI_Expert_Panel_Report.html';
-            document.body.appendChild(a); a.click();
-            document.body.removeChild(a); URL.revokeObjectURL(url);
+            a.href = url; 
+            a.download = 'AI_Expert_Panel_Report.html';
+            document.body.appendChild(a); 
+            a.click();
+            document.body.removeChild(a); 
+            URL.revokeObjectURL(url);
         }
 
         // Initialize the page

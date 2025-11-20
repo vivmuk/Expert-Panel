@@ -1062,106 +1062,705 @@ Return ONLY a JSON object of the form:
             const totalsCurrent = calculateTotals(currentProcess.steps || []);
             const totalsFuture = calculateTotals(futureProcess.steps || []);
             const savingsMinutes = Math.max(0, totalsCurrent.minutes - totalsFuture.minutes);
+            const generatedDate = new Date().toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
 
             const escape = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-            const getOwnerBadge = (owner) => {
-                const badges = {
-                    'Human': 'bg-blue-100 text-blue-800 border-blue-200',
-                    'Agent': 'bg-purple-100 text-purple-800 border-purple-200',
-                    'Hybrid': 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                };
-                return badges[owner] || 'bg-gray-100 text-gray-800 border-gray-200';
+            const formatText = (text) => {
+                if (!text) return '';
+                return String(text)
+                    .replace(/\n\n+/g, '</p><p>')
+                    .replace(/\n/g, '<br>')
+                    .replace(/^/, '<p>')
+                    .replace(/$/, '</p>');
             };
 
-            const renderSteps = (steps) => steps.map(s => `
-                <div class="border-2 border-slate-200 rounded-xl p-4 bg-white">
-                    <div class="flex items-start justify-between">
-                        <div class="pr-4">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="text-xs font-semibold px-2 py-1 rounded-full border ${getOwnerBadge(s.owner)}">${escape(s.owner)}</span>
-                                <span class="text-sm font-bold text-slate-900">${escape(s.step)}</span>
-                            </div>
-                            <div class="text-slate-800 font-medium mb-3">${escape(s.task)}</div>
-                            <div class="grid grid-cols-2 gap-3 text-sm text-slate-600">
-                                <div>🎯 <span class="font-semibold text-slate-900">Target:</span> ${escape(s.successTarget)}</div>
-                                <div>⚖️ <span class="font-semibold text-slate-900">Rule:</span> ${escape(s.rule)}</div>
-                            </div>
-                        </div>
-                        <div class="text-right flex-shrink-0">
-                            <div class="text-xs uppercase tracking-wide text-slate-500">Time</div>
-                            <div class="text-xl font-extrabold text-slate-900">${formatTime(s.estimatedTimeMinutes || 0)}</div>
-                            ${s.compute ? `<div class="mt-2 text-xs text-slate-600">${escape(s.compute.modelId)}</div>` : ''}
-                        </div>
-                    </div>
+            const buildCoverPage = () => {
+                return `
+        <div class="cover-page">
+            <div class="cover-content">
+                <h1 class="cover-title">${escape(workflowName || 'Work Chart Analysis')}</h1>
+                <p class="cover-subtitle">Current vs Future Process Comparison</p>
+                <div class="cover-meta">
+                    <p>Generated on ${generatedDate}</p>
+                    <p>Work Chart</p>
                 </div>
-            `).join('');
+            </div>
+        </div>`;
+            };
 
-            const assumptions = (arr) => (arr || []).map(a => `<li class="leading-relaxed">${escape(a)}</li>`).join('');
+            const buildTableOfContents = () => {
+                return `
+        <div class="toc-section" id="toc">
+            <h2 class="toc-title">Table of Contents</h2>
+            <a href="#summary" class="toc-item">
+                <span class="toc-number">1</span>
+                <span class="toc-title-text">Executive Summary</span>
+            </a>
+            <a href="#current-process" class="toc-item">
+                <span class="toc-number">2</span>
+                <span class="toc-title-text">Current Process — Human Only</span>
+            </a>
+            <a href="#future-process" class="toc-item">
+                <span class="toc-number">3</span>
+                <span class="toc-title-text">Future Process — AI-Assisted</span>
+            </a>
+            ${futureProcess.steps && futureProcess.steps.some(s => (s.owner === 'Agent' || s.owner === 'Hybrid') && s.compute) ? `
+            <a href="#ai-tools" class="toc-item">
+                <span class="toc-number">4</span>
+                <span class="toc-title-text">AI Agents & Tools Required</span>
+            </a>
+            ` : ''}
+        </div>`;
+            };
+
+            const buildSummarySection = () => {
+                return `
+        <div class="content-section" id="summary">
+            <div class="section-header">
+                <h1 class="section-title">Executive Summary</h1>
+            </div>
+            
+            <div class="summary-grid">
+                <div class="summary-box">
+                    <div class="summary-label">Current Total Time</div>
+                    <div class="summary-value">${formatTime(totalsCurrent.minutes)}</div>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-label">Future Total Time</div>
+                    <div class="summary-value">${formatTime(totalsFuture.minutes)}</div>
+                </div>
+                <div class="summary-box highlight">
+                    <div class="summary-label">Estimated Time Savings</div>
+                    <div class="summary-value highlight-value">${formatTime(savingsMinutes)}</div>
+                </div>
+            </div>
+            
+            <div class="content-block">
+                <p>This analysis compares the current human-only workflow with a future AI-assisted implementation. The analysis identifies ${currentProcess.steps?.length || 0} steps in the current process and ${futureProcess.steps?.length || 0} steps in the optimized future process.</p>
+            </div>
+            
+            <div class="section-navigation">
+                <a href="#toc" class="back-to-top-link">↑ Back to Table of Contents</a>
+            </div>
+            
+            <div class="page-break"></div>
+        </div>`;
+            };
+
+            const renderSteps = (steps) => steps.map((s, idx) => {
+                const ownerClass = s.owner === 'Human' ? 'owner-human' : s.owner === 'Agent' ? 'owner-agent' : 'owner-hybrid';
+                return `
+                <div class="step-box">
+                    <div class="step-header">
+                        <span class="owner-badge ${ownerClass}">${escape(s.owner)}</span>
+                        <span class="step-name">${escape(s.step)}</span>
+                        <span class="step-time">${formatTime(s.estimatedTimeMinutes || 0)}</span>
+                    </div>
+                    <div class="step-task">${escape(s.task)}</div>
+                    <div class="step-details">
+                        <div class="step-detail-item">
+                            <strong>Target:</strong> ${escape(s.successTarget)}
+                        </div>
+                        <div class="step-detail-item">
+                            <strong>Rule:</strong> ${escape(s.rule)}
+                        </div>
+                        ${s.compute ? `
+                        <div class="step-compute">
+                            <strong>AI Model:</strong> ${escape(s.compute.modelId)}<br>
+                            ${s.compute.notes ? `<em>${escape(s.compute.notes)}</em>` : ''}
+                            ${s.compute.tools && s.compute.tools.length > 0 ? `
+                            <div class="step-tools">
+                                <strong>Tools:</strong> ${s.compute.tools.map(t => escape(t)).join(', ')}
+                            </div>
+                            ` : ''}
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+
+            const buildCurrentProcessSection = () => {
+                return `
+        <div class="content-section" id="current-process">
+            <div class="section-header">
+                <h1 class="section-title">Current Process — Human Only</h1>
+                ${currentProcess.name ? `<p class="section-subtitle">${escape(currentProcess.name)}</p>` : ''}
+            </div>
+            
+            <div class="process-steps">
+                ${renderSteps(currentProcess.steps || [])}
+            </div>
+            
+            ${currentProcess.assumptions && currentProcess.assumptions.length > 0 ? `
+            <div class="content-block">
+                <h2>Assumptions</h2>
+                <ul class="assumptions-list">
+                    ${currentProcess.assumptions.map(a => `<li>${escape(a)}</li>`).join('')}
+                </ul>
+            </div>
+            ` : ''}
+            
+            <div class="section-navigation">
+                <a href="#toc" class="back-to-top-link">↑ Back to Table of Contents</a>
+            </div>
+            
+            <div class="page-break"></div>
+        </div>`;
+            };
+
+            const buildFutureProcessSection = () => {
+                return `
+        <div class="content-section" id="future-process">
+            <div class="section-header">
+                <h1 class="section-title">Future Process — AI-Assisted</h1>
+                ${futureProcess.name ? `<p class="section-subtitle">${escape(futureProcess.name)}</p>` : ''}
+            </div>
+            
+            <div class="process-steps">
+                ${renderSteps(futureProcess.steps || [])}
+            </div>
+            
+            ${futureProcess.assumptions && futureProcess.assumptions.length > 0 ? `
+            <div class="content-block">
+                <h2>Assumptions</h2>
+                <ul class="assumptions-list">
+                    ${futureProcess.assumptions.map(a => `<li>${escape(a)}</li>`).join('')}
+                </ul>
+            </div>
+            ` : ''}
+            
+            <div class="section-navigation">
+                <a href="#toc" class="back-to-top-link">↑ Back to Table of Contents</a>
+            </div>
+            
+            ${futureProcess.steps && futureProcess.steps.some(s => (s.owner === 'Agent' || s.owner === 'Hybrid') && s.compute) ? '<div class="page-break"></div>' : ''}
+        </div>`;
+            };
+
+            const buildAIToolsSection = () => {
+                const agentSteps = [];
+                const toolsMap = new Map();
+                
+                (futureProcess.steps || []).forEach(step => {
+                    if ((step.owner === 'Agent' || step.owner === 'Hybrid') && step.compute) {
+                        agentSteps.push({
+                            step: step.step,
+                            owner: step.owner,
+                            modelId: step.compute.modelId,
+                            notes: step.compute.notes,
+                            tools: step.compute.tools || []
+                        });
+                        
+                        if (step.compute.tools && Array.isArray(step.compute.tools)) {
+                            step.compute.tools.forEach(tool => {
+                                if (!toolsMap.has(tool)) {
+                                    toolsMap.set(tool, []);
+                                }
+                                toolsMap.get(tool).push(step.step);
+                            });
+                        }
+                    }
+                });
+                
+                if (agentSteps.length === 0) return '';
+                
+                return `
+        <div class="content-section" id="ai-tools">
+            <div class="section-header">
+                <h1 class="section-title">AI Agents & Tools Required</h1>
+                <p class="section-subtitle">AI capabilities needed for the AI-assisted workflow</p>
+            </div>
+            
+            <div class="content-block">
+                ${agentSteps.map(item => {
+                    const ownerClass = item.owner === 'Agent' ? 'owner-agent' : 'owner-hybrid';
+                    return `
+                    <div class="tool-box">
+                        <div class="tool-header">
+                            <span class="owner-badge ${ownerClass}">${escape(item.owner)}</span>
+                            <span class="tool-step-name">${escape(item.step)}</span>
+                        </div>
+                        <div class="tool-details">
+                            <div><strong>Model:</strong> ${escape(item.modelId)}</div>
+                            ${item.notes ? `<div class="tool-notes">${escape(item.notes)}</div>` : ''}
+                            ${item.tools.length > 0 ? `
+                            <div class="tool-capabilities">
+                                <strong>Required Capabilities:</strong>
+                                <div class="capability-tags">
+                                    ${item.tools.map(t => `<span class="capability-tag">${escape(t)}</span>`).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+            
+            ${toolsMap.size > 0 ? `
+            <div class="content-block">
+                <h2>Capability Summary</h2>
+                <ul class="capability-summary">
+                    ${Array.from(toolsMap.entries()).map(([tool, steps]) => `
+                    <li><strong>${escape(tool)}</strong> — used in ${steps.length} step${steps.length > 1 ? 's' : ''}</li>
+                    `).join('')}
+                </ul>
+            </div>
+            ` : ''}
+            
+            <div class="section-navigation">
+                <a href="#toc" class="back-to-top-link">↑ Back to Table of Contents</a>
+            </div>
+        </div>`;
+            };
 
             return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escape(workflowName || 'Before vs After')} · Comparison</title>
-  <script src="https://cdn.tailwindcss.com"><\/script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <style> body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f8fafc 0%,#e2e8f0 100%);} </style>
-  <meta name="description" content="Before and After process comparison" />
+  <title>${escape(workflowName || 'Work Chart Analysis')}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: 'Montserrat', sans-serif;
+      line-height: 1.7;
+      color: #1a1a1a;
+      background: #ffffff;
+      font-size: 14px;
+    }
+    
+    .document-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 50px;
+      background: white;
+    }
+    
+    /* Cover Page */
+    .cover-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid #e0e0e0;
+      margin-bottom: 40px;
+    }
+    
+    .cover-content {
+      text-align: center;
+    }
+    
+    .cover-title {
+      font-size: 42px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 16px;
+    }
+    
+    .cover-subtitle {
+      font-size: 20px;
+      color: #4a4a4a;
+      margin-bottom: 40px;
+    }
+    
+    .cover-meta {
+      font-size: 14px;
+      color: #666;
+      margin-top: 60px;
+    }
+    
+    .cover-meta p {
+      margin: 8px 0;
+    }
+    
+    /* Table of Contents */
+    .toc-section {
+      margin: 60px 0;
+      padding: 40px 0;
+      border-top: 1px solid #e0e0e0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .toc-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 30px;
+    }
+    
+    .toc-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+      text-decoration: none;
+      color: inherit;
+      transition: background-color 0.2s ease;
+    }
+    
+    .toc-item:hover {
+      background-color: #f8f9fa;
+      padding-left: 8px;
+      padding-right: 8px;
+      margin-left: -8px;
+      margin-right: -8px;
+    }
+    
+    .toc-number {
+      font-weight: 600;
+      color: #666;
+      margin-right: 12px;
+      min-width: 24px;
+    }
+    
+    .toc-title-text {
+      flex: 1;
+    }
+    
+    /* Content Sections */
+    .content-section {
+      margin: 80px 0;
+    }
+    
+    .section-header {
+      border-bottom: 2px solid #1a1a1a;
+      padding-bottom: 20px;
+      margin-bottom: 40px;
+    }
+    
+    .section-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 12px;
+    }
+    
+    .section-subtitle {
+      font-size: 16px;
+      color: #4a4a4a;
+      font-weight: 400;
+    }
+    
+    /* Summary Grid */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 40px 0;
+    }
+    
+    .summary-box {
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      padding: 24px;
+      text-align: center;
+    }
+    
+    .summary-box.highlight {
+      background: #e8f5e9;
+      border-color: #4caf50;
+    }
+    
+    .summary-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    
+    .summary-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    .summary-value.highlight-value {
+      color: #2e7d32;
+    }
+    
+    /* Content Blocks */
+    .content-block {
+      margin: 30px 0;
+    }
+    
+    .content-block h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 16px;
+    }
+    
+    .content-block p {
+      margin: 12px 0;
+      line-height: 1.8;
+    }
+    
+    /* Step Boxes */
+    .process-steps {
+      margin: 30px 0;
+    }
+    
+    .step-box {
+      border: 1px solid #e0e0e0;
+      border-left: 4px solid #1a1a1a;
+      padding: 20px;
+      margin-bottom: 20px;
+      background: #fafafa;
+    }
+    
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    
+    .owner-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .owner-human {
+      background: #e3f2fd;
+      color: #1976d2;
+      border: 1px solid #90caf9;
+    }
+    
+    .owner-agent {
+      background: #f3e5f5;
+      color: #7b1fa2;
+      border: 1px solid #ce93d8;
+    }
+    
+    .owner-hybrid {
+      background: #e8f5e9;
+      color: #388e3c;
+      border: 1px solid #81c784;
+    }
+    
+    .step-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      flex: 1;
+    }
+    
+    .step-time {
+      font-size: 14px;
+      font-weight: 600;
+      color: #4a4a4a;
+    }
+    
+    .step-task {
+      font-size: 14px;
+      color: #4a4a4a;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+    
+    .step-details {
+      font-size: 13px;
+      color: #666;
+    }
+    
+    .step-detail-item {
+      margin: 8px 0;
+    }
+    
+    .step-compute {
+      margin-top: 12px;
+      padding: 12px;
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    
+    .step-tools {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #f0f0f0;
+    }
+    
+    /* Tool Boxes */
+    .tool-box {
+      border: 1px solid #e0e0e0;
+      padding: 20px;
+      margin-bottom: 20px;
+      background: #fafafa;
+    }
+    
+    .tool-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .tool-step-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    .tool-details {
+      font-size: 14px;
+      color: #4a4a4a;
+    }
+    
+    .tool-notes {
+      margin: 8px 0;
+      font-style: italic;
+      color: #666;
+    }
+    
+    .tool-capabilities {
+      margin-top: 12px;
+    }
+    
+    .capability-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    
+    .capability-tag {
+      background: #e3f2fd;
+      color: #1976d2;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    .capability-summary {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .capability-summary li {
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    /* Assumptions */
+    .assumptions-list {
+      list-style: disc;
+      padding-left: 24px;
+      color: #4a4a4a;
+    }
+    
+    .assumptions-list li {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+    
+    /* Navigation */
+    .section-navigation {
+      margin-top: 60px;
+      padding-top: 30px;
+      border-top: 1px solid #e0e0e0;
+      text-align: center;
+    }
+    
+    .back-to-top-link {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #f8f9fa;
+      color: #1a1a1a;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      border: 1px solid #e0e0e0;
+    }
+    
+    .back-to-top-link:hover {
+      background: #1a1a1a;
+      color: #ffffff;
+      border-color: #1a1a1a;
+    }
+    
+    /* Floating Home Button */
+    .floating-home {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 50px;
+      height: 50px;
+      background: #1a1a1a;
+      color: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .floating-home:hover {
+      background: #4a4a4a;
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Page Break */
+    .page-break {
+      page-break-before: always;
+      margin: 60px 0;
+    }
+    
+    /* Print Styles */
+    @media print {
+      .floating-home {
+        display: none;
+      }
+      .page-break {
+        page-break-before: always;
+      }
+      body {
+        background: white;
+      }
+      .cover-page {
+        min-height: auto;
+        page-break-after: always;
+      }
+    }
+  </style>
+  <meta name="description" content="Work Chart Analysis - Current vs Future Process Comparison" />
   <meta name="robots" content="noindex" />
 </head>
-<body class="min-h-screen">
-  <div class="container mx-auto px-6 py-10 max-w-6xl">
-    <header class="mb-10">
-      <div class="bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 text-white py-12 px-8 rounded-3xl shadow-2xl">
-        <h1 class="text-4xl md:text-5xl font-extrabold mb-3">Before vs After — ${escape(workflowName || '')}</h1>
-        <p class="text-lg opacity-90">Current human-only process compared to the future AI-assisted process.</p>
-      </div>
-    </header>
-
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-      <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow">
-        <div class="text-slate-500 text-sm">Current Total Time</div>
-        <div class="text-2xl font-extrabold text-slate-900">${formatTime(totalsCurrent.minutes)}</div>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow">
-        <div class="text-slate-500 text-sm">Future Total Time</div>
-        <div class="text-2xl font-extrabold text-slate-900">${formatTime(totalsFuture.minutes)}</div>
-      </div>
-      <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 shadow">
-        <div class="text-emerald-700 text-sm">Estimated Time Savings</div>
-        <div class="text-2xl font-extrabold text-emerald-900">${formatTime(savingsMinutes)}</div>
-      </div>
-    </section>
-
-    <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div class="bg-white rounded-2xl p-6 shadow border border-slate-200">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-slate-900">Current Process — Human Only</h2>
-          <span class="text-sm text-slate-500">${escape(currentProcess.name || '')}</span>
-        </div>
-        <div class="space-y-4">${renderSteps(currentProcess.steps)}</div>
-        <div class="mt-6 pt-4 border-t border-slate-200">
-          <div class="text-sm text-slate-600 font-semibold mb-2">Assumptions</div>
-          <ul class="list-disc list-inside text-slate-700">${assumptions(currentProcess.assumptions)}</ul>
-        </div>
-      </div>
-      <div class="bg-white rounded-2xl p-6 shadow border border-slate-200">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-slate-900">Future Process — AI-Assisted</h2>
-          <span class="text-sm text-slate-500">${escape(futureProcess.name || '')}</span>
-        </div>
-        <div class="space-y-4">${renderSteps(futureProcess.steps)}</div>
-        <div class="mt-6 pt-4 border-t border-slate-200">
-          <div class="text-sm text-slate-600 font-semibold mb-2">Assumptions</div>
-          <ul class="list-disc list-inside text-slate-700">${assumptions(futureProcess.assumptions)}</ul>
-        </div>
-      </div>
-    </section>
-
-    <footer class="text-center text-slate-500 mt-10">Generated by Work Chart</footer>
+<body>
+  <div class="document-container">
+    ${buildCoverPage()}
+    ${buildTableOfContents()}
+    ${buildSummarySection()}
+    ${buildCurrentProcessSection()}
+    ${buildFutureProcessSection()}
+    ${buildAIToolsSection()}
   </div>
+  
+  <a href="#toc" class="floating-home" title="Back to Table of Contents">⌂</a>
 </body>
 </html>`;
         }
