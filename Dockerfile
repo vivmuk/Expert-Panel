@@ -30,16 +30,14 @@ RUN useradd --create-home --shell /bin/bash app && \
     chmod +x /app/start.sh
 USER app
 
-# Set PORT environment variable with default (Railway will override)
-ENV PORT=5000
+# Don't set PORT here - Railway will inject it at runtime via environment variable
+# EXPOSE is not needed - Railway handles port mapping internally and dynamically discovers ports
+# Railway will automatically detect which port the app listens on
 
-# Expose port (Railway sets PORT dynamically)
-EXPOSE $PORT
-
-# Health check (Railway also does healthchecks, but this is a fallback)
-# Note: HEALTHCHECK uses shell form, so ${PORT} will work
+# Health check (Railway does its own healthchecks via railway.json, but this is a fallback)
+# Use sh -c to properly expand PORT environment variable at runtime
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
+    CMD sh -c 'curl -f http://localhost:${PORT:-5000}/health || exit 1'
 
 # Run the application using start script which handles PORT correctly
 # Use shell form to ensure bash is used
