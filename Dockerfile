@@ -21,18 +21,14 @@ COPY . .
 # Create logs directory
 RUN mkdir -p logs
 
-# Copy start script and make executable
-COPY start.sh /app/start.sh
-
 # Create a non-root user
 RUN useradd --create-home --shell /bin/bash app && \
-    chown -R app:app /app && \
-    chmod +x /app/start.sh
+    chown -R app:app /app
 USER app
 
-# Railway injects PORT at runtime - we don't set it here
-# Railway automatically discovers which port the app listens on
+# Set default PORT (Railway will override this at runtime)
+ENV PORT=5000
 
-# Run the application
-# Railway will set the PORT environment variable which start.sh will use
-CMD ["/bin/bash", "/app/start.sh"] 
+# Railway injects PORT at runtime
+# Use shell form of CMD so environment variables are expanded
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 600 --keep-alive 2 --max-requests 1000 --max-requests-jitter 50 --preload --access-logfile - --error-logfile - --log-level info --capture-output --enable-stdio-inheritance --forwarded-allow-ips="*" app:app 
