@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The New Work Chart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f4f8',
+                            100: '#d9e2ec',
+                            200: '#bcccdc',
+                            300: '#9fb3c8',
+                            400: '#829ab1',
+                            500: '#627d98',
+                            600: '#486581',
+                            700: '#334e68',
+                            800: '#243b53',
+                            900: '#102a43',
+                        },
+                        secondary: {
+                            50: '#fcfcfc',
+                            100: '#f5f7fa',
+                            200: '#e4e7eb',
+                            300: '#cbd2d9',
+                            400: '#9aa5b1',
+                            500: '#7b8794',
+                            600: '#616e7c',
+                            700: '#52606d',
+                            800: '#3e4c59',
+                            900: '#323f4b',
+                        },
+                        accent: {
+                            green: '#00a878',
+                            teal: '#006d77',
+                            navy: '#102a43',
+                            gold: '#d4af37'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #fcfcfc;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .step-connector {
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            transform: translate(0, -50%);
+            width: 40px;
+            height: 2px;
+            background: #627d98;
+            border-radius: 1px;
+        }
+        .step-connector::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -2px;
+            transform: translateY(-50%);
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            border-left: 7px solid #627d98;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #102a43 0%, #334e68 100%);
+        }
+        .glass-effect {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid #e4e7eb;
+        }
+        @media print {
+            .no-print { display: none !important; }
+        }
+        .work-chart-card {
+            transition: all 0.2s ease;
+        }
+        .work-chart-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div class="container mx-auto px-4 py-4 md:py-6 max-w-6xl">
+        <!-- Top Nav -->
+        <nav class="flex items-center justify-between mb-6">
+            <a href="./" class="flex items-center space-x-2 group">
+                <svg class="w-6 h-6 text-primary-700 group-hover:text-primary-800 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                <span class="font-semibold text-lg text-secondary-900">Work Chart</span>
+            </a>
+            <div class="flex items-center space-x-2">
+                <a href="about.html" class="px-3 py-1.5 text-sm rounded bg-white border border-secondary-200 text-secondary-700 hover:bg-secondary-50 transition">About</a>
+                <a href="#" class="px-3 py-1.5 text-sm rounded bg-primary-800 text-white hover:bg-primary-900 transition" onclick="document.getElementById('input-section').scrollIntoView({behavior:'smooth'})">Get Started</a>
+            </div>
+        </nav>
+
+        <!-- Hero Section (focused) -->
+        <header class="text-center mb-6">
+            <div class="bg-white py-10 px-6 rounded-lg border border-secondary-200 shadow-sm">
+                <div class="flex items-center justify-center mb-3">
+                    <svg class="w-8 h-8 mr-3 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <h1 class="text-3xl md:text-4xl font-bold text-secondary-900 tracking-tight">Design Workflows for Humans + AI</h1>
+                </div>
+                <p class="text-base md:text-lg text-secondary-600 max-w-2xl mx-auto mt-2">
+                    Generate clear work charts that map your process from trigger to outcome.
+                </p>
+            </div>
+        </header>
+
+        <main class="space-y-5">
+            <!-- Input Section -->
+            <div id="input-section" class="glass-effect p-5 rounded-lg shadow-sm">
+                <h2 class="text-lg font-semibold mb-3 text-secondary-900">1. Describe Your Workflow</h2>
+                <p class="text-secondary-600 mb-4 text-sm">Enter a description of a project, job, or any workflow. For example: "A customer support process for handling refund requests."</p>
+                <textarea 
+                    id="workflow-input" 
+                    class="w-full h-28 p-3 border border-secondary-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition text-sm resize-none" 
+                    placeholder="Describe the workflow here..."
+                ></textarea>
+                
+                <!-- Model Selection -->
+                <div class="mt-4">
+                    <label for="model-select" class="block text-sm font-medium text-secondary-800 mb-2 flex items-center justify-between">
+                        <span>Select AI Model</span>
+                        <button 
+                            id="refresh-models-btn" 
+                            class="text-xs px-2 py-1 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded border border-primary-200 transition"
+                            title="Refresh model list from API"
+                        >
+                            🔄 Refresh
+                        </button>
+                    </label>
+                    <select 
+                        id="model-select" 
+                        class="w-full p-2.5 border border-secondary-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition text-sm bg-white"
+                    >
+                        <option value="">Loading models...</option>
+                    </select>
+                    <p class="mt-1 text-xs text-secondary-500" id="model-info">
+                        Fetching latest models from Venice API...
+                    </p>
+                </div>
+                
+                <!-- Timer Display -->
+                <div id="generation-timer" class="hidden mt-3 text-center">
+                    <div class="inline-flex items-center bg-primary-50 border border-primary-200 rounded-lg px-4 py-2">
+                        <svg class="animate-spin h-4 w-4 text-primary-700 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-primary-900">
+                            Generating: <span id="timer-value" class="font-mono">0.0</span>s
+                        </span>
+                    </div>
+                </div>
+                
+                <button 
+                    id="generate-btn" 
+                    class="mt-4 w-full bg-primary-800 text-white font-medium py-2.5 px-6 rounded-lg hover:bg-primary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-sm"
+                >
+                    <span id="btn-text">Generate Initial Chart & Questions</span>
+                    <span id="btn-loader" class="hidden">
+                        <svg class="animate-spin h-4 w-4 text-white inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                    </span>
+                </button>
+            </div>
+
+            <!-- Questions Section -->
+            <div id="questions-section" class="hidden glass-effect p-5 rounded-lg shadow-sm">
+                <h2 class="text-lg font-semibold mb-3 text-secondary-900">2. Answer Clarifying Questions</h2>
+                <p class="text-secondary-600 mb-5 text-sm">Your answers will help create a more accurate and detailed work chart.</p>
+                <div id="questions-container" class="space-y-4"></div>
+                <div class="mt-5 grid sm:grid-cols-2 gap-3">
+                    <button 
+                        id="autofill-btn" 
+                        class="w-full bg-primary-600 text-white font-medium py-2.5 px-6 rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition disabled:opacity-50 text-sm shadow-sm"
+                    >
+                        <span id="autofill-btn-text">Draft Answers with AI</span>
+                        <span id="autofill-btn-loader" class="hidden">
+                            <svg class="animate-spin h-4 w-4 text-white inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Drafting...
+                        </span>
+                    </button>
+                    <button 
+                        id="refine-btn" 
+                        class="w-full bg-accent-green text-white font-medium py-2.5 px-6 rounded-lg hover:bg-accent-teal focus:outline-none focus:ring-2 focus:ring-accent-green transition disabled:opacity-50 text-sm shadow-sm"
+                    >
+                         <span id="refine-btn-text">Refine Work Chart</span>
+                         <span id="refine-btn-loader" class="hidden">
+                            <svg class="animate-spin h-4 w-4 text-white inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Refining...
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <div id="output-section" class="hidden">
+                <div class="text-center mb-5">
+                    <h2 class="text-xl font-semibold mb-1 text-secondary-900">3. Your Generated Work Chart</h2>
+                    <p class="text-secondary-600 text-sm">A dynamic map of how your work gets done</p>
+                </div>
+                
+                <div class="glass-effect p-5 rounded-lg shadow-sm">
+                    <div class="overflow-x-auto pb-4">
+                        <div id="chart-container" class="flex items-start justify-start space-x-16 p-4 min-w-max">
+                            <!-- Chart will be generated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- PDF Credits (hidden, only for PDF) -->
+                    <div id="pdf-credits" class="hidden text-center py-4 border-t border-secondary-200 mt-5">
+                        <p class="text-secondary-500 text-xs">Developed by Vivek + AI</p>
+                    </div>
+                    
+                    <div class="flex justify-center mt-5 gap-2">
+                        <button 
+                            id="download-pdf-btn" 
+                            class="hidden bg-primary-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 transition shadow-sm text-sm"
+                        >
+                            📄 Download PDF
+                        </button>
+                        <button 
+                            id="download-html-btn" 
+                            class="hidden bg-accent-green text-white font-medium py-2 px-4 rounded-lg hover:bg-accent-teal focus:outline-none focus:ring-2 focus:ring-accent-green transition shadow-sm text-sm"
+                        >
+                            🌐 Download HTML
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- AI Agents & Tools Section -->
+                <div id="ai-tools-section" class="hidden glass-effect p-5 rounded-lg shadow-sm mt-5">
+                    <h3 class="text-lg font-semibold mb-3 text-secondary-900">🤖 AI Agents & Tools Required</h3>
+                    <p class="text-secondary-600 mb-4 text-sm">The following AI capabilities are needed for the AI-assisted workflow:</p>
+                    <div id="ai-tools-container" class="space-y-3">
+                        <!-- AI tools will be listed here -->
+                    </div>
+                </div>
+                
+                <!-- AI Methodology Explanation -->
+                <div class="glass-effect p-5 rounded-lg shadow-sm mt-5">
+                    <h3 class="text-lg font-semibold mb-3 text-secondary-900">🧠 How This AI-Augmented Work Chart Was Constructed</h3>
+                    <div class="space-y-4 text-sm text-secondary-700">
+                        <div class="bg-white border border-secondary-200 rounded-lg p-4">
+                            <h4 class="font-semibold text-secondary-900 mb-2 flex items-center">
+                                <span class="text-xl mr-2">1️⃣</span> Workflow Analysis
+                            </h4>
+                            <p>The AI model analyzes your workflow description to identify discrete tasks, dependencies, decision points, and handoffs. It constructs both a baseline (current human-only) process and an optimized (AI-assisted) process.</p>
+                        </div>
+                        
+                        <div class="bg-white border border-secondary-200 rounded-lg p-4">
+                            <h4 class="font-semibold text-secondary-900 mb-2 flex items-center">
+                                <span class="text-xl mr-2">2️⃣</span> Human-AI Task Allocation
+                            </h4>
+                            <p>Each step is classified as <strong class="text-blue-700">Human</strong> (requires judgment, creativity, or physical presence), <strong class="text-purple-700">Agent</strong> (fully automatable with AI), or <strong class="text-emerald-700">Hybrid</strong> (AI-assisted but human-supervised). This allocation considers factors like task complexity, error tolerance, and regulatory requirements.</p>
+                        </div>
+                        
+                        <div class="bg-white border border-secondary-200 rounded-lg p-4">
+                            <h4 class="font-semibold text-secondary-900 mb-2 flex items-center">
+                                <span class="text-xl mr-2">3️⃣</span> Resource Estimation
+                            </h4>
+                            <p>For each step, the system estimates time requirements and, for AI-powered tasks, computes token usage and cost based on the selected language model. This provides realistic ROI projections for implementing AI augmentation.</p>
+                        </div>
+                        
+                        <div class="bg-white border border-secondary-200 rounded-lg p-4">
+                            <h4 class="font-semibold text-secondary-900 mb-2 flex items-center">
+                                <span class="text-xl mr-2">4️⃣</span> Iterative Refinement
+                            </h4>
+                            <p>The AI generates clarifying questions to resolve ambiguities in the workflow. Your answers are used to refine estimates, add missing steps, and improve the accuracy of the task allocation and resource projections.</p>
+                        </div>
+                        
+                        <div class="bg-white border border-secondary-200 rounded-lg p-4">
+                            <h4 class="font-semibold text-secondary-900 mb-2 flex items-center">
+                                <span class="text-xl mr-2">5️⃣</span> Tool & Agent Identification
+                            </h4>
+                            <p>For Agent and Hybrid steps, the system identifies specific AI capabilities required: language models for content generation, vision models for image processing, retrieval systems for knowledge access, and function-calling agents for API integrations. This creates a clear implementation roadmap.</p>
+                        </div>
+                        
+                        <div class="bg-gradient-to-r from-primary-50 to-accent-green/10 border border-primary-200 rounded-lg p-4 mt-4">
+                            <h4 class="font-semibold text-secondary-900 mb-2">🎯 Work Chart Ethos</h4>
+                            <p class="text-secondary-800">The Work Chart methodology is built on the principle that <strong>AI should augment human capabilities, not replace them</strong>. We focus on identifying tasks where AI can handle repetitive, data-intensive, or speed-critical work—freeing humans to focus on strategy, creativity, and relationship-building. Every workflow is designed with clear success targets and decision rules, ensuring accountability and measurable outcomes.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error Section -->
+            <div id="error-box" class="hidden bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg shadow-sm text-sm" role="alert">
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <strong class="font-medium">Error:</strong>
+                        <span class="ml-1" id="error-message"></span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        const generateBtn = document.getElementById('generate-btn');
+        const refineBtn = document.getElementById('refine-btn');
+        const autofillBtn = document.getElementById('autofill-btn');
+        const workflowInput = document.getElementById('workflow-input');
+        const questionsSection = document.getElementById('questions-section');
+        const questionsContainer = document.getElementById('questions-container');
+        const outputSection = document.getElementById('output-section');
+        const chartContainer = document.getElementById('chart-container');
+        const downloadPdfBtn = document.getElementById('download-pdf-btn');
+        const downloadHtmlBtn = document.getElementById('download-html-btn');
+        const pdfCredits = document.getElementById('pdf-credits');
+        const errorBox = document.getElementById('error-box');
+        const errorMessage = document.getElementById('error-message');
+        const modelSelect = document.getElementById('model-select');
+        const refreshModelsBtn = document.getElementById('refresh-models-btn');
+        const modelInfo = document.getElementById('model-info');
+        const generationTimer = document.getElementById('generation-timer');
+        const timerValue = document.getElementById('timer-value');
+        const aiToolsSection = document.getElementById('ai-tools-section');
+        const aiToolsContainer = document.getElementById('ai-tools-container');
+        
+        const btnText = document.getElementById('btn-text');
+        const btnLoader = document.getElementById('btn-loader');
+        const refineBtnText = document.getElementById('refine-btn-text');
+        const refineBtnLoader = document.getElementById('refine-btn-loader');
+        const autofillBtnText = document.getElementById('autofill-btn-text');
+        const autofillBtnLoader = document.getElementById('autofill-btn-loader');
+
+        let initialWorkChart = null; // kept for backward compatibility in autofill context
+        let initialComparison = null;
+        let currentWorkflowName = '';
+        let analysisUsageByModel = {}; // accumulates { [modelId]: { inputTokens, outputTokens, calls } }
+        let timerInterval = null;
+        let availableModels = []; // Store models fetched from API
+
+        // Venice API Configuration
+        const API_KEY = "-28c7m7CCiJxA20hQH8fHnxTqTwYFxPvfO3LnkTMgP";
+        const API_URL = "https://api.venice.ai/api/v1/chat/completions";
+        const MODELS_API_URL = "https://api.venice.ai/api/v1/models";
+        const DEFAULT_MODEL = "llama-3.3-70b"; // Default fallback
+        
+        // Fetch available models from Venice API
+        async function fetchAvailableModels() {
+            try {
+                refreshModelsBtn.disabled = true;
+                refreshModelsBtn.textContent = '⏳ Loading...';
+                
+                const response = await fetch(MODELS_API_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch models: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                availableModels = data.data || [];
+                
+                // Update the global pricing dictionary
+                const newPricing = {};
+                availableModels.forEach(model => {
+                    if (model.model_spec && model.model_spec.pricing) {
+                        newPricing[model.id] = {
+                            in: model.model_spec.pricing.input.usd,
+                            out: model.model_spec.pricing.output.usd,
+                            name: model.model_spec.name || model.id,
+                            contextTokens: model.model_spec.availableContextTokens || 0,
+                            capabilities: model.model_spec.capabilities || {},
+                            traits: model.model_spec.traits || []
+                        };
+                    }
+                });
+                
+                // Update the global pricing object
+                Object.assign(MODEL_PRICING_PER_MTOK, newPricing);
+                
+                populateModelDropdown();
+                
+                modelInfo.textContent = `✅ ${availableModels.length} models loaded`;
+                refreshModelsBtn.textContent = '🔄 Refresh';
+                refreshModelsBtn.disabled = false;
+                
+                return true;
+            } catch (error) {
+                console.error('Error fetching models:', error);
+                modelInfo.textContent = `⚠️ Could not load models: ${error.message}`;
+                refreshModelsBtn.textContent = '🔄 Retry';
+                refreshModelsBtn.disabled = false;
+                
+                // Populate with fallback models
+                populateFallbackModels();
+                return false;
+            }
+        }
+        
+        function populateModelDropdown() {
+            modelSelect.innerHTML = '';
+            
+            if (availableModels.length === 0) {
+                modelSelect.innerHTML = '<option value="">No models available</option>';
+                return;
+            }
+            
+            // Sort models by traits and pricing
+            const sortedModels = [...availableModels].sort((a, b) => {
+                // Prioritize default models
+                const aIsDefault = a.model_spec?.traits?.includes('default');
+                const bIsDefault = b.model_spec?.traits?.includes('default');
+                if (aIsDefault && !bIsDefault) return -1;
+                if (!aIsDefault && bIsDefault) return 1;
+                
+                // Then by pricing (mid-tier first)
+                const aPrice = a.model_spec?.pricing?.input?.usd || 0;
+                const bPrice = b.model_spec?.pricing?.input?.usd || 0;
+                return bPrice - aPrice;
+            });
+            
+            sortedModels.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.id;
+                
+                const spec = model.model_spec || {};
+                const name = spec.name || model.id;
+                const traits = spec.traits || [];
+                const pricing = spec.pricing || {};
+                const inputPrice = pricing.input?.usd || 0;
+                const outputPrice = pricing.output?.usd || 0;
+                
+                // Build label with useful info
+                let label = name;
+                
+                if (traits.includes('default')) {
+                    label += ' — Default';
+                } else if (traits.includes('fastest')) {
+                    label += ' — Fastest';
+                } else if (traits.includes('most_uncensored')) {
+                    label += ' — Uncensored';
+                } else if (traits.includes('default_code')) {
+                    label += ' — Best for Code';
+                } else if (traits.includes('default_vision')) {
+                    label += ' — Vision Support';
+                }
+                
+                option.textContent = label;
+                
+                // Set default selection
+                if (traits.includes('default') || model.id === DEFAULT_MODEL) {
+                    option.selected = true;
+                }
+                
+                modelSelect.appendChild(option);
+            });
+            
+            // Update info text
+            const selectedModel = sortedModels.find(m => m.id === modelSelect.value);
+            if (selectedModel && selectedModel.model_spec) {
+                updateModelInfo(selectedModel);
+            }
+        }
+        
+        function populateFallbackModels() {
+            // Fallback to hardcoded models if API fails
+            modelSelect.innerHTML = `
+                <option value="llama-3.3-70b" selected>Llama 3.3 70B — Default (Best Balance)</option>
+                <option value="qwen3-235b">Venice Large 1.1 — Most Capable</option>
+                <option value="mistral-31-24b">Venice Medium — Vision Support</option>
+                <option value="llama-3.2-3b">Llama 3.2 3B — Fastest</option>
+                <option value="qwen3-4b">Venice Small — Efficient</option>
+                <option value="venice-uncensored">Venice Uncensored 1.1</option>
+            `;
+            modelInfo.textContent = '⚠️ Using cached models (API unavailable)';
+        }
+        
+        function updateModelInfo(model) {
+            const spec = model.model_spec || {};
+            const pricing = spec.pricing || {};
+            const inputPrice = (pricing.input?.usd || 0).toFixed(2);
+            const outputPrice = (pricing.output?.usd || 0).toFixed(2);
+            const contextTokens = spec.availableContextTokens || 0;
+            const contextK = Math.round(contextTokens / 1024);
+            
+            modelInfo.innerHTML = `
+                💰 $${inputPrice} / $${outputPrice} per 1M tokens (in/out) • 
+                📝 ${contextK}K context
+            `;
+        }
+        
+        // Update model info when selection changes
+        modelSelect.addEventListener('change', () => {
+            const selectedModel = availableModels.find(m => m.id === modelSelect.value);
+            if (selectedModel) {
+                updateModelInfo(selectedModel);
+            }
+        });
+        
+        // Refresh models button
+        refreshModelsBtn.addEventListener('click', () => {
+            fetchAvailableModels();
+        });
+        
+        // Fetch models on page load
+        fetchAvailableModels();
+        
+        // Comparison schema (documentation only)
+        const comparisonInitialSchema = {
+            type: "object",
+            properties: {
+                currentProcess: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                        steps: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            step: { type: "string" },
+                            task: { type: "string" },
+                                    owner: { type: "string", enum: ["Human"] },
+                            successTarget: { type: "string" },
+                                    rule: { type: "string" },
+                                    estimatedTimeMinutes: { type: "number" },
+                                    estimatedCostUSD: { type: "number" }
+                                },
+                                required: ["step","task","owner","successTarget","rule","estimatedTimeMinutes","estimatedCostUSD"]
+                            }
+                        },
+                        assumptions: { type: "array", items: { type: "string" } }
+                    },
+                    required: ["steps"]
+                },
+                futureProcess: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                        steps: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    step: { type: "string" },
+                                    task: { type: "string" },
+                                    owner: { type: "string", enum: ["Human","Agent","Hybrid"] },
+                                    successTarget: { type: "string" },
+                                    rule: { type: "string" },
+                                    estimatedTimeMinutes: { type: "number" },
+                                    estimatedCostUSD: { type: "number" }
+                                },
+                                required: ["step","task","owner","successTarget","rule","estimatedTimeMinutes","estimatedCostUSD"]
+                            }
+                        },
+                        assumptions: { type: "array", items: { type: "string" } }
+                    },
+                    required: ["steps"]
+                },
+                questions: { type: "array", items: { type: "string" } }
+            },
+            required: ["currentProcess","futureProcess","questions"]
+        };
+
+        const comparisonRefinedSchema = {
+            type: "object",
+            properties: {
+                currentProcess: comparisonInitialSchema.properties.currentProcess,
+                futureProcess: comparisonInitialSchema.properties.futureProcess
+            },
+            required: ["currentProcess","futureProcess"]
+        };
+
+        // Venice model pricing (per 1M tokens, input/output) - Updated from API 2025
+        const MODEL_PRICING_PER_MTOK = {
+            'venice-uncensored': { in: 0.20, out: 0.90, name: 'Venice Uncensored 1.1' },
+            'qwen3-4b': { in: 0.05, out: 0.15, name: 'Venice Small' },
+            'mistral-31-24b': { in: 0.50, out: 2.00, name: 'Venice Medium' },
+            'qwen3-235b': { in: 0.90, out: 4.50, name: 'Venice Large 1.1' },
+            'llama-3.2-3b': { in: 0.15, out: 0.60, name: 'Llama 3.2 3B' },
+            'llama-3.3-70b': { in: 0.70, out: 2.80, name: 'Llama 3.3 70B' }
+        };
+
+        function computeCostForModel(modelId, inputTokens, outputTokens) {
+            const pricing = MODEL_PRICING_PER_MTOK[modelId] || { in: 0.50, out: 2.00 };
+            const inCost = (Number(inputTokens || 0) / 1_000_000) * pricing.in;
+            const outCost = (Number(outputTokens || 0) / 1_000_000) * pricing.out;
+            return inCost + outCost;
+        }
+
+        function calculateAnalysisCostTotals() {
+            let totalCost = 0;
+            const byModel = {};
+            Object.entries(analysisUsageByModel || {}).forEach(([modelId, usage]) => {
+                const cost = computeCostForModel(modelId, usage.inputTokens, usage.outputTokens);
+                totalCost += cost;
+                byModel[modelId] = (byModel[modelId] || 0) + cost;
+            });
+            const breakdownLabel = Object.keys(byModel).length
+                ? Object.entries(byModel).map(([m, c]) => `${m}: ${formatCurrency(c)}`).join(' • ')
+                : '';
+            return { totalCost, breakdownLabel };
+        }
+
+        function startTimer() {
+            let startTime = Date.now();
+            generationTimer.classList.remove('hidden');
+            timerValue.textContent = '0.0';
+            
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - startTime) / 1000;
+                timerValue.textContent = elapsed.toFixed(1);
+            }, 100);
+        }
+        
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            setTimeout(() => {
+                generationTimer.classList.add('hidden');
+            }, 2000);
+        }
+
+        async function makeApiCall(systemPrompt, userPrompt, schema, modelOverride) {
+            let retries = 3;
+            let delay = 1000;
+            
+            while (retries > 0) {
+                try {
+                    const payload = {
+                        model: modelOverride || modelSelect.value || DEFAULT_MODEL,
+                        messages: [
+                            {
+                                role: "system",
+                                content: systemPrompt
+                            },
+                            {
+                                role: "user", 
+                                content: userPrompt
+                            }
+                        ],
+                        temperature: 0.7,
+                        max_completion_tokens: 30000
+                    };
+
+                    console.log('Venice API Request:', JSON.stringify(payload, null, 2));
+
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${API_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+                        console.error('Venice API Error:', errorData);
+                        throw new Error(`API Error (${response.status}): ${errorData.error?.message || errorData.message || response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    const content = result.choices?.[0]?.message?.content;
+
+                    if (!content) {
+                        throw new Error("Invalid response structure from the API.");
+                    }
+                    
+                    // Extract JSON from the content (in case there's extra text)
+                    let jsonStr = content.trim();
+                    const jsonStart = jsonStr.indexOf('{');
+                    const jsonEnd = jsonStr.lastIndexOf('}');
+                    
+                    if (jsonStart !== -1 && jsonEnd !== -1) {
+                        jsonStr = jsonStr.substring(jsonStart, jsonEnd + 1);
+                    }
+                    
+                    // Track token usage for analysis cost
+                    try {
+                        const modelId = result.model || modelOverride || modelSelect.value || DEFAULT_MODEL;
+                        const usage = result.usage || result.choices?.[0]?.usage || {};
+                        const inputTokens = usage.prompt_tokens ?? usage.input_tokens ?? usage.promptTokens ?? usage.input ?? 0;
+                        const outputTokens = usage.completion_tokens ?? usage.output_tokens ?? usage.completionTokens ?? usage.output ?? 0;
+                        const entry = analysisUsageByModel[modelId] || { inputTokens: 0, outputTokens: 0, calls: 0 };
+                        entry.inputTokens += Number(inputTokens || 0);
+                        entry.outputTokens += Number(outputTokens || 0);
+                        entry.calls += 1;
+                        analysisUsageByModel[modelId] = entry;
+                    } catch (e) { /* ignore usage errors */ }
+                    
+                    return JSON.parse(jsonStr);
+
+                } catch (error) {
+                    console.error("API call failed:", error);
+                    retries--;
+                    if (retries === 0) {
+                        showError(`Failed to get a response after multiple attempts. ${error.message}`);
+                        return null;
+                    }
+                    await new Promise(res => setTimeout(res, delay));
+                    delay *= 2; // Exponential backoff
+                }
+            }
+        }
+
+        generateBtn.addEventListener('click', async () => {
+            const userInput = workflowInput.value.trim();
+            if (!userInput) {
+                showError("Please describe your workflow first.");
+                return;
+            }
+
+            currentWorkflowName = userInput.substring(0, 50).replace(/[^a-zA-Z0-9\s]/g, '').trim();
+
+            setLoadingState(generateBtn, btnLoader, btnText, true);
+            startTimer();
+            hideError();
+            
+            const systemPrompt = `You are an expert business process analyst. Based on the workflow description, produce BOTH the current human-only process and a future AI-assisted process.
+Rules:
+- The current process must assign owner = "Human" for every step.
+- The future process can use owner = "Human", "Agent", or "Hybrid".
+- For every step, estimate time in minutes. Do NOT include human labor cost.
+- For Agent or Hybrid steps, include a compute object: { "modelId": string, "estimatedInputTokens": number, "estimatedOutputTokens": number, "notes": string, "tools": ["list of tools/capabilities needed"] }.
+- Keep step lists aligned where possible so comparisons are clear.
+- Ask enough clarifying questions to resolve ambiguities (no hard limit; include as many as needed).
+Return ONLY JSON with this exact structure:
+{
+  "currentProcess": {"name": "string", "steps": [{"step": "string", "task": "string", "owner": "Human", "successTarget": "string", "rule": "string", "estimatedTimeMinutes": number}], "assumptions": ["string"]},
+  "futureProcess": {"name": "string", "steps": [{"step": "string", "task": "string", "owner": "Human|Agent|Hybrid", "successTarget": "string", "rule": "string", "estimatedTimeMinutes": number, "compute": {"modelId": "string", "estimatedInputTokens": number, "estimatedOutputTokens": number, "notes": "string", "tools": ["string"]}}], "assumptions": ["string"]},
+  "questions": ["string"]
+}`;
+
+            const userPrompt = `Workflow description: "${userInput}"`;
+            
+            const data = await makeApiCall(systemPrompt, userPrompt, comparisonInitialSchema);
+
+            stopTimer();
+            
+            if (data) {
+                initialComparison = data;
+                // for autofill context
+                initialWorkChart = data.futureProcess?.steps?.map(s => ({ step: s.step, task: s.task, owner: s.owner, successTarget: s.successTarget, rule: s.rule })) || [];
+                renderComparison(initialComparison, true);
+                renderQuestions(data.questions || []);
+                renderAITools(data.futureProcess);
+                outputSection.classList.remove('hidden');
+                questionsSection.classList.remove('hidden');
+                downloadPdfBtn.classList.remove('hidden');
+                downloadHtmlBtn.classList.remove('hidden');
+                document.getElementById('output-section').scrollIntoView({ behavior: 'smooth' });
+            }
+
+            setLoadingState(generateBtn, btnLoader, btnText, false);
+        });
+
+        refineBtn.addEventListener('click', async () => {
+            const answers = [];
+            const questionElements = document.querySelectorAll('.question-item');
+            questionElements.forEach(q => {
+                const question = q.querySelector('label').innerText;
+                const answer = q.querySelector('input').value.trim();
+                if(answer){
+                    answers.push({ question, answer });
+                }
+                
+            });
+
+            if (answers.length === 0) {
+                showError("Please answer at least one question to refine the chart.");
+                return;
+            }
+            
+            setLoadingState(refineBtn, refineBtnLoader, refineBtnText, true);
+            startTimer();
+            hideError();
+
+            const systemPrompt = `You are an expert business process analyst. Refine BOTH the current human-only process and the future AI-assisted process using the user's answers.
+Constraints:
+- Current process must keep owner = "Human" for all steps.
+- Estimate time (minutes) for each step. Do NOT include human labor cost.
+- For Agent or Hybrid steps, include/adjust the compute object: { modelId, estimatedInputTokens, estimatedOutputTokens, notes, tools: ["list of tools/capabilities needed"] }.
+Return ONLY JSON of the form:
+{
+  "currentProcess": {"name": "string", "steps": [{"step": "string", "task": "string", "owner": "Human", "successTarget": "string", "rule": "string", "estimatedTimeMinutes": number}], "assumptions": ["string"]},
+  "futureProcess": {"name": "string", "steps": [{"step": "string", "task": "string", "owner": "Human|Agent|Hybrid", "successTarget": "string", "rule": "string", "estimatedTimeMinutes": number, "compute": {"modelId": "string", "estimatedInputTokens": number, "estimatedOutputTokens": number, "notes": "string", "tools": ["string"]}}], "assumptions": ["string"]}
+}`;
+
+            const userPrompt = `Original Workflow: "${workflowInput.value.trim()}"
+
+Initial Comparison (for context):
+${JSON.stringify(initialComparison || {}, null, 2)}
+                
+                User's Answers:
+${answers.map(a => `- Q: ${a.question}\n  A: ${a.answer}`).join('\n')}`;
+
+            const data = await makeApiCall(systemPrompt, userPrompt, comparisonRefinedSchema);
+
+            stopTimer();
+
+            if (data && data.currentProcess && data.futureProcess) {
+                initialComparison = data;
+                renderComparison(data, false);
+                renderAITools(data.futureProcess);
+                questionsSection.classList.add('hidden');
+                downloadPdfBtn.classList.remove('hidden');
+                downloadHtmlBtn.classList.remove('hidden');
+            }
+            
+            setLoadingState(refineBtn, refineBtnLoader, refineBtnText, false);
+        });
+
+        // Auto-fill answers using Venice Mistral model
+        autofillBtn?.addEventListener('click', async () => {
+            const questions = Array.from(document.querySelectorAll('.question-item label')).map(l => l.innerText.trim());
+            if (!questions.length) {
+                showError('No questions available to auto-fill yet.');
+                return;
+            }
+
+            setLoadingState(autofillBtn, autofillBtnLoader, autofillBtnText, true);
+            startTimer();
+            hideError();
+
+            const systemPrompt = `You are assisting with workflow clarification. For the given original workflow and the initial work chart steps, draft concise, practical first-pass answers to each question. Keep each answer to one sentence, be specific, and assume reasonable defaults if unspecified.`;
+
+            const userPrompt = `Original Workflow: "${workflowInput.value.trim()}"
+
+Initial Steps (for context):
+${JSON.stringify(initialWorkChart || [], null, 2)}
+
+Questions to answer:
+${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+Return ONLY a JSON object of the form:
+{"answers": ["answer 1", "answer 2", ...]}`;
+
+            const resp = await makeApiCall(systemPrompt, userPrompt, null, 'mistral-31-24b');
+            
+            stopTimer();
+            
+            if (resp && Array.isArray(resp.answers)) {
+                const inputs = Array.from(document.querySelectorAll('.question-item input'));
+                inputs.forEach((inp, idx) => {
+                    if (resp.answers[idx]) inp.value = resp.answers[idx];
+                });
+            }
+
+            setLoadingState(autofillBtn, autofillBtnLoader, autofillBtnText, false);
+        });
+
+        downloadPdfBtn.addEventListener('click', () => {
+            if (!initialComparison) return;
+
+            // Build a horizontal flow layout specifically for PDF capture
+            const pdfRoot = buildPdfFlow(initialComparison);
+            document.body.appendChild(pdfRoot);
+
+            const fullWidth = pdfRoot.scrollWidth;
+            const fullHeight = pdfRoot.scrollHeight;
+
+            html2canvas(pdfRoot, {
+                scale: 2,
+                scrollX: 0,
+                scrollY: 0,
+                backgroundColor: '#ffffff',
+                width: fullWidth,
+                height: fullHeight,
+                windowWidth: fullWidth,
+                windowHeight: fullHeight,
+                useCORS: true,
+                allowTaint: true
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] });
+                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+
+                const filename = currentWorkflowName ? `work-chart-${slugify(currentWorkflowName)}.pdf` : 'work-chart.pdf';
+                pdf.save(filename);
+
+                // Cleanup
+                document.body.removeChild(pdfRoot);
+            });
+        });
+
+        function buildPdfFlow(data) {
+            const { currentProcess, futureProcess } = data;
+            const cardWidth = 320;
+            const spacing = 40;
+            const maxSteps = Math.max(currentProcess.steps?.length || 0, futureProcess.steps?.length || 0);
+            const width = Math.max(1200, (cardWidth + spacing) * maxSteps + 120);
+
+            const totalsCurrent = calculateTotals(currentProcess.steps || []);
+            const totalsFuture = calculateTotals(futureProcess.steps || []);
+            const savingsMinutes = Math.max(0, totalsCurrent.minutes - totalsFuture.minutes);
+            const computeTotals = calculateComputeTotals(futureProcess.steps || []);
+
+            const root = document.createElement('div');
+            root.id = 'pdf-flow-root';
+            root.style.position = 'fixed';
+            root.style.top = '-10000px';
+            root.style.left = '-10000px';
+            root.style.background = '#ffffff';
+            root.style.padding = '24px';
+            root.style.width = `${width}px`;
+
+            const header = document.createElement('div');
+            header.className = 'grid grid-cols-4 gap-4 mb-6';
+            header.innerHTML = `
+                <div class="bg-white border-2 border-secondary-200 rounded-2xl p-5 shadow">
+                    <div class="text-secondary-600 text-sm">Current Total Time</div>
+                    <div class="text-2xl font-extrabold text-secondary-900">${formatTime(totalsCurrent.minutes)}</div>
+                </div>
+                <div class="bg-white border-2 border-secondary-200 rounded-2xl p-5 shadow">
+                    <div class="text-secondary-600 text-sm">Future Total Time</div>
+                    <div class="text-2xl font-extrabold text-secondary-900">${formatTime(totalsFuture.minutes)}</div>
+                </div>
+                <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 shadow">
+                    <div class="text-emerald-700 text-sm">Estimated Time Savings</div>
+                    <div class="text-2xl font-extrabold text-emerald-900">${formatTime(savingsMinutes)}</div>
+                </div>
+                <div class="bg-white border-2 border-secondary-200 rounded-2xl p-5 shadow">
+                    <div class="text-secondary-600 text-sm">Estimated Compute Cost (Future)</div>
+                    <div class="text-2xl font-extrabold text-secondary-900">${formatCurrency(computeTotals.totalCost)}</div>
+                    <div class="text-xs text-secondary-600">${computeTotals.breakdownLabel}</div>
+                </div>`;
+
+            const lanes = document.createElement('div');
+            lanes.className = 'space-y-6';
+            lanes.appendChild(buildLane('Current Process — Human Only', currentProcess.steps || [], cardWidth));
+            lanes.appendChild(buildLane('Future Process — AI-Assisted', futureProcess.steps || [], cardWidth, true));
+
+            root.appendChild(header);
+            root.appendChild(lanes);
+            return root;
+        }
+
+        function buildLane(title, steps, cardWidth, showCompute = false) {
+            const lane = document.createElement('div');
+            lane.className = 'bg-white border-2 border-secondary-200 rounded-2xl p-5 shadow';
+
+            const h = document.createElement('div');
+            h.className = 'text-lg font-bold text-secondary-900 mb-3';
+            h.textContent = title;
+
+            const row = document.createElement('div');
+            row.className = 'flex items-start';
+
+            const ownerColors = {
+                'Human': 'bg-blue-500 text-white border-blue-600 shadow-sm',
+                'Agent': 'bg-purple-500 text-white border-purple-600 shadow-sm',
+                'Hybrid': 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+            };
+
+            (steps || []).forEach((step, index) => {
+                const ownerColor = ownerColors[step.owner] || 'bg-secondary-100 text-secondary-800 border-secondary-200';
+                const card = document.createElement('div');
+                card.className = 'relative work-chart-card border-2 border-secondary-200 rounded-2xl p-4 mr-10';
+                card.style.width = `${cardWidth}px`;
+                card.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="pr-4">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-medium px-2 py-1 rounded border ${ownerColor}">${step.owner}</span>
+                                <span class="text-sm font-semibold text-secondary-900">${step.step}</span>
+                            </div>
+                            <div class="text-secondary-800 font-medium text-sm">${step.task}</div>
+                            <div class="grid grid-cols-2 gap-3 mt-3 text-xs text-secondary-700">
+                                <div><span class="font-semibold text-secondary-900">Target:</span> ${step.successTarget}</div>
+                                <div><span class="font-semibold text-secondary-900">Rule:</span> ${step.rule}</div>
+                            </div>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <div class="text-xs text-secondary-500 uppercase tracking-wide">Time</div>
+                            <div class="text-base font-semibold text-secondary-900">${formatTime(step.estimatedTimeMinutes || 0)}</div>
+                            ${showCompute && step.compute ? `<div class=\"mt-1 text-xs text-secondary-500\">${step.compute.modelId}</div>` : ''}
+                        </div>
+                    </div>`;
+
+                if (index < steps.length - 1) {
+                    const connector = document.createElement('div');
+                    connector.className = 'step-connector';
+                    card.appendChild(connector);
+                }
+                row.appendChild(card);
+            });
+
+            lane.appendChild(h);
+            lane.appendChild(row);
+            return lane;
+        }
+
+        downloadHtmlBtn.addEventListener('click', () => {
+            if (!initialComparison) return;
+            const html = generateConsultantHtml(initialComparison, currentWorkflowName);
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const filename = currentWorkflowName ? `before-after-${slugify(currentWorkflowName)}.html` : 'before-after.html';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        function renderAITools(futureProcess) {
+            if (!futureProcess || !futureProcess.steps) return;
+            
+            const toolsMap = new Map();
+            const agentSteps = [];
+            
+            futureProcess.steps.forEach(step => {
+                if ((step.owner === 'Agent' || step.owner === 'Hybrid') && step.compute) {
+                    agentSteps.push({
+                        step: step.step,
+                        owner: step.owner,
+                        modelId: step.compute.modelId,
+                        notes: step.compute.notes,
+                        tools: step.compute.tools || []
+                    });
+                    
+                    // Collect unique tools
+                    if (step.compute.tools && Array.isArray(step.compute.tools)) {
+                        step.compute.tools.forEach(tool => {
+                            if (!toolsMap.has(tool)) {
+                                toolsMap.set(tool, []);
+                            }
+                            toolsMap.get(tool).push(step.step);
+                        });
+                    }
+                }
+            });
+            
+            if (agentSteps.length === 0) {
+                aiToolsSection.classList.add('hidden');
+                return;
+            }
+            
+            aiToolsSection.classList.remove('hidden');
+            aiToolsContainer.innerHTML = '';
+            
+            // Render by step
+            agentSteps.forEach(item => {
+                const ownerColor = item.owner === 'Agent' ? 'bg-purple-500' : 'bg-emerald-500';
+                const card = document.createElement('div');
+                card.className = 'bg-white border border-secondary-200 rounded-lg p-4';
+                card.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 mt-1">
+                            <div class="w-10 h-10 ${ownerColor} rounded-lg flex items-center justify-center text-white font-semibold">
+                                ${item.owner === 'Agent' ? '🤖' : '🤝'}
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-xs font-medium px-2 py-1 rounded border ${ownerColor} text-white">${item.owner}</span>
+                                <span class="font-semibold text-secondary-900">${item.step}</span>
+                            </div>
+                            <div class="text-sm text-secondary-700 mb-2">
+                                <strong class="text-secondary-900">Model:</strong> ${item.modelId}
+                            </div>
+                            ${item.notes ? `<div class="text-sm text-secondary-600 mb-2">${item.notes}</div>` : ''}
+                            ${item.tools.length > 0 ? `
+                                <div class="mt-2">
+                                    <div class="text-xs font-medium text-secondary-700 mb-1">Required Capabilities:</div>
+                                    <div class="flex flex-wrap gap-1">
+                                        ${item.tools.map(tool => `<span class="text-xs px-2 py-1 bg-primary-50 border border-primary-200 rounded text-primary-800">${tool}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                aiToolsContainer.appendChild(card);
+            });
+            
+            // Render summary if multiple tools
+            if (toolsMap.size > 0) {
+                const summary = document.createElement('div');
+                summary.className = 'bg-gradient-to-r from-primary-50 to-accent-green/10 border border-primary-200 rounded-lg p-4 mt-3';
+                summary.innerHTML = `
+                    <h4 class="font-semibold text-secondary-900 mb-2">📋 Capability Summary</h4>
+                    <div class="space-y-2 text-sm">
+                        ${Array.from(toolsMap.entries()).map(([tool, steps]) => `
+                            <div class="flex items-start">
+                                <span class="font-medium text-secondary-900 mr-2">•</span>
+                                <div>
+                                    <span class="font-medium text-secondary-900">${tool}</span>
+                                    <span class="text-secondary-600"> — used in ${steps.length} step${steps.length > 1 ? 's' : ''}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                aiToolsContainer.appendChild(summary);
+            }
+        }
+
+        function renderWorkChart(workChartData, isDraft) {
+            // kept for compatibility; shows a linear chart if needed
+            chartContainer.className = 'flex items-start justify-start space-x-16 p-6 min-w-max';
+            chartContainer.innerHTML = '';
+            workChartData.forEach((step, index) => {
+                const ownerColors = {
+                    'Human': 'bg-blue-100 text-blue-800 border-blue-200',
+                    'Agent': 'bg-purple-100 text-purple-800 border-purple-200',
+                    'Hybrid': 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                };
+                const ownerColor = ownerColors[step.owner] || 'bg-secondary-100 text-secondary-800 border-secondary-200';
+
+                const card = document.createElement('div');
+                card.className = `work-chart-card relative flex-shrink-0 w-80 bg-white p-6 rounded-2xl shadow-lg border-2 ${isDraft ? 'border-dashed border-secondary-300' : 'border-secondary-200'}`;
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-xl font-bold text-secondary-900 leading-tight pr-2">${step.step}</h3>
+                        <span class="text-sm font-semibold px-3 py-1.5 rounded-full border ${ownerColor} flex-shrink-0">${step.owner}</span>
+                    </div>
+                    <p class="text-secondary-800 font-medium mb-6 leading-relaxed">${step.task}</p>
+                    <div class="text-sm text-secondary-700 space-y-3">
+                        <div class="flex items-start space-x-2">
+                            <span class="text-lg">🎯</span>
+                            <div>
+                                <span class="font-semibold text-secondary-900">Target:</span>
+                                <p class="mt-1">${step.successTarget}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-2">
+                            <span class="text-lg">⚖️</span>
+                            <div>
+                                <span class="font-semibold text-secondary-900">Rule:</span>
+                                <p class="mt-1">${step.rule}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                if (index < workChartData.length - 1) {
+                    const connector = document.createElement('div');
+                    connector.className = 'step-connector';
+                    card.appendChild(connector);
+                }
+
+                chartContainer.appendChild(card);
+            });
+        }
+
+        function renderComparison(comparisonData, isDraft) {
+            const { currentProcess, futureProcess } = comparisonData;
+            chartContainer.className = 'w-full p-6 space-y-6';
+            chartContainer.innerHTML = '';
+
+            const totalsCurrent = calculateTotals(currentProcess.steps || []);
+            const totalsFuture = calculateTotals(futureProcess.steps || []);
+            const computeTotals = calculateComputeTotals(futureProcess.steps || []);
+            const analysisTotals = calculateAnalysisCostTotals();
+
+            const savingsMinutes = Math.max(0, totalsCurrent.minutes - totalsFuture.minutes);
+
+            const header = document.createElement('div');
+            header.className = 'w-full mb-6';
+            header.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 w-full">
+                    <div class="bg-white border ${isDraft ? 'border-dashed border-secondary-300' : 'border-secondary-200'} rounded-lg p-4 shadow-sm">
+                        <div class="text-secondary-600 text-xs uppercase tracking-wide mb-1">Current Total Time</div>
+                        <div class="text-xl font-semibold text-secondary-900">${formatTime(totalsCurrent.minutes)}</div>
+                    </div>
+                    <div class="bg-white border ${isDraft ? 'border-dashed border-secondary-300' : 'border-secondary-200'} rounded-lg p-4 shadow-sm">
+                        <div class="text-secondary-600 text-xs uppercase tracking-wide mb-1">Future Total Time</div>
+                        <div class="text-xl font-semibold text-secondary-900">${formatTime(totalsFuture.minutes)}</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-accent-green/10 to-accent-teal/10 border border-accent-green/20 rounded-lg p-4 shadow-sm">
+                        <div class="text-accent-teal text-xs uppercase tracking-wide mb-1">Estimated Time Savings</div>
+                        <div class="text-xl font-semibold text-accent-teal">${formatTime(savingsMinutes)}</div>
+                    </div>
+                </div>
+            `;
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-5 w-full';
+
+            grid.appendChild(renderProcessColumn(currentProcess, 'Current Process — Human Only', true, isDraft));
+            grid.appendChild(renderProcessColumn(futureProcess, 'Future Process — AI-Assisted', false, isDraft));
+
+            chartContainer.appendChild(header);
+            chartContainer.appendChild(grid);
+        }
+
+        function renderProcessColumn(process, title, isCurrent, isDraft) {
+            const col = document.createElement('div');
+            col.className = '';
+
+            const container = document.createElement('div');
+            container.className = `bg-white p-4 rounded-lg shadow-sm border ${isDraft ? 'border-dashed border-secondary-300' : 'border-secondary-200'}`;
+
+            const heading = document.createElement('div');
+            heading.className = 'flex items-center justify-between mb-3';
+            heading.innerHTML = `
+                <h3 class="text-base font-semibold text-secondary-900">${title}</h3>
+                <span class="text-xs text-secondary-500">${process.name || ''}</span>
+            `;
+
+            const list = document.createElement('div');
+            list.className = 'space-y-3';
+
+            process.steps.forEach((step, idx) => {
+                const ownerColors = {
+                    'Human': 'bg-blue-500 text-white border-blue-600 shadow-sm',
+                    'Agent': 'bg-purple-500 text-white border-purple-600 shadow-sm',
+                    'Hybrid': 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                };
+                const ownerColor = ownerColors[step.owner] || 'bg-secondary-500 text-white border-secondary-600 shadow-sm';
+
+                const card = document.createElement('div');
+                card.className = 'work-chart-card border border-secondary-200 rounded-lg p-3 bg-white';
+                card.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="pr-3">
+                            <div class="flex items-center gap-1.5 mb-1">
+                                <span class="text-xs font-medium px-1.5 py-0.5 rounded border ${ownerColor}">${step.owner}</span>
+                                <span class="text-xs font-semibold text-secondary-900">${step.step}</span>
+                            </div>
+                            <div class="text-secondary-700 text-xs font-normal">${step.task}</div>
+                            <div class="grid grid-cols-2 gap-2 mt-2 text-xs text-secondary-600">
+                                <div><span class="font-medium text-secondary-800">Target:</span> ${step.successTarget}</div>
+                                <div><span class="font-medium text-secondary-800">Rule:</span> ${step.rule}</div>
+                            </div>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <div class="text-xs text-secondary-500 uppercase tracking-wide">Time</div>
+                            <div class="text-base font-semibold text-secondary-900">${formatTime(step.estimatedTimeMinutes || 0)}</div>
+                            ${step.compute ? `<div class=\"mt-1 text-xs text-secondary-500\">${step.compute.modelId}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+            const totals = calculateTotals(process.steps || []);
+            const computeTotals = calculateComputeTotals(process.steps || []);
+            const footer = document.createElement('div');
+            footer.className = 'mt-3 pt-3 border-t border-secondary-200 flex items-center justify-between';
+            footer.innerHTML = `
+                <div class="text-xs text-secondary-600">Assumptions: ${(process.assumptions || []).slice(0,2).join(' • ')}</div>
+                <div class="text-right">
+                    <div class="text-xs text-secondary-500 uppercase tracking-wide">Total Time</div>
+                    <div class="text-base font-semibold text-secondary-900">${formatTime(totals.minutes)}</div>
+                    ${computeTotals.totalCost ? `<div class=\"text-xs text-secondary-500 mt-1 uppercase tracking-wide\">Compute Cost</div><div class=\"text-base font-semibold text-secondary-900\">${formatCurrency(computeTotals.totalCost)}</div>` : ''}
+                </div>
+            `;
+
+            container.appendChild(heading);
+            container.appendChild(list);
+            container.appendChild(footer);
+            col.appendChild(container);
+            return col;
+        }
+
+        function calculateTotals(steps) {
+            const totals = steps.reduce((acc, s) => {
+                acc.minutes += Number(s.estimatedTimeMinutes || 0);
+                return acc;
+            }, { minutes: 0 });
+            return totals;
+        }
+
+        function calculateComputeTotals(steps) {
+            let totalCost = 0;
+            const byModel = {};
+            (steps || []).forEach(s => {
+                if (s && s.compute && s.compute.modelId) {
+                    const { modelId, estimatedInputTokens, estimatedOutputTokens } = s.compute;
+                    const cost = computeCostForModel(modelId, estimatedInputTokens, estimatedOutputTokens);
+                    totalCost += cost;
+                    byModel[modelId] = (byModel[modelId] || 0) + cost;
+                }
+            });
+            const breakdownLabel = Object.keys(byModel).length
+                ? Object.entries(byModel).map(([m, c]) => `${m}: ${formatCurrency(c)}`).join(' • ')
+                : '';
+            return { totalCost, breakdownLabel };
+        }
+
+        function formatTime(minutes) {
+            const m = Math.round(minutes || 0);
+            if (m < 60) return `${m} min`;
+            const h = Math.floor(m / 60);
+            const rem = m % 60;
+            return rem ? `${h}h ${rem}m` : `${h}h`;
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(amount || 0));
+        }
+
+        function formatTokens(toks) {
+            const n = Number(toks || 0);
+            if (n < 1000) return `${n} tok`;
+            if (n < 1_000_000) return `${Math.round(n/100)/10}k`;
+            return `${Math.round(n/100000)/10}M`;
+        }
+
+        function slugify(str) {
+            return (str || '').toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+        }
+
+        function generateConsultantHtml(data, workflowName) {
+            const { currentProcess, futureProcess } = data;
+            const totalsCurrent = calculateTotals(currentProcess.steps || []);
+            const totalsFuture = calculateTotals(futureProcess.steps || []);
+            const savingsMinutes = Math.max(0, totalsCurrent.minutes - totalsFuture.minutes);
+            const savingsCost = Math.max(0, totalsCurrent.cost - totalsFuture.cost);
+
+            const escape = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+            const getOwnerBadge = (owner) => {
+                const badges = {
+                    'Human': 'bg-blue-500 text-white border-blue-600',
+                    'Agent': 'bg-purple-500 text-white border-purple-600',
+                    'Hybrid': 'bg-emerald-500 text-white border-emerald-600'
+                };
+                return badges[owner] || 'bg-gray-500 text-white border-gray-600';
+            };
+
+            const renderSteps = (steps) => steps.map(s => `
+                <div class="border border-slate-200 rounded-lg p-3 bg-white shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <div class="pr-3">
+                            <div class="flex items-center gap-1.5 mb-1">
+                                <span class="text-xs font-medium px-2 py-1 rounded border ${getOwnerBadge(s.owner)}">${escape(s.owner)}</span>
+                                <span class="text-xs font-semibold text-slate-900">${escape(s.step)}</span>
+                            </div>
+                            <div class="text-slate-700 text-xs">${escape(s.task)}</div>
+                            <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                                <div><span class="font-medium text-slate-800">Target:</span> ${escape(s.successTarget)}</div>
+                                <div><span class="font-medium text-slate-800">Rule:</span> ${escape(s.rule)}</div>
+                            </div>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <div class="text-xs uppercase tracking-wide text-slate-500">Time</div>
+                            <div class="text-base font-semibold text-slate-900">${formatTime(s.estimatedTimeMinutes || 0)}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            const assumptions = (arr) => (arr || []).map(a => `<li class="leading-relaxed">${escape(a)}</li>`).join('');
+
+            const computeTotals = calculateComputeTotals(futureProcess.steps || []);
+
+            return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escape(workflowName || 'Before vs After')} · Comparison</title>
+  <script src="https://cdn.tailwindcss.com"><\/script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style> 
+    body{font-family:'Inter',sans-serif;background:#fcfcfc;font-size:14px;line-height:1.5;} 
+    .legend-item{display:inline-flex;align-items:center;margin-right:1rem;}
+  </style>
+  <meta name="description" content="Before and After process comparison" />
+  <meta name="robots" content="noindex" />
+</head>
+<body class="min-h-screen">
+  <div class="container mx-auto px-6 py-6 max-w-6xl">
+    <header class="mb-6">
+      <div class="bg-gradient-to-r from-blue-900 via-purple-900 to-indigo-900 text-white py-8 px-6 rounded-lg shadow-sm relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10">
+          <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <pattern id="grid2" width="10" height="10" patternUnits="userSpaceOnUse">
+              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" stroke-width="0.5"/>
+            </pattern>
+            <rect width="100" height="100" fill="url(#grid2)" />
+          </svg>
+        </div>
+        <div class="relative flex items-center justify-center">
+          <svg class="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <h1 class="text-2xl md:text-3xl font-semibold">Before vs After — ${escape(workflowName || '')}</h1>
+        </div>
+        <p class="text-sm text-center mt-2 opacity-90">Current human-only process compared to the future AI-assisted process.</p>
+      </div>
+    </header>
+
+    <div class="mb-4 flex items-center justify-center gap-4 text-xs">
+      <div class="legend-item"><span class="inline-block w-4 h-4 rounded bg-blue-500 border border-blue-600 mr-1"></span> Human</div>
+      <div class="legend-item"><span class="inline-block w-4 h-4 rounded bg-purple-500 border border-purple-600 mr-1"></span> Agent</div>
+      <div class="legend-item"><span class="inline-block w-4 h-4 rounded bg-emerald-500 border border-emerald-600 mr-1"></span> Hybrid</div>
+    </div>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
+      <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+        <div class="text-slate-600 text-xs uppercase tracking-wide mb-1">Current Total Time</div>
+        <div class="text-xl font-semibold text-slate-900">${formatTime(totalsCurrent.minutes)}</div>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+        <div class="text-slate-600 text-xs uppercase tracking-wide mb-1">Future Total Time</div>
+        <div class="text-xl font-semibold text-slate-900">${formatTime(totalsFuture.minutes)}</div>
+      </div>
+      <div class="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-lg p-4 shadow-sm">
+        <div class="text-emerald-700 text-xs uppercase tracking-wide mb-1">Estimated Time Savings</div>
+        <div class="text-xl font-semibold text-emerald-800">${formatTime(savingsMinutes)}</div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-semibold text-slate-900">Current Process — Human Only</h2>
+          <span class="text-xs text-slate-500">${escape(currentProcess.name || '')}</span>
+        </div>
+        <div class="space-y-3">${renderSteps(currentProcess.steps)}</div>
+        <div class="mt-3 pt-3 border-t border-slate-200">
+          <div class="text-xs text-slate-600 font-medium mb-1">Assumptions</div>
+          <ul class="list-disc list-inside text-slate-700 text-xs">${assumptions(currentProcess.assumptions)}</ul>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-semibold text-slate-900">Future Process — AI-Assisted</h2>
+          <span class="text-xs text-slate-500">${escape(futureProcess.name || '')}</span>
+        </div>
+        <div class="space-y-3">${renderSteps(futureProcess.steps)}</div>
+        <div class="mt-3 pt-3 border-t border-slate-200">
+          <div class="text-xs text-slate-600 font-medium mb-1">Assumptions</div>
+          <ul class="list-disc list-inside text-slate-700 text-xs">${assumptions(futureProcess.assumptions)}</ul>
+        </div>
+      </div>
+    </section>
+
+    <footer class="text-center text-slate-500 mt-6 text-xs">Generated by Work Chart</footer>
+  </div>
+</body>
+</html>`;
+        }
+
+        function renderQuestions(questions) {
+            questionsContainer.innerHTML = '';
+            questions.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question-item';
+                questionDiv.innerHTML = `
+                    <label for="question-${index}" class="block text-sm font-medium text-secondary-800 mb-2">${q}</label>
+                    <input type="text" id="question-${index}" class="w-full p-2.5 border border-secondary-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition text-sm">
+                `;
+                questionsContainer.appendChild(questionDiv);
+            });
+        }
+        
+        function setLoadingState(button, loader, textElement, isLoading) {
+            if (isLoading) {
+                button.disabled = true;
+                textElement.classList.add('hidden');
+                loader.classList.remove('hidden');
+            } else {
+                button.disabled = false;
+                textElement.classList.remove('hidden');
+                loader.classList.add('hidden');
+            }
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorBox.classList.remove('hidden');
+            errorBox.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function hideError() {
+            errorBox.classList.add('hidden');
+        }
+
+    </script>
+</body>
+</html>

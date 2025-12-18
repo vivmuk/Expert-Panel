@@ -1,0 +1,178 @@
+Sub GenerateWorkChart()
+
+    ' --- USER INPUT AREA ---
+    Const F_TITLE As Integer = 1
+    Const F_TASK As Integer = 2
+    Const F_OWNER As Integer = 3
+    Const F_TARGET As Integer = 4
+    Const F_RULE As Integer = 5
+
+    Dim steps() As String
+    ReDim steps(1 To 7, 1 To 5)
+
+    steps(1, F_TITLE) = "Step 1: Ideation & Scope"
+    steps(1, F_TASK) = "Define new feature requirements based on user feedback."
+    steps(1, F_OWNER) = "Human"
+    steps(1, F_TARGET) = "Finalized spec document signed off by Product Lead."
+    steps(1, F_RULE) = "Feature must align with quarterly business objectives."
+
+    steps(2, F_TITLE) = "Step 2: Technical Design"
+    steps(2, F_TASK) = "Create technical design doc and architecture plan."
+    steps(2, F_OWNER) = "Hybrid"
+    steps(2, F_TARGET) = "Design approved by Engineering Lead within 3 days."
+    steps(2, F_RULE) = "AI agent drafts initial class diagrams for human review."
+
+    steps(3, F_TITLE) = "Step 3: Development"
+    steps(3, F_TASK) = "Write and commit code across two-week sprints."
+    steps(3, F_OWNER) = "Human"
+    steps(3, F_TARGET) = "85% of story points completed per sprint."
+    steps(3, F_RULE) = "All code must pass local pre-commit hooks."
+
+    steps(4, F_TITLE) = "Step 4: Automated Testing"
+    steps(4, F_TASK) = "Run unit, integration, and regression tests in CI/CD pipeline."
+    steps(4, F_OWNER) = "Agent"
+    steps(4, F_TARGET) = "95% code coverage and zero critical bugs."
+    steps(4, F_RULE) = "A failed build automatically blocks the pull request."
+
+    steps(5, F_TITLE) = "Step 5: UAT"
+    steps(5, F_TASK) = "User Acceptance Testing with a pilot group of customers."
+    steps(5, F_OWNER) = "Hybrid"
+    steps(5, F_TARGET) = "Positive feedback score of 8/10 or higher."
+    steps(5, F_RULE) = "AI agent summarizes feedback themes for the product team."
+
+    steps(6, F_TITLE) = "Step 6: Marketing Prep"
+    steps(6, F_TASK) = "Prepare launch announcements, blog posts, and documentation."
+    steps(6, F_OWNER) = "Human"
+    steps(6, F_TARGET) = "All materials approved 2 days before launch."
+    steps(6, F_RULE) = "Use consistent messaging across all channels."
+
+    steps(7, F_TITLE) = "Step 7: Deploy to Prod"
+    steps(7, F_TASK) = "Execute the deployment script to release the feature."
+    steps(7, F_OWNER) = "Agent"
+    steps(7, F_TARGET) = "Zero-downtime deployment."
+    steps(7, F_RULE) = "If deployment fails, automatically roll back to previous version."
+    ' --- END USER INPUT ---
+
+
+    ' --- Layout Config ---
+    Const boxWidth As Single = 260
+    Const boxHeight As Single = 140
+    Const hSpacing As Single = 40
+    Const vSpacing As Single = 60
+    Const topMargin As Single = 100
+    Const leftMargin As Single = 50
+    Const stepsPerRow As Integer = 3 ' wrap layout
+
+    ' Colors
+    Dim humanColor As Long: humanColor = RGB(0, 176, 240)   ' Blue/Teal
+    Dim agentColor As Long: agentColor = RGB(146, 118, 222) ' Purple
+    Dim hybridColor As Long: hybridColor = RGB(112, 173, 71) ' Green
+    Dim borderColor As Long: borderColor = RGB(64, 64, 64)  ' Dark Gray
+
+    ' --- Setup Slide ---
+    Dim sld As Slide, pres As Presentation
+    Set pres = ActivePresentation
+    Set sld = pres.Slides.Add(pres.Slides.Count + 1, ppLayoutBlank)
+
+    Dim titleShape As Shape
+    Set titleShape = sld.Shapes.AddTextbox(msoTextOrientationHorizontal, leftMargin, 30, pres.PageSetup.SlideWidth - (leftMargin * 2), 50)
+    With titleShape.TextFrame.TextRange
+        .Text = "Generated Work Chart"
+        .Font.Size = 32
+        .Font.Bold = msoTrue
+        .ParagraphFormat.Alignment = ppAlignCenter
+    End With
+
+    ' --- Draw Shapes ---
+    Dim i As Integer, rowNum As Integer, colNum As Integer
+    Dim leftPos As Single, topPos As Single
+    Dim currentShape As Shape
+
+    For i = LBound(steps, 1) To UBound(steps, 1)
+
+        rowNum = Int((i - 1) / stepsPerRow)
+        colNum = (i - 1) Mod stepsPerRow
+
+        leftPos = leftMargin + colNum * (boxWidth + hSpacing)
+        topPos = topMargin + rowNum * (boxHeight + vSpacing)
+
+        Set currentShape = sld.Shapes.AddShape(msoShapeRoundedRectangle, leftPos, topPos, boxWidth, boxHeight)
+
+        With currentShape
+            .Line.ForeColor.RGB = borderColor
+            .Line.Weight = 1.5
+            Select Case LCase(steps(i, F_OWNER))
+                Case "human": .Fill.ForeColor.RGB = humanColor
+                Case "agent": .Fill.ForeColor.RGB = agentColor
+                Case "hybrid": .Fill.ForeColor.RGB = hybridColor
+                Case Else: .Fill.ForeColor.RGB = RGB(240, 240, 240)
+            End Select
+        End With
+
+        ' Add wrapped text
+        With currentShape.TextFrame2
+            .AutoSize = ppAutoSizeNone
+            .WordWrap = msoTrue
+            .MarginLeft = 5
+            .MarginRight = 5
+            .TextRange.Text = steps(i, F_TITLE) & " (" & steps(i, F_OWNER) & ")" & vbCrLf & _
+                              steps(i, F_TASK) & vbCrLf & _
+                              "Target: " & steps(i, F_TARGET) & vbCrLf & _
+                              "Rule: " & steps(i, F_RULE)
+
+            ' Format
+            With .TextRange.Paragraphs(1).Font
+                .Bold = msoTrue
+                .Size = 14
+            End With
+            With .TextRange.Paragraphs(2).Font
+                .Size = 11
+            End With
+            With .TextRange.Paragraphs(3).Font
+                .Size = 10
+                .Italic = msoTrue
+            End With
+            With .TextRange.Paragraphs(4).Font
+                .Size = 10
+                .Italic = msoTrue
+            End With
+        End With
+    Next i
+
+    ' --- Add Legend ---
+    Dim legendTop As Single
+    legendTop = topMargin + 3 * (boxHeight + vSpacing) + 20
+
+    Dim legendBox As Shape
+    Set legendBox = sld.Shapes.AddTextbox(msoTextOrientationHorizontal, leftMargin, legendTop, 600, 80)
+    With legendBox.TextFrame.TextRange
+        .Text = ""
+    End With
+
+    ' Create color squares + labels
+    Dim legendLeft As Single
+    legendLeft = leftMargin
+
+    ' Human
+    Dim humanBox As Shape
+    Set humanBox = sld.Shapes.AddShape(msoShapeRectangle, legendLeft, legendTop, 30, 20)
+    humanBox.Fill.ForeColor.RGB = humanColor
+    humanBox.Line.Visible = msoFalse
+    sld.Shapes.AddTextbox(msoTextOrientationHorizontal, legendLeft + 40, legendTop, 100, 20).TextFrame.TextRange.Text = "Human"
+
+    ' Agent
+    Dim agentBox As Shape
+    Set agentBox = sld.Shapes.AddShape(msoShapeRectangle, legendLeft + 160, legendTop, 30, 20)
+    agentBox.Fill.ForeColor.RGB = agentColor
+    agentBox.Line.Visible = msoFalse
+    sld.Shapes.AddTextbox(msoTextOrientationHorizontal, legendLeft + 200, legendTop, 100, 20).TextFrame.TextRange.Text = "Agent"
+
+    ' Hybrid
+    Dim hybridBox As Shape
+    Set hybridBox = sld.Shapes.AddShape(msoShapeRectangle, legendLeft + 320, legendTop, 30, 20)
+    hybridBox.Fill.ForeColor.RGB = hybridColor
+    hybridBox.Line.Visible = msoFalse
+    sld.Shapes.AddTextbox(msoTextOrientationHorizontal, legendLeft + 360, legendTop, 100, 20).TextFrame.TextRange.Text = "Hybrid"
+
+    MsgBox "Work Chart generation complete!", vbInformation
+End Sub

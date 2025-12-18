@@ -25,10 +25,10 @@ VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
 
 # Model Configuration - Updated October 2025 (Beta Models Enabled)
 # Custom configuration optimized for expert panel workflow
-PERSONA_GENERATION_MODEL = "qwen3-235b"               # Venice Large 1.1 - stable, reliable orchestration
+PERSONA_GENERATION_MODEL = "grok-41-fast"              # Grok 4.1 Fast - persona generation
 INSIGHT_GENERATION_MODEL = "qwen3-next-80b"           # Qwen 3 Next 80B - 262K context, excellent reasoning
-SEARCH_ANALYSIS_MODEL = "llama-3.3-70b"               # Llama 3.3 70B - reliable for web search
-SYNTHESIS_MODEL = "qwen3-next-80b"                    # Qwen 3 Next 80B - powerful synthesis with huge context
+SEARCH_ANALYSIS_MODEL = "grok-41-fast"                # Grok 4.1 Fast - web search analysis
+SYNTHESIS_MODEL = "zai-org-glm-4.6"                   # ZAI GLM 4.6 - search synthesis
 
 # Alternative Option B: Cost-Optimized (Good Balance)
 # PERSONA_GENERATION_MODEL = "qwen3-235b"        # Venice Large - reliable, proven

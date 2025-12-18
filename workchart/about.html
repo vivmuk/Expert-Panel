@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About · The New Work Chart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {500:'#0ea5e9',600:'#0284c7'},
+                        secondary: {50:'#f8fafc',200:'#e2e8f0',700:'#334155',800:'#1e293b',900:'#0f172a'}
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg,#f8fafc,#e2e8f0); }
+        .gradient-bg { background: linear-gradient(135deg,#0ea5e9 0%,#3b82f6 50%,#8b5cf6 100%); }
+        .glass { backdrop-filter: blur(16px); background: rgba(255,255,255,.96); border: 1px solid rgba(255,255,255,.2); }
+    </style>
+    <meta name="description" content="Understand the shift from org charts to work charts: a dynamic, AI-augmented way to organize how work gets done." />
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8 md:py-10 max-w-6xl">
+        <nav class="flex items-center justify-between mb-10">
+            <a href="./" class="flex items-center space-x-2">
+                <span class="inline-block w-8 h-8 rounded-xl gradient-bg"></span>
+                <span class="font-extrabold text-2xl text-secondary-900">The New Work Chart</span>
+            </a>
+            <a href="./" class="px-4 py-2 rounded-xl bg-secondary-900 text-white hover:bg-secondary-800 transition">Back to App</a>
+        </nav>
+
+        <header class="gradient-bg text-white py-14 px-6 rounded-3xl shadow-2xl mb-10">
+            <h1 class="text-4xl md:text-6xl font-extrabold mb-4">From Org Chart to Work Chart</h1>
+            <p class="text-lg md:text-xl font-light max-w-3xl leading-relaxed">A modern model that maps how work actually gets done — by humans, AI agents, and hybrid processes — from trigger to outcome.</p>
+        </header>
+
+        <section class="glass rounded-3xl p-8 md:p-10 shadow-xl mb-10">
+            <h2 class="text-3xl font-bold text-secondary-900 mb-6">Key Ideas</h2>
+            <ul class="grid sm:grid-cols-2 gap-5 text-secondary-800">
+                <li class="bg-white/70 border border-secondary-200 rounded-2xl p-5"><strong>Trigger → Outcome:</strong> Visualize complete workflows end-to-end.</li>
+                <li class="bg-white/70 border border-secondary-200 rounded-2xl p-5"><strong>Human + Agent Roles:</strong> Explicit owners for every step: Human, Agent, or Hybrid.</li>
+                <li class="bg-white/70 border border-secondary-200 rounded-2xl p-5"><strong>Success Targets:</strong> Measurable objectives for each step.</li>
+                <li class="bg-white/70 border border-secondary-200 rounded-2xl p-5"><strong>Rules:</strong> Governance and exceptions that guide execution.</li>
+                <li class="bg-white/70 border border-secondary-200 rounded-2xl p-5"><strong>Living Document:</strong> Continuously updated as workflows evolve.</li>
+            </ul>
+        </section>
+
+        <section class="glass rounded-3xl p-0 shadow-xl overflow-hidden">
+            <div class="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-5">
+                <h2 class="text-2xl font-semibold">The Evolution from "Org Chart" to "Work Chart"</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-secondary-50">
+                        <tr>
+                            <th class="px-6 py-4 font-semibold text-secondary-800">Component</th>
+                            <th class="px-6 py-4 font-semibold text-secondary-800">Traditional Organization</th>
+                            <th class="px-6 py-4 font-semibold text-secondary-800">New AI-Driven Organization ("Work Chart" Model)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-secondary-900">Fundamental Unit</td>
+                            <td class="px-6 py-4">The Employee / Job Role: Static job description and title.</td>
+                            <td class="px-6 py-4">The Task / Workflow: Smallest unit of outcome; roles are fluid and task-defined.</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-secondary-900">Structure</td>
+                            <td class="px-6 py-4">Hierarchical pyramid; reporting lines and authority.</td>
+                            <td class="px-6 py-4">Dynamic & networked map from trigger to outcome; linear or networked.</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-secondary-900">Team Composition</td>
+                            <td class="px-6 py-4">Human-centric departments (e.g., Sales, Marketing).</td>
+                            <td class="px-6 py-4">Hybrid squads of humans, AI agents, and hybrid processes aligned to goals.</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-secondary-900">Leadership & Management</td>
+                            <td class="px-6 py-4">Managing people and job performance.</td>
+                            <td class="px-6 py-4">Orchestrating work: "Work Stewards" manage interplay between humans and agents.</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-secondary-900">Primary Metric of Success</td>
+                            <td class="px-6 py-4">Individual/team KPIs tied to functions (e.g., quotas, leads).</td>
+                            <td class="px-6 py-4">Workflow throughput and efficiency: agent coverage ratio, human-in-the-loop rate, speed/quality of outcomes.</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-secondary-900">Career Progression</td>
+                            <td class="px-6 py-4">Climbing the ladder to more authority and reports.</td>
+                            <td class="px-6 py-4">Expanding skill and agent stack: manage more sophisticated agents and workflows.</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-secondary-900">Planning & Strategy</td>
+                            <td class="px-6 py-4">Annual/quarterly plans; infrequent adjustments.</td>
+                            <td class="px-6 py-4">Seasonal and adaptive planning; short 4–6 week squad sprints.</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-secondary-900">Product/Service Focus</td>
+                            <td class="px-6 py-4">Product as a final artifact; periodic updates.</td>
+                            <td class="px-6 py-4">Product as a living organism; continuous learning and management of its metabolism.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="text-center text-secondary-700 mt-10">
+            <p>Built by Vivek + AI • <a href="./" class="text-primary-500 hover:text-primary-600 underline">Generate your Work Chart</a></p>
+        </footer>
+    </div>
+</body>
+</html>
+
