@@ -177,6 +177,7 @@
             </a>
             <div class="flex items-center space-x-3">
                 <a href="about.html" class="px-4 py-2 rounded-xl bg-white/80 border border-secondary-200 text-secondary-800 hover:bg-white transition">About</a>
+                <button onclick="manageApiKey()" class="px-4 py-2 rounded-xl bg-secondary-100 border border-secondary-200 text-secondary-800 hover:bg-secondary-200 transition text-sm font-medium" title="Manage Venice API Key">🔑 API Key</button>
                 <a href="#" class="px-4 py-2 rounded-xl bg-secondary-900 text-white hover:bg-secondary-800 transition" onclick="document.getElementById('input-section').scrollIntoView({behavior:'smooth'})">Get Started</a>
             </div>
         </nav>
@@ -343,9 +344,37 @@
         let analysisUsageByModel = {}; // accumulates { [modelId]: { inputTokens, outputTokens, calls } }
 
         // Venice API Configuration
-        const API_KEY = "ntmhtbP2fr_pOQsmuLPuN_nm6lm2INWKiNcvrdEfEC";
+        let API_KEY = getStoredApiKey();
         const API_URL = "https://api.venice.ai/api/v1/chat/completions";
         const MODEL = "qwen3-next-80b"; // Using Qwen 3 Next 80B - 262K context, excellent reasoning
+
+        // Load API key from various sources
+        function getStoredApiKey() {
+            // First check for query parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const keyParam = urlParams.get('api_key');
+            if (keyParam) {
+                localStorage.setItem('venice_api_key', keyParam);
+                return keyParam;
+            }
+
+            // Fall back to localStorage
+            return localStorage.getItem('venice_api_key') || '';
+        }
+
+        // Prompt for API key if not found
+        function ensureApiKey() {
+            if (!API_KEY) {
+                const key = prompt('Please enter your Venice API key:');
+                if (key) {
+                    API_KEY = key;
+                    localStorage.setItem('venice_api_key', key);
+                    return true;
+                }
+                return false;
+            }
+            return true;
+        }
 
         // Prefill from query string (workflow + actions)
         function getQueryParam(name) {
@@ -566,6 +595,11 @@
         }
 
         generateBtn.addEventListener('click', async () => {
+            if (!ensureApiKey()) {
+                showError("API key is required. Please enter your Venice API key when prompted.");
+                return;
+            }
+
             const userInput = workflowInput.value.trim();
             if (!userInput) {
                 showError("Please describe your workflow first.");
@@ -1891,6 +1925,26 @@ Return ONLY a JSON object of the form:
 
         function hideError() {
             errorBox.classList.add('hidden');
+        }
+
+        function manageApiKey() {
+            const currentKey = localStorage.getItem('venice_api_key') || '';
+            const display = currentKey ? `${currentKey.substring(0, 8)}...${currentKey.substring(currentKey.length - 4)}` : 'Not set';
+
+            const action = prompt(`Venice API Key Management\n\nCurrent key: ${display}\n\nEnter new API key (or leave blank to keep current):`);
+
+            if (action !== null) {
+                if (action.trim()) {
+                    API_KEY = action.trim();
+                    localStorage.setItem('venice_api_key', API_KEY);
+                    alert('API key updated successfully!');
+                } else if (action === '') {
+                    // User entered empty string but didn't cancel
+                    if (currentKey) {
+                        alert('API key unchanged.');
+                    }
+                }
+            }
         }
 
     </script>
