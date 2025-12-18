@@ -534,6 +534,7 @@
                     };
 
                     console.log('Venice API Request:', JSON.stringify(payload, null, 2));
+                    console.log('API Key being used:', API_KEY ? `${API_KEY.substring(0, 8)}...${API_KEY.substring(API_KEY.length - 4)} (length: ${API_KEY.length})` : 'EMPTY/NULL');
 
                     const response = await fetch(API_URL, {
                         method: 'POST',
@@ -1929,17 +1930,20 @@ Return ONLY a JSON object of the form:
 
         function manageApiKey() {
             const currentKey = localStorage.getItem('venice_api_key') || '';
-            const display = currentKey ? `${currentKey.substring(0, 8)}...${currentKey.substring(currentKey.length - 4)}` : 'Not set';
+            const display = currentKey ? `${currentKey.substring(0, 8)}...${currentKey.substring(currentKey.length - 4)} (${currentKey.length} chars)` : 'Not set';
 
-            const action = prompt(`Venice API Key Management\n\nCurrent key: ${display}\n\nEnter new API key (or leave blank to keep current):`);
+            const action = prompt(`Venice API Key Management\n\nCurrent key: ${display}\n\nOptions:\n- Enter new API key to update\n- Type "clear" to remove stored key\n- Leave blank to keep current:`);
 
             if (action !== null) {
-                if (action.trim()) {
+                if (action.trim().toLowerCase() === 'clear') {
+                    localStorage.removeItem('venice_api_key');
+                    API_KEY = '';
+                    alert('API key cleared. You will be prompted for a new key on next request.');
+                } else if (action.trim()) {
                     API_KEY = action.trim();
                     localStorage.setItem('venice_api_key', API_KEY);
-                    alert('API key updated successfully!');
+                    alert(`API key updated successfully! (${API_KEY.length} characters)`);
                 } else if (action === '') {
-                    // User entered empty string but didn't cancel
                     if (currentKey) {
                         alert('API key unchanged.');
                     }
