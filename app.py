@@ -20,7 +20,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- Configuration ---
-VENICE_API_KEY = os.environ.get('VENICE_API_KEY', 'ntmhtbP2fr_pOQsmuLPuN_nm6lm2INWKiNcvrdEfEC')  # Venice AI API key (from env or default)
+VENICE_API_KEY = os.environ.get('VENICE_API_KEY')
+if not VENICE_API_KEY:
+    raise RuntimeError("VENICE_API_KEY environment variable is required")
 VENICE_CHAT_COMPLETIONS_URL = "https://api.venice.ai/api/v1/chat/completions"
 
 # Model Configuration - Updated October 2025 (Beta Models Enabled)
