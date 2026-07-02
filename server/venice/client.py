@@ -240,18 +240,32 @@ class VeniceClient:
         return resp.json()
 
     # ------------------------------------------------------------------ image
-    def generate_image(self, prompt, *, model=None, width=1024, height=1024, style_preset=None):
-        payload = {
+    def generate_image(self, prompt, *, model=None, aspect_ratio="1:1", style_preset=None):
+        """Generate an image. Newer Venice image models take aspect_ratio;
+        older ones still want width/height — try the new shape first and fall
+        back on the specific 400 that asks for the other."""
+        base = {
             "model": model or Config.MODEL_ROLE_DEFAULTS["image"],
             "prompt": prompt,
-            "width": width,
-            "height": height,
             "format": "webp",
             "safe_mode": True,
         }
         if style_preset:
-            payload["style_preset"] = style_preset
-        resp = self._request("POST", "/image/generate", json_body=payload, timeout=300)
+            base["style_preset"] = style_preset
+        try:
+            resp = self._request(
+                "POST", "/image/generate",
+                json_body={**base, "aspect_ratio": aspect_ratio}, timeout=300,
+            )
+        except VeniceError as exc:
+            if exc.status != 400 or "aspect_ratio" not in (exc.body or ""):
+                raise
+            ratios = {"1:1": (1024, 1024), "4:3": (1024, 768), "16:9": (1280, 720), "9:16": (720, 1280)}
+            width, height = ratios.get(aspect_ratio, (1024, 1024))
+            resp = self._request(
+                "POST", "/image/generate",
+                json_body={**base, "width": width, "height": height}, timeout=300,
+            )
         return resp.json()
 
 
