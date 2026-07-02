@@ -1,0 +1,175 @@
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { api } from '../api/client'
+import { useRun, type ExpertState } from '../api/useRun'
+import ConstellationMap from '../components/ConstellationMap'
+import ProgressRail from '../components/ProgressRail'
+import CostBadge from '../components/CostBadge'
+import CitationText from '../components/CitationText'
+import WorkChartView from '../components/workchart/WorkChartView'
+
+function ExpertDrawer({ expert, onClose }: { expert: ExpertState; onClose: () => void }) {
+  const insight = expert.insight as any
+  const items = insight?.insights_and_analysis ?? []
+  return (
+    <div className="card fade-up" style={{ position: 'sticky', top: 20, maxHeight: '80vh', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+        <div>
+          <h3 style={{ margin: 0 }}>{expert.persona?.name}</h3>
+          <div className="dim" style={{ fontSize: 13 }}>{expert.persona?.title} · {expert.persona?.discipline}</div>
+        </div>
+        <button className="btn" onClick={onClose} style={{ padding: '4px 10px' }}>✕</button>
+      </div>
+      <p className="muted" style={{ fontSize: 13 }}>{expert.persona?.background}</p>
+      {expert.status !== 'done' && <p className="dim">Analysis {expert.status === 'thinking' ? 'in progress…' : 'queued.'}</p>}
+      {insight?.stance != null && (
+        <p>Stance <strong>{insight.stance}/5</strong> (confidence {insight.confidence}/5) — “{insight.one_liner}”<br />
+          <span className="dim">Top concern: {insight.top_concern}</span></p>
+      )}
+      {items.map((item: any, i: number) => (
+        <div key={i} style={{ borderTop: '1px solid var(--hairline)', paddingTop: 10, marginTop: 10 }}>
+          <div style={{ fontWeight: 600 }}>{item.insight}</div>
+          <div className="muted" style={{ fontSize: 13, margin: '6px 0' }}>{item.supporting_reasoning}</div>
+          <div className="chip" style={{ marginBottom: 6 }}>confidence: {item.confidence_level}</div>
+          <ul className="muted" style={{ fontSize: 13, margin: '4px 0' }}>
+            {item.implementation_ideas?.map((idea: string, j: number) => <li key={j}>{idea}</li>)}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ClarifyDialog({ runId, questions }: { runId: string; questions: { id: string; question: string; why: string }[] }) {
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [sent, setSent] = useState(false)
+  const submit = async () => {
+    await api.answer(runId, answers)
+    setSent(true)
+  }
+  if (sent) return <div className="card">Answers sent — refining the chart…</div>
+  return (
+    <div className="card fade-up" style={{ borderColor: 'var(--star-gold)' }}>
+      <h3 style={{ marginTop: 0 }}>The analyst needs a few answers</h3>
+      {questions.map((q) => (
+        <div key={q.id} style={{ marginBottom: 12 }}>
+          <label className="label" style={{ textTransform: 'none', fontSize: 14, color: 'var(--ink-hi)' }}>{q.question}</label>
+          <div className="dim" style={{ fontSize: 12, marginBottom: 6 }}>{q.why}</div>
+          <input className="input" value={answers[q.id] ?? ''} onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })} />
+        </div>
+      ))}
+      <button className="btn btn-primary" onClick={submit}>Send answers</button>
+      <span className="dim" style={{ marginLeft: 12, fontSize: 12 }}>or wait — the draft stands if you skip this</span>
+    </div>
+  )
+}
+
+export default function RunView() {
+  const { runId } = useParams()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const run = useRun(runId ?? null)
+  const [selected, setSelected] = useState<ExpertState | null>(null)
+
+  useEffect(() => {
+    if (run.status === 'completed' && run.engagementId) {
+      queryClient.invalidateQueries({ queryKey: ['engagement', String(run.engagementId)] })
+      queryClient.invalidateQueries({ queryKey: ['engagements'] })
+      const t = setTimeout(() => navigate(`/e/${run.engagementId}`), 1200)
+      return () => clearTimeout(t)
+    }
+  }, [run.status, run.engagementId, navigate, queryClient])
+
+  const doneCount = Object.values(run.experts).filter((e) => e.status === 'done').length
+  const total = Object.keys(run.experts).length
+
+  return (
+    <div className="fade-up">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <h1 style={{ margin: '8px 0' }}>Engagement in progress</h1>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <CostBadge usd={run.totalCostUsd} />
+          {run.status === 'running' && (
+            <button className="btn btn-danger" onClick={() => runId && api.cancelRun(runId)}>Cancel</button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ margin: '10px 0 18px' }}>
+        <ProgressRail stages={run.stages} currentStage={run.currentStage} completedStages={run.completedStages} />
+      </div>
+
+      {run.status === 'failed' && (
+        <div className="card" style={{ borderColor: 'var(--status-critical)' }}>
+          <strong>Run failed:</strong> {run.error}
+        </div>
+      )}
+      {run.status === 'completed' && (
+        <div className="card" style={{ borderColor: 'var(--status-good)' }}>
+          ✦ Engagement complete — opening the report…
+        </div>
+      )}
+
+      {run.clarifyQuestions && run.status === 'waiting_input' && runId && (
+        <div style={{ margin: '0 0 18px' }}>
+          <ClarifyDialog runId={runId} questions={run.clarifyQuestions} />
+        </div>
+      )}
+
+      {total > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: selected ? '1.6fr 1fr' : '1fr', gap: 18 }}>
+          <div className="card" style={{ padding: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 10px' }}>
+              <span className="muted" style={{ fontSize: 13 }}>The panel — {doneCount}/{total} analyses complete</span>
+              <span className="dim" style={{ fontSize: 12 }}>hover a star · click for the full analysis</span>
+            </div>
+            <ConstellationMap experts={run.experts} onSelect={setSelected} />
+          </div>
+          {selected && <ExpertDrawer expert={run.experts[selected.index] ?? selected} onClose={() => setSelected(null)} />}
+        </div>
+      )}
+
+      {run.boardTurns.length > 0 && (
+        <div className="card" style={{ marginTop: 18 }}>
+          <h3 style={{ marginTop: 0 }}>Board transcript</h3>
+          {run.boardTurns.map((t, i) => (
+            <div key={i} style={{ borderTop: i ? '1px solid var(--hairline)' : 'none', padding: '10px 0' }}>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>
+                <span className="chip" style={{ marginRight: 8 }}>R{t.round}</span>{t.speaker}
+              </div>
+              <div className="muted" style={{ fontSize: 14, marginTop: 4 }}>{t.statement}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {run.market.length > 0 && (
+        <div className="card" style={{ marginTop: 18 }}>
+          <h3 style={{ marginTop: 0 }}>Market intelligence <span className="dim" style={{ fontSize: 12 }}>(live web{run.market.some((m) => m.channel === 'x') ? ' + X' : ''} search)</span></h3>
+          {run.market.map((m, i) => (
+            <div key={i} style={{ borderTop: i ? '1px solid var(--hairline)' : 'none', padding: '10px 0' }}>
+              <div style={{ fontWeight: 600 }}>{m.topic} {m.channel === 'x' && <span className="chip">𝕏</span>}</div>
+              <div className="muted" style={{ fontSize: 14, marginTop: 4 }}>
+                <CitationText text={m.findings} citations={m.citations} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {run.chart && (
+        <div style={{ marginTop: 18 }}>
+          <WorkChartView chart={run.chart as any} />
+        </div>
+      )}
+
+      {run.aggregates != null && (
+        <div className="card" style={{ marginTop: 18 }}>
+          <h3 style={{ marginTop: 0 }}>Pulse results are in</h3>
+          <p className="muted">Opening the full report…</p>
+        </div>
+      )}
+    </div>
+  )
+}

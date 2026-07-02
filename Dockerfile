@@ -1,36 +1,27 @@
-FROM python:3.11-slim
+# Stage 1: build the React frontend
+FROM node:22-slim AS webbuild
+WORKDIR /web
+COPY web/package*.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
 
-# Set working directory
+# Stage 2: Python runtime serving API + built frontend
+FROM python:3.11-slim
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    curl \
-    bash \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements first for better Docker layer caching
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy start script first (before other files to allow caching)
-COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
+COPY server/ ./server/
+COPY --from=webbuild /web/dist ./web/dist
 
-# Copy application code
-COPY . .
-
-# Create logs directory
-RUN mkdir -p logs
-
-# Create a non-root user
-RUN useradd --create-home --shell /bin/bash app && \
-    chown -R app:app /app
+RUN useradd --create-home app && mkdir -p /data && chown -R app:app /app /data
 USER app
 
-# Use CMD in shell form to ensure environment variable expansion
-# Shell form ensures $PORT is expanded by bash before execution
-CMD /bin/bash /app/start.sh 
+ENV DATA_DIR=/data
+
+# Single gthread worker with many threads: the in-process run registry and SSE
+# streams require all requests to hit the same worker. timeout 0 keeps long
+# runs and SSE streams alive; Railway sets PORT.
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --worker-class gthread --workers 1 --threads 16 --timeout 0 --keep-alive 65 --access-logfile - --error-logfile - server.wsgi:app"]
