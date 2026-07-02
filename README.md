@@ -1,7 +1,7 @@
-# ✦ Constellation — AI Consulting Platform
+# ✦ AI Partner — Constellation Platform
 
 An all-in-one replacement for a management-consulting engagement, powered by the
-[Venice AI](https://venice.ai) API. Describe a problem; Constellation assembles a
+[Venice AI](https://venice.ai) API. Describe a problem; AI Partner assembles a
 bespoke panel of up to **100 expert personas**, grounds them in **live web and X
 search with citations**, and returns a synthesized report — or an agent-era
 **Work Chart** of your process, complete with breakthrough redesign
@@ -83,9 +83,10 @@ and their SSE subscribers must share a process (in-memory run registry). Run
 events are also flushed to SQLite (`run_events`), which is the escape hatch if
 multi-worker is ever needed.
 
-## Branding art
+## Brand Studio
 
-The UI ships with a procedural SVG constellation identity. To generate raster
-brand art with Venice image models, call `POST /api/branding/generate` (optional
-`prompt`, `model`, `width`, `height`) — image models are listed by
-`scripts/verify_venice.py`.
+The UI ships with a procedural SVG constellation identity, and the server
+generates its own **watercolor artwork** via Venice image models on first visit
+(cached in `DATA_DIR/branding`). Regenerate any time from **Settings → Brand
+Studio**, or via the API: `GET /api/branding/assets`, `POST
+/api/branding/ensure`, `POST /api/branding/generate {slot?, model?}`.

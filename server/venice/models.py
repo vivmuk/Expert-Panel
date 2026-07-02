@@ -114,7 +114,7 @@ class ModelCatalog:
 
     def resolve_role(self, role, requested=None):
         """Pick a model for a pipeline role: requested > configured default >
-        first capable model in the catalog."""
+        best-ranked capable model in the live catalog."""
         required_cap = ROLE_REQUIRED_CAPABILITIES.get(role)
         candidates = [requested, Config.MODEL_ROLE_DEFAULTS.get(role)]
         for candidate in candidates:
@@ -130,12 +130,45 @@ class ModelCatalog:
                 )
                 continue
             return candidate
+        best = None
         for m in self.text_models():
             caps = (m.get("model_spec") or {}).get("capabilities") or {}
-            if not required_cap or caps.get(required_cap):
-                logger.warning("Role %s falling back to catalog model %r", role, m.get("id"))
-                return m.get("id")
+            if required_cap and not caps.get(required_cap):
+                continue
+            score = self._role_score(role, m, caps)
+            if best is None or score > best[0]:
+                best = (score, m.get("id"))
+        if best:
+            logger.warning("Role %s falling back to catalog model %r", role, best[1])
+            return best[1]
         raise RuntimeError(f"No Venice model available for role {role}")
+
+    # Keyword affinities so catalog churn degrades to a *sensible* model per
+    # role rather than whatever happens to be listed first.
+    ROLE_KEYWORDS = {
+        "architect": ["thinking", "reasoning", "235b", "deepseek", "glm"],
+        "breakthrough": ["thinking", "reasoning", "235b", "deepseek"],
+        "expert": ["80b", "70b", "next", "glm", "qwen"],
+        "persona_writer": ["80b", "70b", "next", "qwen"],
+        "market_agent": ["grok", "glm", "sonar"],
+        "x_agent": ["grok"],
+        "synthesizer": ["glm", "235b", "large", "deepseek"],
+        "workchart": ["235b", "instruct", "glm"],
+        "pulse": ["4b", "flash", "small", "mini", "lite"],
+    }
+
+    def _role_score(self, role, model, caps):
+        model_id = (model.get("id") or "").lower()
+        score = 0
+        for i, kw in enumerate(self.ROLE_KEYWORDS.get(role, [])):
+            if kw in model_id:
+                score += 100 - i * 10
+        if role in ("architect", "breakthrough") and caps.get("supportsReasoning"):
+            score += 50
+        context = (model.get("model_spec") or {}).get("availableContextTokens") or 0
+        if role == "synthesizer":
+            score += min(context // 10000, 30)
+        return score
 
 
 _catalog = None

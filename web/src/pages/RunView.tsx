@@ -87,7 +87,23 @@ export default function RunView() {
   return (
     <div className="fade-up">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <h1 style={{ margin: '8px 0' }}>Engagement in progress</h1>
+        <h1 style={{ margin: '8px 0', display: 'flex', alignItems: 'center', gap: 14 }}>
+          {(run.status === 'running' || run.status === 'connecting') && (
+            <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden className="float-y">
+              <circle cx="17" cy="17" r="14" fill="none" stroke="url(#run-grad)" strokeWidth="2.2" strokeDasharray="58 30" strokeLinecap="round" className="orbit" style={{ transformOrigin: '17px 17px' }} />
+              <defs>
+                <linearGradient id="run-grad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#2a5fc4" /><stop offset="100%" stopColor="#0e9f8a" />
+                </linearGradient>
+              </defs>
+              <circle cx="17" cy="17" r="3.4" fill="#e8b64c" />
+            </svg>
+          )}
+          <span>
+            {run.status === 'completed' ? 'Engagement complete' : run.status === 'failed' ? 'Engagement failed' : 'Engagement '}
+            {run.status !== 'completed' && run.status !== 'failed' && <span className="gradient-text">in motion</span>}
+          </span>
+        </h1>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <CostBadge usd={run.totalCostUsd} />
           {run.status === 'running' && (

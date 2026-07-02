@@ -1,4 +1,5 @@
-// Stage progress rail for a live run.
+// Stage progress rail for a live run: completed stages seal in gold, the
+// active stage flows with the brand gradient.
 const STAGE_LABELS: Record<string, string> = {
   architect: 'Panel Architect',
   personas: 'Casting Experts',
@@ -32,16 +33,21 @@ export default function ProgressRail({
         return (
           <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div
-              className="chip"
+              className={`chip ${active ? 'stage-live' : ''}`}
               style={{
-                borderColor: done ? 'var(--star-gold)' : active ? 'var(--star-blue)' : 'var(--hairline)',
-                color: done ? 'var(--star-gold)' : active ? 'var(--ink-hi)' : 'var(--ink-low)',
-                background: active ? 'var(--space-3)' : 'var(--space-1)',
+                borderColor: done ? 'var(--star-gold-bright)' : active ? 'var(--indigo)' : 'var(--hairline)',
+                color: done ? 'var(--star-gold)' : active ? 'var(--indigo-deep)' : 'var(--ink-low)',
+                fontWeight: active || done ? 600 : 400,
+                background: done ? 'rgba(232, 182, 76, 0.10)' : active ? undefined : 'var(--space-1)',
+                padding: '5px 12px',
               }}
             >
-              {done ? '✦' : active ? '◌' : '·'} {STAGE_LABELS[stage] ?? stage}
+              {done ? '✦' : active ? <span className="orbit" style={{ display: 'inline-block', fontSize: 11 }}>◐</span> : '·'}{' '}
+              {STAGE_LABELS[stage] ?? stage}
             </div>
-            {i < stages.length - 1 && <span className="dim">→</span>}
+            {i < stages.length - 1 && (
+              <span style={{ color: done ? 'var(--star-gold-bright)' : 'var(--ink-low)' }}>→</span>
+            )}
           </div>
         )
       })}

@@ -110,7 +110,17 @@ export default function ConstellationMap({
               {/* generous hit target */}
               <circle cx={s.x} cy={s.y} r={3} fill="transparent" />
               {st === 'thinking' && (
-                <circle cx={s.x} cy={s.y} r={1.6} fill="none" stroke={s.color} strokeWidth={0.15} style={{ transformOrigin: `${s.x}px ${s.y}px`, animation: 'pulse-ring 1.4s ease-out infinite' }} />
+                <>
+                  <circle cx={s.x} cy={s.y} r={1.6} fill="none" stroke={s.color} strokeWidth={0.15} style={{ transformOrigin: `${s.x}px ${s.y}px`, animation: 'pulse-ring 1.4s ease-out infinite' }} />
+                  <circle cx={s.x} cy={s.y} r={2.2} fill="none" stroke={s.color} strokeWidth={0.1} style={{ transformOrigin: `${s.x}px ${s.y}px`, animation: 'pulse-ring 1.4s ease-out 0.5s infinite' }} />
+                </>
+              )}
+              {st === 'done' && (
+                <circle
+                  cx={s.x} cy={s.y} r={1.9}
+                  fill="none" stroke={s.color} strokeWidth={0.25}
+                  style={{ transformOrigin: `${s.x}px ${s.y}px`, animation: 'ray-burst 0.9s ease-out both' }}
+                />
               )}
               <circle
                 cx={s.x}
@@ -118,6 +128,7 @@ export default function ConstellationMap({
                 r={st === 'done' ? 1.05 : 0.65}
                 fill={st === 'done' ? s.color : st === 'thinking' ? '#232a4d' : '#8d97c4'}
                 opacity={st === 'pending' ? 0.75 : 1}
+                style={st === 'done' ? { transformOrigin: `${s.x}px ${s.y}px`, animation: 'star-ignite 0.7s ease both' } : undefined}
               />
               {st === 'done' && (
                 <circle cx={s.x} cy={s.y} r={1.7} fill={s.color} opacity={0.18} />

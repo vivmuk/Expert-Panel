@@ -5,7 +5,6 @@ from flask import Blueprint, jsonify, request
 
 from ..modes import MODE_REGISTRY
 from ..pipeline.estimate import estimate_run
-from ..venice.client import get_client
 from ..venice.models import get_catalog
 
 logger = logging.getLogger(__name__)
@@ -38,23 +37,3 @@ def estimate():
         return jsonify({"error": {"code": "estimate_failed", "message": str(exc)}}), 500
 
 
-@bp.post("/branding/generate")
-def branding_generate():
-    """Regenerate constellation brand art via Venice image models."""
-    data = request.get_json(force=True, silent=True) or {}
-    prompt = data.get("prompt") or (
-        "Minimalist deep-space galaxy artwork: sparse constellation of fine glowing stars "
-        "connected by thin luminous lines on a near-black indigo sky, subtle nebula haze, "
-        "elegant, high contrast, no text, flat vector-like style"
-    )
-    try:
-        result = get_client().generate_image(
-            prompt,
-            model=data.get("model"),
-            width=int(data.get("width", 1280)),
-            height=int(data.get("height", 720)),
-        )
-        return jsonify(result)
-    except Exception as exc:
-        logger.exception("Branding generation failed")
-        return jsonify({"error": {"code": "image_failed", "message": str(exc)}}), 502

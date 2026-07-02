@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
+import Logo from './components/Logo'
 import Starfield from './components/Starfield'
 import Landing from './pages/Landing'
 import NewEngagement from './pages/NewEngagement'
@@ -47,12 +48,15 @@ function SideNav() {
         zIndex: 2,
       }}
     >
-      <NavLink to="/" style={{ textDecoration: 'none', color: 'var(--ink-hi)', margin: '4px 10px 20px' }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, color: 'var(--indigo-deep)' }}>
-          <span style={{ color: 'var(--star-gold)' }}>✦</span> Constellation
-        </div>
-        <div className="dim" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-          AI Consulting Platform
+      <NavLink to="/" style={{ textDecoration: 'none', color: 'var(--ink-hi)', margin: '4px 10px 20px', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <Logo size={36} />
+        <div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600, color: 'var(--indigo-deep)', lineHeight: 1.1 }}>
+            AI Partner
+          </div>
+          <div className="dim" style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Constellation Platform
+          </div>
         </div>
       </NavLink>
       {item('/new', 'New Engagement', '✧')}
