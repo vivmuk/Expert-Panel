@@ -105,30 +105,50 @@ class VeniceClient:
         ledger=None,
         stage=None,
     ):
-        """Chat completion constrained to a JSON schema. Returns parsed dict."""
+        """Chat completion constrained to a JSON schema. Returns parsed dict.
+
+        Thinking models can spend the whole completion budget on reasoning,
+        leaving empty content once thinking is stripped — when that happens,
+        retry once with thinking disabled and a larger budget."""
         vp = {"strip_thinking_response": True, "include_venice_system_prompt": False}
         vp.update(venice_params or {})
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_completion_tokens": max_completion_tokens,
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {"name": schema_name, "strict": True, "schema": schema},
-            },
-            "venice_parameters": vp,
-        }
-        resp = self._request("POST", "/chat/completions", json_body=payload)
-        data = resp.json()
-        choices = data.get("choices") or []
-        if not choices:
-            raise VeniceError(f"No choices in response from {model}")
-        content = choices[0].get("message", {}).get("content")
-        parsed = _extract_json(content)
-        if ledger is not None:
-            ledger.record(stage or schema_name, model, data.get("usage", {}))
-        return parsed
+
+        def attempt(params, tokens):
+            payload = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_completion_tokens": tokens,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {"name": schema_name, "strict": True, "schema": schema},
+                },
+                "venice_parameters": params,
+            }
+            resp = self._request("POST", "/chat/completions", json_body=payload)
+            data = resp.json()
+            choices = data.get("choices") or []
+            if not choices:
+                raise VeniceError(f"No choices in response from {model}")
+            content = choices[0].get("message", {}).get("content")
+            parsed = _extract_json(content)
+            if ledger is not None:
+                ledger.record(stage or schema_name, model, data.get("usage", {}))
+            return parsed
+
+        try:
+            return attempt(vp, max_completion_tokens)
+        except (VeniceError, json.JSONDecodeError) as exc:
+            if isinstance(exc, VeniceError) and exc.status is not None:
+                raise  # HTTP-level failure, not a truncated/empty response
+            logger.warning(
+                "Structured output from %s unparseable (%s); retrying with thinking disabled",
+                model,
+                exc,
+            )
+            retry_vp = dict(vp)
+            retry_vp["disable_thinking"] = True
+            return attempt(retry_vp, max(max_completion_tokens, 12000))
 
     def chat_search(
         self,
@@ -240,18 +260,32 @@ class VeniceClient:
         return resp.json()
 
     # ------------------------------------------------------------------ image
-    def generate_image(self, prompt, *, model=None, width=1024, height=1024, style_preset=None):
-        payload = {
+    def generate_image(self, prompt, *, model=None, aspect_ratio="1:1", style_preset=None):
+        """Generate an image. Newer Venice image models take aspect_ratio;
+        older ones still want width/height — try the new shape first and fall
+        back on the specific 400 that asks for the other."""
+        base = {
             "model": model or Config.MODEL_ROLE_DEFAULTS["image"],
             "prompt": prompt,
-            "width": width,
-            "height": height,
             "format": "webp",
             "safe_mode": True,
         }
         if style_preset:
-            payload["style_preset"] = style_preset
-        resp = self._request("POST", "/image/generate", json_body=payload, timeout=300)
+            base["style_preset"] = style_preset
+        try:
+            resp = self._request(
+                "POST", "/image/generate",
+                json_body={**base, "aspect_ratio": aspect_ratio}, timeout=300,
+            )
+        except VeniceError as exc:
+            if exc.status != 400 or "aspect_ratio" not in (exc.body or ""):
+                raise
+            ratios = {"1:1": (1024, 1024), "4:3": (1024, 768), "16:9": (1280, 720), "9:16": (720, 1280)}
+            width, height = ratios.get(aspect_ratio, (1024, 1024))
+            resp = self._request(
+                "POST", "/image/generate",
+                json_body={**base, "width": width, "height": height}, timeout=300,
+            )
         return resp.json()
 
 

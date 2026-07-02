@@ -133,6 +133,34 @@ export default function RunView() {
         </div>
       )}
 
+      {total === 0 && (run.status === 'running' || run.status === 'connecting') && (
+        <div className="card" style={{ textAlign: 'center', padding: '56px 24px' }}>
+          <svg width="72" height="72" viewBox="0 0 72 72" aria-hidden style={{ margin: '0 auto', display: 'block' }}>
+            <circle cx="36" cy="36" r="30" fill="none" stroke="var(--hairline-strong)" strokeWidth="1" strokeDasharray="4 6" className="orbit" style={{ transformOrigin: '36px 36px' }} />
+            <circle cx="36" cy="36" r="20" fill="none" stroke="var(--indigo-line)" strokeWidth="1" strokeDasharray="3 5" className="orbit" style={{ transformOrigin: '36px 36px', animationDirection: 'reverse', animationDuration: '4s' }} />
+            <circle cx="36" cy="16" r="3.4" fill="var(--star-gold-bright)" className="orbit" style={{ transformOrigin: '36px 36px', animationDuration: '3.4s' }} />
+            <circle cx="36" cy="36" r="4.5" fill="var(--indigo-deep)" />
+          </svg>
+          <h3 style={{ margin: '18px 0 6px' }}>
+            {run.blueprint ? 'Casting your experts…' : 'The Panel Architect is designing your panel'}
+          </h3>
+          <p className="dim" style={{ margin: 0, fontSize: 13 }}>
+            {run.blueprint
+              ? 'Each expert will appear as a star in the constellation below as they join.'
+              : 'Mapping the disciplines, seniority mix, and contrarian seats your problem demands.'}
+          </p>
+          {run.blueprint != null && (
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+              {((run.blueprint as any).disciplines ?? []).map((d: any, i: number) => (
+                <span key={i} className="chip fade-up" style={{ borderColor: 'var(--indigo-line)' }}>
+                  ✦ {d.name} <span className="mono dim">×{d.count}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {total > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: selected ? '1.6fr 1fr' : '1fr', gap: 18 }}>
           <div className="card" style={{ padding: 12 }}>

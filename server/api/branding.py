@@ -6,6 +6,7 @@ import base64
 import logging
 import os
 import threading
+import time
 
 from flask import Blueprint, jsonify, request, send_from_directory
 
@@ -65,9 +66,9 @@ def _resolve_image_model(requested=None):
 def _generate_slot(slot, prompt=None, model=None):
     client = get_client()
     resolved = _resolve_image_model(model)
-    width, height = (1536, 640) if slot == "hero" else (768, 640)
+    aspect_ratio = "16:9" if slot == "hero" else "4:3"
     result = client.generate_image(
-        prompt or SLOTS[slot], model=resolved, width=width, height=height
+        prompt or SLOTS[slot], model=resolved, aspect_ratio=aspect_ratio
     )
     images = result.get("images") or []
     if not images:
@@ -90,14 +91,24 @@ def _ensure_missing_async(slots=None, model=None):
         return []
 
     def worker():
-        for slot in todo:
+        # Space out requests and stop after repeated failures so a broken
+        # payload or model can't trip Venice's failed-attempts rate limit.
+        consecutive_failures = 0
+        for i, slot in enumerate(todo):
             try:
+                if consecutive_failures >= 3:
+                    logger.error("Brand Studio aborting after %d consecutive failures", consecutive_failures)
+                    break
+                if i > 0:
+                    time.sleep(2)
                 _generate_slot(slot, model=model)
+                consecutive_failures = 0
             except Exception:
+                consecutive_failures += 1
                 logger.exception("Brand asset generation failed for %s", slot)
-            finally:
-                with _lock:
-                    _generating.discard(slot)
+        with _lock:
+            for slot in todo:
+                _generating.discard(slot)
 
     threading.Thread(target=worker, daemon=True, name="brand-studio").start()
     return todo
