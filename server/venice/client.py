@@ -105,30 +105,50 @@ class VeniceClient:
         ledger=None,
         stage=None,
     ):
-        """Chat completion constrained to a JSON schema. Returns parsed dict."""
+        """Chat completion constrained to a JSON schema. Returns parsed dict.
+
+        Thinking models can spend the whole completion budget on reasoning,
+        leaving empty content once thinking is stripped — when that happens,
+        retry once with thinking disabled and a larger budget."""
         vp = {"strip_thinking_response": True, "include_venice_system_prompt": False}
         vp.update(venice_params or {})
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_completion_tokens": max_completion_tokens,
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {"name": schema_name, "strict": True, "schema": schema},
-            },
-            "venice_parameters": vp,
-        }
-        resp = self._request("POST", "/chat/completions", json_body=payload)
-        data = resp.json()
-        choices = data.get("choices") or []
-        if not choices:
-            raise VeniceError(f"No choices in response from {model}")
-        content = choices[0].get("message", {}).get("content")
-        parsed = _extract_json(content)
-        if ledger is not None:
-            ledger.record(stage or schema_name, model, data.get("usage", {}))
-        return parsed
+
+        def attempt(params, tokens):
+            payload = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_completion_tokens": tokens,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {"name": schema_name, "strict": True, "schema": schema},
+                },
+                "venice_parameters": params,
+            }
+            resp = self._request("POST", "/chat/completions", json_body=payload)
+            data = resp.json()
+            choices = data.get("choices") or []
+            if not choices:
+                raise VeniceError(f"No choices in response from {model}")
+            content = choices[0].get("message", {}).get("content")
+            parsed = _extract_json(content)
+            if ledger is not None:
+                ledger.record(stage or schema_name, model, data.get("usage", {}))
+            return parsed
+
+        try:
+            return attempt(vp, max_completion_tokens)
+        except (VeniceError, json.JSONDecodeError) as exc:
+            if isinstance(exc, VeniceError) and exc.status is not None:
+                raise  # HTTP-level failure, not a truncated/empty response
+            logger.warning(
+                "Structured output from %s unparseable (%s); retrying with thinking disabled",
+                model,
+                exc,
+            )
+            retry_vp = dict(vp)
+            retry_vp["disable_thinking"] = True
+            return attempt(retry_vp, max(max_completion_tokens, 12000))
 
     def chat_search(
         self,

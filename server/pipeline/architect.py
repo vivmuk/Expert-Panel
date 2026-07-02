@@ -60,8 +60,11 @@ def design_blueprint(client, model, problem, panel_size, guardrails, context_doc
         seed_perspectives=guardrails.get("seedPerspectives") or "none specified",
     )
     messages = [{"role": "user", "content": prompt}]
+    # Generous budget: the default architect is a thinking model and reasoning
+    # tokens count against the completion limit.
     blueprint = client.structured(
-        model, messages, "PanelBlueprint", BLUEPRINT_SCHEMA, ledger=ledger, stage="architect"
+        model, messages, "PanelBlueprint", BLUEPRINT_SCHEMA,
+        max_completion_tokens=12000, ledger=ledger, stage="architect",
     )
 
     total = sum(d["count"] for d in blueprint["disciplines"])
@@ -79,7 +82,8 @@ def design_blueprint(client, model, problem, panel_size, guardrails, context_doc
             }
         )
         blueprint = client.structured(
-            model, messages, "PanelBlueprint", BLUEPRINT_SCHEMA, ledger=ledger, stage="architect"
+            model, messages, "PanelBlueprint", BLUEPRINT_SCHEMA,
+            max_completion_tokens=12000, ledger=ledger, stage="architect",
         )
         total = sum(d["count"] for d in blueprint["disciplines"])
         if total != panel_size:
