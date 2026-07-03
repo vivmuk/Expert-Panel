@@ -130,7 +130,12 @@ class VeniceClient:
             choices = data.get("choices") or []
             if not choices:
                 raise VeniceError(f"No choices in response from {model}")
-            content = choices[0].get("message", {}).get("content")
+            message = choices[0].get("message", {})
+            content = message.get("content")
+            # Thinking models sometimes leave `content` empty and put the actual
+            # answer (or JSON after a <think> block) in `reasoning_content`.
+            if not (content or "").strip():
+                content = message.get("reasoning_content") or ""
             parsed = _extract_json(content)
             if ledger is not None:
                 ledger.record(stage or schema_name, model, data.get("usage", {}))
