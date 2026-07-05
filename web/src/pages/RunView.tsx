@@ -5,6 +5,7 @@ import { api } from '../api/client'
 import { useRun, type ExpertState } from '../api/useRun'
 import ConstellationMap from '../components/ConstellationMap'
 import ProgressRail from '../components/ProgressRail'
+import ActivityFeed from '../components/ActivityFeed'
 import CostBadge from '../components/CostBadge'
 import CitationText from '../components/CitationText'
 import WorkChartView from '../components/workchart/WorkChartView'
@@ -72,11 +73,21 @@ export default function RunView() {
   const run = useRun(runId ?? null)
   const [selected, setSelected] = useState<ExpertState | null>(null)
 
+  const [now, setNow] = useState(Date.now())
+  const live = run.status === 'running' || run.status === 'connecting' || run.status === 'waiting_input'
+
   useEffect(() => {
+    if (!live) return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [live])
+
+  useEffect(() => {
+    // Auto-open the report only for panel modes; work-chart/board show results inline.
     if (run.status === 'completed' && run.engagementId) {
       queryClient.invalidateQueries({ queryKey: ['engagement', String(run.engagementId)] })
       queryClient.invalidateQueries({ queryKey: ['engagements'] })
-      const t = setTimeout(() => navigate(`/e/${run.engagementId}`), 1200)
+      const t = setTimeout(() => navigate(`/e/${run.engagementId}`), 1800)
       return () => clearTimeout(t)
     }
   }, [run.status, run.engagementId, navigate, queryClient])
@@ -133,46 +144,81 @@ export default function RunView() {
         </div>
       )}
 
-      {total === 0 && (run.status === 'running' || run.status === 'connecting') && (
-        <div className="card" style={{ textAlign: 'center', padding: '56px 24px' }}>
-          <svg width="72" height="72" viewBox="0 0 72 72" aria-hidden style={{ margin: '0 auto', display: 'block' }}>
-            <circle cx="36" cy="36" r="30" fill="none" stroke="var(--hairline-strong)" strokeWidth="1" strokeDasharray="4 6" className="orbit" style={{ transformOrigin: '36px 36px' }} />
-            <circle cx="36" cy="36" r="20" fill="none" stroke="var(--indigo-line)" strokeWidth="1" strokeDasharray="3 5" className="orbit" style={{ transformOrigin: '36px 36px', animationDirection: 'reverse', animationDuration: '4s' }} />
-            <circle cx="36" cy="16" r="3.4" fill="var(--star-gold-bright)" className="orbit" style={{ transformOrigin: '36px 36px', animationDuration: '3.4s' }} />
-            <circle cx="36" cy="36" r="4.5" fill="var(--indigo-deep)" />
-          </svg>
-          <h3 style={{ margin: '18px 0 6px' }}>
-            {run.blueprint ? 'Casting your experts…' : 'The Panel Architect is designing your panel'}
-          </h3>
-          <p className="dim" style={{ margin: 0, fontSize: 13 }}>
-            {run.blueprint
-              ? 'Each expert will appear as a star in the constellation below as they join.'
-              : 'Mapping the disciplines, seniority mix, and contrarian seats your problem demands.'}
-          </p>
-          {run.blueprint != null && (
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 }}>
-              {((run.blueprint as any).disciplines ?? []).map((d: any, i: number) => (
-                <span key={i} className="chip fade-up" style={{ borderColor: 'var(--indigo-line)' }}>
-                  ✦ {d.name} <span className="mono dim">×{d.count}</span>
-                </span>
-              ))}
+      <div style={{ display: 'grid', gridTemplateColumns: live || run.activity.length ? 'minmax(0, 2fr) minmax(280px, 1fr)' : '1fr', gap: 18, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gap: 18 }}>
+          {total === 0 && (run.status === 'running' || run.status === 'connecting') && (
+            <div className="card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+              <svg width="72" height="72" viewBox="0 0 72 72" aria-hidden style={{ margin: '0 auto', display: 'block' }}>
+                <circle cx="36" cy="36" r="30" fill="none" stroke="var(--hairline-strong)" strokeWidth="1" strokeDasharray="4 6" className="orbit" style={{ transformOrigin: '36px 36px' }} />
+                <circle cx="36" cy="36" r="20" fill="none" stroke="var(--indigo-line)" strokeWidth="1" strokeDasharray="3 5" className="orbit" style={{ transformOrigin: '36px 36px', animationDirection: 'reverse', animationDuration: '4s' }} />
+                <circle cx="36" cy="16" r="3.4" fill="var(--star-gold-bright)" className="orbit" style={{ transformOrigin: '36px 36px', animationDuration: '3.4s' }} />
+                <circle cx="36" cy="36" r="4.5" fill="var(--indigo-deep)" />
+              </svg>
+              <h3 style={{ margin: '18px 0 6px' }}>
+                {run.blueprint ? 'Casting your expert panel…' : 'The Panel Architect is designing your panel'}
+              </h3>
+              <p className="dim" style={{ margin: '0 auto', fontSize: 13, maxWidth: 440 }}>
+                {run.blueprint
+                  ? ((run.blueprint as any).coverageNotes ?? 'Each expert appears as a star in the constellation as they join.')
+                  : 'Mapping the disciplines, seniority mix, and contrarian seats your problem demands. This is the deep-reasoning step — it takes a moment.'}
+              </p>
+              {run.blueprint != null && (
+                <>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+                    {((run.blueprint as any).disciplines ?? []).map((d: any, i: number) => (
+                      <span key={i} className="chip fade-up" style={{ borderColor: 'var(--indigo-line)' }}>
+                        ✦ {d.name} <span className="mono dim">×{d.count}</span>
+                      </span>
+                    ))}
+                  </div>
+                  {((run.blueprint as any).mandatedContrarians ?? []).length > 0 && (
+                    <div className="dim" style={{ fontSize: 12, marginTop: 12 }}>
+                      ⚔ Contrarian seats: {((run.blueprint as any).mandatedContrarians ?? []).map((c: any) => c.stance).join(' · ')}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {total > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: selected ? '1.5fr 1fr' : '1fr', gap: 18 }}>
+              <div className="card" style={{ padding: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 10px' }}>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    The panel — <strong style={{ color: 'var(--ink-hi)' }}>{doneCount}/{total}</strong> analyses complete
+                  </span>
+                  <span className="dim" style={{ fontSize: 12 }}>hover a star · click for the full analysis</span>
+                </div>
+                {total > 1 && (
+                  <div style={{ height: 4, background: 'var(--space-1)', borderRadius: 999, margin: '2px 10px 8px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${(doneCount / total) * 100}%`, background: 'var(--grad-brand)', transition: 'width 0.4s ease' }} />
+                  </div>
+                )}
+                <ConstellationMap experts={run.experts} onSelect={setSelected} />
+              </div>
+              {selected && <ExpertDrawer expert={run.experts[selected.index] ?? selected} onClose={() => setSelected(null)} />}
+            </div>
+          )}
+
+          {run.marketTopics.length > 0 && (
+            <div className="card">
+              <h3 style={{ marginTop: 0, marginBottom: 10 }}>Live market research <span className="dim" style={{ fontSize: 12 }}>{run.market.length}/{run.marketTopics.length} done</span></h3>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {run.marketTopics.map((t, i) => (
+                  <span key={i} className={`chip ${!t.done ? 'stage-live' : ''}`} style={{ borderColor: t.done ? 'var(--status-good)' : 'var(--teal)', color: t.done ? 'var(--status-good)' : 'var(--ink-mid)' }}>
+                    {t.done ? '✓' : t.channel === 'x' ? '𝕏' : '⌕'} {t.title}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
-      )}
 
-      {total > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: selected ? '1.6fr 1fr' : '1fr', gap: 18 }}>
-          <div className="card" style={{ padding: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 10px' }}>
-              <span className="muted" style={{ fontSize: 13 }}>The panel — {doneCount}/{total} analyses complete</span>
-              <span className="dim" style={{ fontSize: 12 }}>hover a star · click for the full analysis</span>
-            </div>
-            <ConstellationMap experts={run.experts} onSelect={setSelected} />
-          </div>
-          {selected && <ExpertDrawer expert={run.experts[selected.index] ?? selected} onClose={() => setSelected(null)} />}
-        </div>
-      )}
+        {(live || run.activity.length > 0) && (
+          <ActivityFeed items={run.activity} live={live} now={now} />
+        )}
+      </div>
 
       {run.boardTurns.length > 0 && (
         <div className="card" style={{ marginTop: 18 }}>

@@ -167,6 +167,7 @@ def _panel_flow(run, client, mode, models, payload, problem, panel_size, ledger,
             enable_x=bool(search_opts.get("x")),
             concurrency=min(concurrency, 4),
             ledger=ledger,
+            on_planned=lambda topics: run.emit("market.planned", {"topics": topics}),
             on_completed=lambda b: run.emit(
                 "market.completed",
                 {"topic": b["topic"], "channel": b["channel"], "findings": b["findings"], "citations": b["citations"]},

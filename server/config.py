@@ -20,7 +20,7 @@ class Config:
     # Model role defaults; every role is validated against live /models capabilities
     # at run time and falls back gracefully if an ID disappears from Venice.
     MODEL_ROLE_DEFAULTS = {
-        "architect": os.environ.get("MODEL_ARCHITECT", "qwen3-235b-a22b-thinking-2507"),
+        "architect": os.environ.get("MODEL_ARCHITECT", "qwen3-235b-a22b-instruct-2507"),
         "persona_writer": os.environ.get("MODEL_PERSONA_WRITER", "qwen3-next-80b"),
         "expert": os.environ.get("MODEL_EXPERT", "qwen3-next-80b"),
         "market_agent": os.environ.get("MODEL_MARKET_AGENT", "zai-org-glm-5-2"),

@@ -55,6 +55,7 @@ def gather_market_intelligence(
     concurrency=4,
     ledger=None,
     on_completed=None,
+    on_planned=None,
 ):
     plan_prompt = render("panel/market_query_planner", topic_count=topic_count, problem=problem)
     plan = client.structured(
@@ -66,6 +67,8 @@ def gather_market_intelligence(
         stage="market",
     )
     topics = plan.get("topics", [])[:topic_count]
+    if on_planned:
+        on_planned([{"title": t.get("title"), "channel": t.get("channel", "web"), "why": t.get("why")} for t in topics])
 
     x_capable = bool(get_catalog().capabilities(search_model).get("supportsXSearch"))
 
