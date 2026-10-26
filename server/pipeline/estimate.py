@@ -18,6 +18,38 @@ def _stage_profile(mode_id, panel_size):
             "debate": (panel_size * rounds, 2500, 400),
             "minutes": (1, 8000, 2500),
         }
+    if mode_id == "scenario_planning":
+        return {
+            "scenarios": (1, 3000, 2500),
+            "architect": (1, 1800, 1500),
+            "personas": (max(4, panel_size // 4), 1400, 2500),
+            "market": (6, 2500, 1500),
+            "insights": (panel_size, 2200, 1500),
+            "synthesis": (1, 22000, 6000),
+        }
+    if mode_id == "digital_twin":
+        return {
+            "twin": (1, 4000, 7000),
+            "architect": (1, 1800, 1500),
+            "personas": (max(4, panel_size // 4), 1400, 2500),
+            "insights": (panel_size, 2600, 1500),
+            "synthesis": (1, 24000, 6000),
+        }
+    if mode_id == "due_diligence":
+        return {
+            "architect": (1, 1800, 1500),
+            "personas": (max(3, panel_size // 4), 1400, 2500),
+            "market": (4, 2500, 1500),
+            "insights": (panel_size, 2200, 1600),
+            "synthesis": (1, 22000, 6000),
+        }
+    if mode_id == "ai_opportunity_scan":
+        return {
+            "architect": (1, 1800, 1500),
+            "personas": (max(3, panel_size // 4), 1400, 2500),
+            "insights": (panel_size, 2000, 1500),
+            "synthesis": (1, 18000, 5000),
+        }
     if mode_id == "workchart":
         return {
             "workchart": (2, 3000, 8000),
@@ -43,6 +75,8 @@ def _role_for_stage(stage, mode_id):
         "debate": "expert",
         "minutes": "synthesizer",
         "workchart": "workchart",
+        "scenarios": "architect",
+        "twin": "synthesizer",
         "breakthrough": "breakthrough",
     }
     return mapping.get(stage, "expert")

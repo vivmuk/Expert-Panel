@@ -11,7 +11,7 @@ from ..prompts.loader import render
 from ..venice.client import get_client
 from ..venice.models import get_catalog
 from ..venice.usage import UsageLedger
-from . import architect, insights, market_intel, synthesis
+from . import architect, insights, market_intel, prestages, synthesis
 from .estimate import estimate_run
 from .events import REGISTRY
 
@@ -128,6 +128,8 @@ def _panel_flow(run, client, mode, models, payload, problem, panel_size, ledger,
     stages = ["architect", "personas", "market", "insights", "synthesis"]
     if not mode.include_market_intel or search_opts.get("web") is False:
         stages.remove("market")
+    if mode.pre_stage:
+        stages.insert(0, mode.pre_stage)
     run.emit("run.started", {"runId": run.id, "mode": mode.id, "panelSize": panel_size, "stages": stages})
 
     # Scrape client URLs first so the architect sees the context
@@ -136,6 +138,37 @@ def _panel_flow(run, client, mode, models, payload, problem, panel_size, ledger,
     if urls and search_opts.get("scrapeUrls", True):
         context_docs = market_intel.scrape_context(client, urls)
 
+    # Optional pre-stage: give the panel an artifact to attack instead of a blank brief
+    pre_artifact, pre_block = None, ""
+    if mode.pre_stage:
+        fn = prestages.PRESTAGES[mode.pre_stage]
+        run.emit("stage.started", {"stage": mode.pre_stage})
+        opts = payload.get(mode.pre_stage) or {}
+        if mode.pre_stage == "scenarios":
+            pre_artifact, pre_block = fn(
+                client,
+                models["architect"],
+                problem,
+                int(opts.get("count") or mode.defaults.get("scenarios", 4)),
+                ledger,
+            )
+        elif mode.pre_stage == "twin":
+            pre_artifact, pre_block = fn(
+                client,
+                models["architect"],
+                problem,
+                opts.get("horizon") or mode.defaults.get("horizon", "12 months"),
+                ledger,
+            )
+        else:
+            raise ValueError(f"Unknown pre-stage: {mode.pre_stage}")
+        run.emit("prestage.ready", {"kind": mode.pre_stage, "artifact": pre_artifact})
+        run.emit("stage.completed", {"stage": mode.pre_stage, "usage": _stage_usage(ledger, mode.pre_stage)})
+        check_budget()
+
+    # Modes with a pre-stage brief the whole panel against the artifact
+    brief = (problem + "\n\n" + pre_block).strip() if pre_block else problem
+
     # Stage 1 — blueprint
     run.emit("stage.started", {"stage": "architect"})
     mode_guardrails = dict(guardrails)
@@ -143,7 +176,7 @@ def _panel_flow(run, client, mode, models, payload, problem, panel_size, ledger,
         seed = mode_guardrails.get("seedPerspectives") or ""
         mode_guardrails["seedPerspectives"] = f"{mode.mode_brief}\n{seed}".strip()
     blueprint = architect.design_blueprint(
-        client, models["architect"], problem, panel_size, mode_guardrails, context_docs, ledger
+        client, models["architect"], brief, panel_size, mode_guardrails, context_docs, ledger
     )
     run.emit("blueprint.ready", {"blueprint": blueprint})
     run.emit("stage.completed", {"stage": "architect", "usage": _stage_usage(ledger, "architect")})
@@ -151,7 +184,7 @@ def _panel_flow(run, client, mode, models, payload, problem, panel_size, ledger,
 
     # Stage 2 — personas
     run.emit("stage.started", {"stage": "personas", "expectedItems": panel_size})
-    persona_list = personas_stage(run, client, models["persona_writer"], problem, blueprint, mode_guardrails, concurrency, ledger)
+    persona_list = personas_stage(run, client, models["persona_writer"], brief, blueprint, mode_guardrails, concurrency, ledger)
     run.emit("stage.completed", {"stage": "personas", "usage": _stage_usage(ledger, "personas")})
     check_budget()
 
@@ -163,7 +196,7 @@ def _panel_flow(run, client, mode, models, payload, problem, panel_size, ledger,
             client,
             models["architect"],
             models["market_agent"],
-            problem,
+            brief,
             enable_x=bool(search_opts.get("x")),
             concurrency=min(concurrency, 4),
             ledger=ledger,
@@ -182,7 +215,7 @@ def _panel_flow(run, client, mode, models, payload, problem, panel_size, ledger,
     insight_entries = insights.collect_insights(
         client,
         models["expert"],
-        problem,
+        brief,
         persona_list,
         concurrency,
         ledger,
@@ -200,12 +233,15 @@ def _panel_flow(run, client, mode, models, payload, problem, panel_size, ledger,
     check_budget()
 
     result = {
+        "mode": mode.id,
         "problem": problem,
         "blueprint": blueprint,
         "personas": persona_list,
         "insights": insight_entries,
         "market_intelligence": market_briefs,
     }
+    if mode.pre_stage and pre_artifact is not None:
+        result[mode.pre_stage] = pre_artifact
 
     # Stage 5 — synthesis (or quantitative aggregation for pulse modes)
     if mode.quantitative:
@@ -214,7 +250,16 @@ def _panel_flow(run, client, mode, models, payload, problem, panel_size, ledger,
     else:
         run.emit("stage.started", {"stage": "synthesis"})
         result["synthesis"] = synthesis.synthesize(
-            client, models["synthesizer"], problem, insight_entries, market_briefs, panel_size, ledger
+            client,
+            models["synthesizer"],
+            problem,
+            insight_entries,
+            market_briefs,
+            panel_size,
+            ledger,
+            prompt_name=mode.synthesis_prompt,
+            extra_fields=mode.extra_fields,
+            extra_block=pre_block,
         )
         run.emit("stage.completed", {"stage": "synthesis", "usage": _stage_usage(ledger, "synthesis")})
 

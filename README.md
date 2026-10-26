@@ -90,3 +90,51 @@ generates its own **watercolor artwork** via Venice image models on first visit
 (cached in `DATA_DIR/branding`). Regenerate any time from **Settings → Brand
 Studio**, or via the API: `GET /api/branding/assets`, `POST
 /api/branding/ensure`, `POST /api/branding/generate {slot?, model?}`.
+
+
+## Adding a mode
+
+A mode is a module, not a switch statement. The registry drives the API, the
+launcher, cost estimation and the report view; the runner reads the spec.
+
+**1. Drop prompts in `server/prompts/modes/`** — one for the expert insight, one
+for synthesis (unless the mode is quantitative), plus a pre-stage prompt if the
+mode needs a structured artifact first. Slots the runner fills:
+
+| Prompt kind | Slots |
+|---|---|
+| insight | `{name} {title} {background} {focus_areas} {perspective} {problem} {market_context}` |
+| synthesis | `{panel_size} {problem} {insights_block} {market_block} {extra_block}` |
+| pre-stage | `{problem} {scenario_count}` or `{problem} {horizon}` |
+
+**2. Register it** in `server/modes/<your_mode>.py`:
+
+```python
+from .base import ModeSpec, insight_schema, register
+
+register(ModeSpec(
+    id="my_mode",
+    name="My Mode",
+    description="One sentence the launcher can show.",
+    default_panel_size=12,
+    insight_prompt="modes/my_mode_insight",
+    synthesis_prompt="modes/my_mode_synthesis",
+    insight_schema=insight_schema({"my_field": {"type": "string"}}),  # optional
+    extra_fields=("my_field",),   # surfaced to synthesis
+    pre_stage="",                 # "" | "scenarios" | "twin"
+    mode_brief="How the architect should staff this panel.",
+))
+```
+
+**3. Import it** in `server/modes/__init__.py` (registration order is display
+order). That's all: `/api/modes`, `/api/estimate`, the launcher, progress rail
+and reports pick it up. Estimation gets a generic panel profile automatically;
+add a tighter profile in `pipeline/estimate.py` when the shape differs.
+
+**Flows** (`panel`, `board`, `workchart`) and **pre-stages** (`scenarios`,
+`twin`) are shared machinery in `pipeline/`; a mode chooses them, it does not
+reimplement them.
+
+**Tests:** `python -m pytest tests/test_modes.py -q` — asserts every registered
+mode has its prompts, that no prompt asks for a slot the runner doesn't pass,
+and that structured-output schemas are closed.

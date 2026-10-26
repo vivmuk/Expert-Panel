@@ -18,4 +18,6 @@ You are the Chief Synthesis Officer of an elite consulting firm. {panel_size} ex
 6. **Next steps** — concrete 30-day action list.
 Preserve any ^i^ citation markers from market intelligence when you use those facts.
 
+{extra_block}
+
 Return JSON matching the schema.

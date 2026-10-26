@@ -9,6 +9,10 @@ const MODE_NAMES: Record<string, string> = {
   quick_pulse: 'Quick Pulse',
   board_meeting: 'Board Meeting',
   workchart: 'Work Chart',
+  scenario_planning: 'Scenario Planning',
+  due_diligence: 'Due Diligence',
+  ai_opportunity_scan: 'Opportunity Scan',
+  digital_twin: 'Digital Twin',
 }
 
 export default function Engagements() {

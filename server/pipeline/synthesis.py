@@ -91,7 +91,24 @@ CLUSTER_SCHEMA = {
 }
 
 
-def _insight_lines(insight_entries):
+def _extra_suffix(item, extra_fields):
+    """Mode-specific fields (severity, workstream, scores) surfaced to synthesis."""
+    if not extra_fields:
+        return ""
+    parts = []
+    for field in extra_fields:
+        value = item.get(field)
+        if value in (None, "", []):
+            continue
+        if isinstance(value, (list, tuple)):
+            value = "; ".join(str(v) for v in value[:6])
+        elif isinstance(value, dict):
+            value = ", ".join(f"{k}: {v}" for k, v in list(value.items())[:6])
+        parts.append(f"{field.replace('_', ' ')}={value}")
+    return (" [" + " | ".join(parts) + "]") if parts else ""
+
+
+def _insight_lines(insight_entries, extra_fields=None):
     lines = []
     for entry in insight_entries:
         persona = entry.get("persona", {})
@@ -101,7 +118,8 @@ def _insight_lines(insight_entries):
                 {
                     "who": who,
                     "text": f"{item.get('insight', '')} — {item.get('supporting_reasoning', '')[:400]} "
-                    f"[confidence: {item.get('confidence_level', '?')}]",
+                    f"[confidence: {item.get('confidence_level', '?')}]"
+                    + _extra_suffix(item, extra_fields),
                 }
             )
     return lines
@@ -115,8 +133,20 @@ def _market_block(market_briefs):
     return "\n\n".join(parts) or "No market intelligence available."
 
 
-def synthesize(client, model, problem, insight_entries, market_briefs, panel_size, ledger):
-    lines = _insight_lines(insight_entries)
+def synthesize(
+    client,
+    model,
+    problem,
+    insight_entries,
+    market_briefs,
+    panel_size,
+    ledger,
+    prompt_name="panel/synthesis",
+    extra_fields=None,
+    extra_block="",
+    schema=None,
+):
+    lines = _insight_lines(insight_entries, extra_fields)
     market_block = _market_block(market_briefs)
 
     if len(lines) <= HIERARCHICAL_THRESHOLD * 2 and panel_size <= HIERARCHICAL_THRESHOLD:
@@ -125,17 +155,18 @@ def synthesize(client, model, problem, insight_entries, market_briefs, panel_siz
         insights_block = _hierarchical_digest(client, model, problem, lines, ledger)
 
     prompt = render(
-        "panel/synthesis",
+        prompt_name,
         panel_size=panel_size,
         problem=problem,
         insights_block=insights_block[:80000],
         market_block=market_block[:30000],
+        extra_block=extra_block or "No pre-stage artifact was produced for this engagement.",
     )
     return client.structured(
         model,
         [{"role": "user", "content": prompt}],
         "SynthesisReport",
-        SYNTHESIS_SCHEMA,
+        schema or SYNTHESIS_SCHEMA,
         max_completion_tokens=8000,
         ledger=ledger,
         stage="synthesis",
