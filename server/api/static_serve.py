@@ -11,8 +11,7 @@ _DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "web
 @bp.get("/")
 @bp.get("/<path:path>")
 def serve(path="index.html"):
-    # The Docker image builds web/dist. Vercel serves the chat page instead.
-    if not os.path.isdir(_DIST):
+    if os.environ.get("VERCEL"):
         if path in ("", "index.html"):
             return redirect("/chat")
         return ("Not found", 404)

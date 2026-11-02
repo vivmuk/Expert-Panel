@@ -1,11 +1,3 @@
-"""One consulting job, held by the browser and advanced one step per request.
-
-The Deep Dive runner is a background thread that writes SQLite. A Vercel
-function has neither that disk nor more than about a minute. This module asks
-the same intake questions, then does a four-person panel, an optional red team,
-and a work chart as one model call each. The owner words match the Work Chart
-mode: Human, AI Agent, Hybrid.
-"""
 import logging
 import re
 import uuid
@@ -279,8 +271,9 @@ def _has_context(text):
 
 
 def _cut_tail(value):
-    # The colon is not a word character, so a trailing \b would never match "Tools:".
-    value = re.split(r"\b(?:tools?\s*:|maturity\b)", value, maxsplit=1, flags=re.I)[0]
+    matched = re.search(r"\btools?\s*:|\bmaturity\b", value, flags=re.I)
+    if matched:
+        value = value[: matched.start()]
     return value.strip(" .;")
 
 

@@ -6,6 +6,7 @@ transient failures.
 """
 import json
 import logging
+import os
 import random
 import time
 
@@ -42,7 +43,7 @@ def _extract_json(text):
 
 class VeniceClient:
     def __init__(self, api_key=None, base_url=None):
-        self.api_key = api_key or Config.VENICE_API_KEY
+        self.api_key = api_key or os.environ.get("VENICE_API_KEY", "")
         self.base_url = (base_url or Config.VENICE_BASE_URL).rstrip("/")
         self._session = requests.Session()
         self._session.headers.update({"Authorization": f"Bearer {self.api_key}"})

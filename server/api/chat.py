@@ -1,4 +1,3 @@
-"""Web chat for one consulting job. The browser sends the job back each turn."""
 import logging
 import threading
 import time
@@ -19,8 +18,7 @@ _lock = threading.Lock()
 _hits = {}
 
 
-def allow(chat_id, now=None):
-    """Best-effort limit for one warm instance. The client keeps the chat id."""
+def allow_in_this_process(chat_id, now=None):
     now = time.time() if now is None else now
     with _lock:
         hits = [stamp for stamp in _hits.get(chat_id, []) if now - stamp < WINDOW_SECONDS]
@@ -81,7 +79,7 @@ def post_chat():
     if len(message) > 8000:
         return _bad("Message is too long.")
     state = load_state(raw.get("state"))
-    if not allow(state["chat_id"]):
+    if not allow_in_this_process(state["chat_id"]):
         reply = "This chat is sending messages too fast. Wait a few minutes and try again."
         return jsonify(
             {

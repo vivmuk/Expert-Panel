@@ -1,8 +1,3 @@
-"""Optional Supermemory recall for one chat.
-
-No-op when SUPERMEMORY_API_KEY is unset. Failures stay in the log so a memory
-outage does not stop the job.
-"""
 import logging
 import os
 import re

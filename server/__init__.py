@@ -21,7 +21,6 @@ def create_app():
     app.config.from_object(Config)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-    # Chat turns never touch this directory. Railway still opens SQLite here.
     if os.environ.get("VERCEL"):
         logger.info("VERCEL is set. Skipping SQLite. Chat jobs stay in the browser.")
     else:

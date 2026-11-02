@@ -1,9 +1,3 @@
-"""Zip a harness kit from a finished work chart.
-
-The TypeScript generator asks a model for every section. That call is too
-long for this demo, so the files are filled from the chart the job already
-has. Names match the bundle a client downloads.
-"""
 import io
 import re
 import zipfile

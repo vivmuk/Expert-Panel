@@ -15,7 +15,6 @@ def _db_path():
 
 
 def _require_disk():
-    # Vercel functions have no durable disk. Chat jobs never call this.
     if os.environ.get("VERCEL"):
         raise PersistentStoreUnavailable(
             "SQLite is off on Vercel. The chat demo keeps each job in the browser."

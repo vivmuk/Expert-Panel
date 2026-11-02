@@ -1,26 +1,13 @@
-"""Observable behavior of one consulting job and the harness zip.
-
-Venice is never called. The tests pass a fake model, or they stop before a
-model call would happen.
-"""
 import io
-import os
 import zipfile
 
 import pytest
 
-os.environ.setdefault("VENICE_API_KEY", "test-not-a-real-key")
-os.environ["VERCEL"] = "1"
-
-from server.api.chat import TURN_LIMIT, reset_limits  # noqa: E402
-from server.chatjob import (  # noqa: E402
-    MAX_OUTPUT_TOKENS,
-    handle_turn,
-    render_report,
-)
-from server.chatmemory import recall, remember  # noqa: E402
-from server.config import Config  # noqa: E402
-from server.harnesskit import build_kit_zip  # noqa: E402
+from server.api.chat import TURN_LIMIT, reset_limits
+from server.chatjob import MAX_OUTPUT_TOKENS, handle_turn, render_report
+from server.chatmemory import recall, remember
+from server.config import Config
+from server.harnesskit import build_kit_zip
 
 ONE_SHOT = (
     "Market entry for a medtech device into Germany. "
@@ -299,12 +286,8 @@ def test_chat_page_and_health(client):
     assert b"AI Partner takes one consulting job" in page.data
     assert b"/api/chat" in page.data
     root = client.get("/")
-    dist = os.path.isdir(os.path.join(os.path.dirname(__file__), "..", "web", "dist"))
-    if dist:
-        assert root.status_code == 200
-    else:
-        assert root.status_code == 302
-        assert "/chat" in root.headers["Location"]
+    assert root.status_code == 302
+    assert "/chat" in root.headers["Location"]
 
 
 def test_rate_limit_is_per_chat(client):
@@ -336,6 +319,16 @@ def test_vercel_skips_sqlite_and_blocks_engagements(monkeypatch, tmp_path):
     assert blocked.status_code == 503
     assert blocked.get_json()["error"]["code"] == "no_store"
     assert not target.exists()
+
+
+def test_root_without_vercel_is_not_the_chat(monkeypatch, tmp_path):
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setattr(Config, "DATA_DIR", str(tmp_path))
+    from server import create_app
+
+    res = create_app().test_client().get("/")
+    assert res.status_code != 302
 
 
 def test_railway_still_creates_sqlite(monkeypatch, tmp_path):

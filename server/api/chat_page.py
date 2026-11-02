@@ -1,6 +1,3 @@
-"""The chat page. One HTML file, no build step, so Vercel can serve it from Flask."""
-
-
 def render_page(welcome):
     safe = welcome.replace("</", "<\\/")
     return PAGE.replace("__WELCOME__", safe)

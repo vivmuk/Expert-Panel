@@ -1,4 +1,3 @@
-"""Vercel loads this module and serves the Flask `app` object."""
 import os
 import sys
 
