@@ -3,7 +3,7 @@ import time
 
 from server.api.chat import GLOBAL_LIMIT, TURN_LIMIT, allow_in_this_process, reset_limits
 from server.budget import reset as reset_budget
-from server.chatjob import handle_turn
+from server.chatjob import MAX_MODEL_CALLS, handle_turn
 from server.config import Config
 from server.downloads import download_path, save_download
 from server.keys import mint_key, verify_key
@@ -29,14 +29,14 @@ def test_call_budget_does_not_fall_when_the_client_sends_zero():
         "team": "3 managers",
         "tools": "Excel",
         "maturity": 2,
-        "calls": 8,
+        "calls": MAX_MODEL_CALLS,
     }
     blocked = handle_turn(state, "", fake_model([]))
     assert blocked["error"]["code"] == "budget"
     state["calls"] = 0
     state.pop("sig", None)
     again = handle_turn(state, "", fake_model([]))
-    assert again["state"]["calls"] == 8
+    assert again["state"]["calls"] == MAX_MODEL_CALLS
     assert again["error"]["code"] == "budget"
 
 

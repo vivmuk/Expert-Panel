@@ -7,7 +7,7 @@ from server.chatjob import handle_turn
 from server.exa_search import EXA_URL, exa_search
 from server.skillpack import MAX_SKILLS, STRATEGY_SKILLS, pack_files
 from server.uploads import take_uploads
-from tests.test_chatjob import ONE_SHOT, fake_model
+from tests.test_chatjob import ONE_SHOT, fake_model, run_until_stop
 
 
 def _chart(count):
@@ -169,15 +169,12 @@ def test_research_keeps_exa_urls_through_the_skill_pack():
             }
         ]
 
-    state = {}
     complete = fake_model(calls)
-    state = handle_turn({}, ONE_SHOT + " The client is small.", complete, search=search)["state"]
-    state = handle_turn(state, "", complete, search=search)["state"]
-    researched = handle_turn(state, "", complete, search=search)
+    researched = handle_turn({}, ONE_SHOT + " The client is small.", complete, search=search)
     assert "https://example.com/gba" in researched["reply"]
     briefed = handle_turn(researched["state"], "", complete, search=search)
     assert "https://example.com/gba" in briefed["reply"]
-    finished = handle_turn(briefed["state"], "", complete, search=search)
+    finished = run_until_stop(briefed, complete, search=search)
     assert finished["state"]["phase"] == "done"
     assert finished["state"]["size"] == "small"
     blob = __import__("server.skillpack", fromlist=["build_pack_zip"]).build_pack_zip(finished["state"])

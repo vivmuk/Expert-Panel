@@ -83,7 +83,9 @@ const STEPS = [
   ["kit", "Kit"]
 ];
 const STATUS = {
-  panel: "Staffing a four-person panel.",
+  panel: "Seating the panel of 20 AI experts, five at a time.",
+  debate: "The experts are debating, two rounds.",
+  judge: "The judge is ranking the Top 5.",
   red_team: "Running the red team.",
   blueprint: "Drawing the work chart.",
   research: "Searching public sources.",
@@ -108,9 +110,9 @@ let view = null;
 
 function phaseStep(phase) {
   if (phase === "ask_maturity") return 1;
-  if (phase === "panel" || phase === "red_team") return 2;
+  if (phase === "panel" || phase === "debate" || phase === "judge" || phase === "red_team") return 2;
   if (phase === "blueprint") return 3;
-  if (phase === "ask_size" || phase === "research" || phase === "synthesize") return 5;
+  if (phase === "ask_size" || phase === "research" || phase === "synthesize") return state && state.chart ? 5 : 2;
   if (phase === "skills") return 6;
   if (phase === "done") return 7;
   return 0;
@@ -329,7 +331,7 @@ async function generateArtifact(id, card) {
 function paint() {
   const phase = state && state.phase;
   const current = phaseStep(phase);
-  const working = ["panel", "red_team", "blueprint", "research", "synthesize", "skills"].indexOf(phase) >= 0;
+  const working = ["research", "synthesize", "panel", "debate", "judge", "red_team", "blueprint", "skills"].indexOf(phase) >= 0;
   cont.hidden = !working;
   const started = messages.some(function (m) { return m.role === "user"; });
   hero.hidden = started || !!(state && state.phase && state.phase !== "ask_problem");
@@ -387,7 +389,7 @@ async function run(message) {
   try {
     let next = await post(message);
     let guard = 0;
-    while (next && guard < 6) {
+    while (next && guard < 20) {
       guard += 1;
       status.textContent = STATUS[next] || "Working.";
       next = await post("");
