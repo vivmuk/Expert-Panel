@@ -11,7 +11,6 @@ from .. import art
 from ..catalog import by_id
 from ..demo_schema import DISCLAIMER, valid_demo
 from ..icons import icon
-from .deck import frameable
 from .pages import ARTIFACT_ICONS, DECK_EMBED_SCRIPT, deck_embed, page_head, shell, task_slug
 
 bp = Blueprint("demos", __name__)
@@ -103,7 +102,7 @@ def kit_file(slug, name):
 def client_deck(slug):
     if slug not in SLUGS or not os.path.isfile(os.path.join(ROOT, slug, "deck.html")):
         abort(404)
-    return frameable(send_from_directory(os.path.join(ROOT, slug), "deck.html", mimetype="text/html"))
+    return send_from_directory(os.path.join(ROOT, slug), "deck.html", mimetype="text/html")
 
 
 @bp.get("/demos/<slug>/kit.zip")

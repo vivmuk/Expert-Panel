@@ -10,22 +10,15 @@ bp = Blueprint("deck", __name__)
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static", "deck"))
 
 
-def frameable(resp):
-    """Decks are embedded on our own pages, so allow same-origin framing and nothing else."""
-    resp.headers["X-Frame-Options"] = "SAMEORIGIN"
-    resp.headers["Content-Security-Policy"] = "frame-ancestors 'self'"
-    return resp
-
-
 @bp.get("/deck")
 @bp.get("/deck/")
 def deck_index():
-    return frameable(send_from_directory(ROOT, "index.html"))
+    return send_from_directory(ROOT, "index.html")
 
 
 @bp.get("/deck/<path:name>")
 def deck_file(name):
-    return frameable(send_from_directory(ROOT, name))
+    return send_from_directory(ROOT, name)
 
 
 @bp.get("/about")

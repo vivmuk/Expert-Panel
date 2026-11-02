@@ -6,7 +6,7 @@ import time
 
 from .keys import signing_secrets
 
-WINDOW_SECONDS = 3600
+WINDOW_SECONDS = 86400
 MAX_JOBS = 2000
 _lock = threading.Lock()
 _spent = {}
@@ -14,6 +14,10 @@ _spent = {}
 
 class TamperedState(Exception):
     pass
+
+
+class BudgetUnavailable(Exception):
+    """No signing secret is set, so a client-sent call count cannot be checked."""
 
 
 def reset():
@@ -24,20 +28,20 @@ def reset():
 def reconcile_calls(chat_id, claimed, sig, now=None):
     """Return the call count to enforce.
 
-    A signed count must match its HMAC. An unsigned count is ignored when a
-    signing secret is set. The stored count never goes down.
+    A signed count must match its HMAC and an unsigned count is ignored.
+    Without a signing secret nothing can be checked, so refuse. The stored
+    count never goes down.
     """
     now = time.time() if now is None else now
     if isinstance(claimed, bool) or not isinstance(claimed, int) or claimed < 0:
         claimed = 0
     secrets = signing_secrets()
-    if secrets:
-        if not sig:
-            base = 0
-        elif not sig_matches(chat_id, claimed, sig, secrets):
-            raise TamperedState()
-        else:
-            base = claimed
+    if not secrets:
+        raise BudgetUnavailable()
+    if not sig:
+        base = 0
+    elif not sig_matches(chat_id, claimed, sig, secrets):
+        raise TamperedState()
     else:
         base = claimed
     with _lock:

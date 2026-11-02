@@ -3,6 +3,7 @@ import time
 
 from server.api.chat import GLOBAL_LIMIT, TURN_LIMIT, allow_in_this_process, reset_limits
 from server.budget import reset as reset_budget
+from server.budget import sign_calls
 from server.chatjob import MAX_MODEL_CALLS, handle_turn
 from server.config import Config
 from server.downloads import download_path, save_download
@@ -30,6 +31,7 @@ def test_call_budget_does_not_fall_when_the_client_sends_zero():
         "tools": "Excel",
         "maturity": 2,
         "calls": MAX_MODEL_CALLS,
+        "sig": sign_calls("budget-tamper", MAX_MODEL_CALLS),
     }
     blocked = handle_turn(state, "", fake_model([]))
     assert blocked["error"]["code"] == "budget"

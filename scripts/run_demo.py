@@ -15,7 +15,7 @@ from server.artifact_doc import as_html, as_markdown
 from server.demo_pipeline import run_demo
 from server.demo_schema import SLUGS
 from server.exa_search import exa_search
-from server.venice.client import VeniceClient
+from server.venice.client import LONG_TIMEOUT, VeniceClient
 
 
 def complete(name, messages, schema, max_tokens):
@@ -25,11 +25,11 @@ def complete(name, messages, schema, max_tokens):
     if schema is None:  # long markdown documents: plain text, no JSON wrapping
         payload = {"model": model, "messages": messages, "temperature": 0.3, "max_completion_tokens": max_tokens,
                    "venice_parameters": {"disable_thinking": True, "include_venice_system_prompt": False}}
-        resp = VeniceClient()._request("POST", "/chat/completions", json_body=payload)
+        resp = VeniceClient(timeout=LONG_TIMEOUT)._request("POST", "/chat/completions", json_body=payload)
         return {"markdown": (resp.json()["choices"][0]["message"].get("content") or "").strip()}
     for attempt in range(2):
         try:
-            return VeniceClient().structured(model, messages, name, schema, temperature=0.3, max_completion_tokens=max(max_tokens * 2, 2000),
+            return VeniceClient(timeout=LONG_TIMEOUT).structured(model, messages, name, schema, temperature=0.3, max_completion_tokens=max(max_tokens * 2, 2000),
                 venice_params={"disable_thinking": True},
             )
         except Exception as exc:  # one failed call should not sink a full run

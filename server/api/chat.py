@@ -7,10 +7,18 @@ from flask import Blueprint, Response, jsonify, redirect, request, send_from_dir
 
 from ..artifacts import ArtifactError, generate_artifact
 from ..catalog import groups, recommend
-from ..chatjob import WELCOME, TurnFailed, handle_turn, load_state, render_report
+from ..chatjob import (
+    NOT_CONFIGURED_REPLY,
+    WELCOME,
+    TurnFailed,
+    handle_turn,
+    load_state,
+    render_report,
+)
 from ..chatmemory import recall, remember
 from ..exa_search import exa_search
 from ..harnesskit import build_kit_zip
+from ..keys import signing_secrets
 from ..skillpack import build_pack_zip
 from ..uploads import take_uploads
 from ..venice.errors import SPEND_LIMIT_REPLY, out_of_credit
@@ -27,18 +35,41 @@ WINDOW_SECONDS = 600
 TURN_LIMIT = 20
 GLOBAL_LIMIT = 200
 MAX_KEYS = 2000
+DAY_SECONDS = 86400
 _lock = threading.Lock()
 _hits = {}
 _global = []
+_starts = {}
+
+DAILY_LIMIT_REPLY = "This network has started its engagements for today. Continue an open one, or come back tomorrow."
 
 
 def client_ip():
-    forwarded = request.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        hop = forwarded.split(",")[0].strip()
-        if hop:
-            return hop
+    """The peer address. ProxyFix in create_app sets it from the hop our proxy appended, never the client's own."""
     return request.remote_addr or "unknown"
+
+
+def daily_engagements():
+    try:
+        return max(1, int(os.environ.get("AI_PARTNER_DAILY_ENGAGEMENTS", "5")))
+    except ValueError:
+        return 5
+
+
+def admit_engagement(ip, chat_id, now=None):
+    """Each new chat_id gets a fresh call budget, so cap how many one IP can open per day."""
+    now = time.time() if now is None else now
+    with _lock:
+        seen = {cid: stamp for cid, stamp in _starts.get(ip, {}).items() if now - stamp < DAY_SECONDS}
+        if chat_id not in seen and len(seen) >= daily_engagements():
+            _starts[ip] = seen
+            return False
+        seen.setdefault(chat_id, now)
+        _starts[ip] = seen
+        if len(_starts) > MAX_KEYS:
+            oldest = min(_starts, key=lambda key: max(_starts[key].values(), default=0))
+            _starts.pop(oldest, None)
+        return True
 
 
 def allow_in_this_process(ip, now=None):
@@ -78,6 +109,7 @@ def reset_limits():
     with _lock:
         _hits.clear()
         _global.clear()
+        _starts.clear()
 
 
 def complete_with_venice(name, messages, schema, max_tokens):
@@ -261,17 +293,13 @@ def post_chat():
     if raw.get("uploads"):
         incoming = dict(incoming)
         incoming["uploads"] = take_uploads(raw.get("uploads"), incoming.get("uploads") or [])
+    if not signing_secrets():
+        return _refuse(incoming, "not_configured", NOT_CONFIGURED_REPLY, 503)
     if not allow_in_this_process(client_ip()):
-        state = load_state(incoming)
-        reply = "This chat is sending messages too fast. Wait a few minutes and try again."
-        return jsonify(
-            {
-                "reply": reply,
-                "state": state,
-                "next": None,
-                "error": {"code": "rate", "message": reply},
-            }
-        ), 429
+        return _refuse(incoming, "rate", "This chat is sending messages too fast. Wait a few minutes and try again.", 429)
+    incoming = {**incoming, "chat_id": load_state(incoming)["chat_id"]}
+    if not admit_engagement(client_ip(), incoming["chat_id"]):
+        return _refuse(incoming, "daily_limit", DAILY_LIMIT_REPLY, 429)
     try:
         result = handle_turn(incoming, message, complete_with_venice, recall, remember, exa_search)
     except Exception as exc:
@@ -296,8 +324,14 @@ def post_chat():
             }
         ), 502
     code = (result.get("error") or {}).get("code")
-    status = 400 if code == "tamper" else 429 if code == "budget" else 200
+    status = {"tamper": 400, "budget": 429, "not_configured": 503}.get(code, 200)
     return jsonify(result), status
+
+
+def _refuse(incoming, code, reply, status):
+    if status == 429:
+        logger.warning("chat %s limit for %s", code, client_ip())
+    return jsonify({"reply": reply, "state": load_state(incoming), "next": None, "error": {"code": code, "message": reply}}), status
 
 
 @bp.post("/api/chat/kit")
@@ -353,7 +387,7 @@ def chat_artifact():
     try:
         result = generate_artifact(incoming, artifact_id.strip(), complete_with_venice)
     except ArtifactError as exc:
-        status = 400 if exc.code in ("unknown", "tamper", "limit", "budget") else 502
+        status = 503 if exc.code == "not_configured" else 400 if exc.code in ("unknown", "tamper", "limit", "budget") else 502
         return jsonify({"error": {"code": exc.code, "message": str(exc)}}), status
     except Exception as exc:
         logger.exception("artifact %s failed", artifact_id)

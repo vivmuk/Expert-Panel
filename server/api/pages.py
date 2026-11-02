@@ -140,6 +140,17 @@ def page_head(kicker, title, lede, extra=""):
 </section>"""
 
 
+def not_found_page():
+    actions = (
+        '<div class="hero-actions">'
+        f'<a class="btn primary" href="/chat">{icon("message-circle")}Go to the chat</a>'
+        f'<a class="btn ghost" href="/demos">{icon("layers")}See the demos</a>'
+        "</div>"
+    )
+    body = page_head("404", "This page isn't here.", "The link may be old or mistyped. The chat and the demos are a click away.", actions)
+    return shell("Not found · AI Partner", "", body)
+
+
 DECK_EMBED_SCRIPT = '<script src="/deck-embed.js" defer></script>\n'
 
 

@@ -6,6 +6,7 @@ import pytest
 
 from server.api.chat import TURN_LIMIT, reset_limits
 from server.budget import reset as reset_budget
+from server.budget import sign_calls
 from server.chatjob import EXPERTS, MAX_MODEL_CALLS, MAX_OUTPUT_TOKENS, handle_turn, render_report
 from server.chatmemory import recall, remember
 from server.config import Config
@@ -226,6 +227,7 @@ def test_budget_stops_the_model():
         "tools": "Excel",
         "maturity": 2,
         "calls": MAX_MODEL_CALLS,
+        "sig": sign_calls("budget1", MAX_MODEL_CALLS),
     }
     result = handle_turn(state, "", fake_model(calls))
     assert calls == []

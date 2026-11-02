@@ -22,7 +22,7 @@ def test_structured_output_asks_for_json_object_and_retries_once(monkeypatch):
     client = VeniceClient(api_key="test-not-a-real-key")
     seen = []
 
-    def fake_request(method, path, json_body=None, timeout=300, stream=False):
+    def fake_request(method, path, json_body=None, **_kwargs):
         seen.append(json_body)
         if len(seen) == 1:
             return _Response("not json")

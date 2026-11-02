@@ -447,7 +447,7 @@
     if (!data.ok || err) {
       var code = err && err.code;
       var text = (err && err.message) || "The request failed. Your earlier answers are still here.";
-      append({ role: "error", text: text, retry: code !== "budget" && code !== "tamper", fresh: code === "budget" || code === "tamper" || code === "spend_limit" });
+      append({ role: "error", text: text, retry: ["budget", "tamper", "daily_limit", "not_configured"].indexOf(code) < 0, fresh: code === "budget" || code === "tamper" || code === "spend_limit" });
       return null;
     }
     if (data.card) {

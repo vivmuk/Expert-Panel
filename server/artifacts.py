@@ -1,9 +1,15 @@
 """One generator for every catalog entry."""
 import json
 
-from .budget import TamperedState, commit_calls, reconcile_calls, sign_calls
+from .budget import (
+    BudgetUnavailable,
+    TamperedState,
+    commit_calls,
+    reconcile_calls,
+    sign_calls,
+)
 from .catalog import STRATEGY_ARTIFACTS, by_id
-from .chatjob import MAX_MODEL_CALLS, load_state, untrusted
+from .chatjob import MAX_MODEL_CALLS, NOT_CONFIGURED_REPLY, load_state, untrusted
 
 FULL_EXTRA = 40
 SCHEMA = {
@@ -34,6 +40,8 @@ def generate_artifact(raw_state, artifact_id, complete):
     state = load_state(raw)
     try:
         state["calls"] = reconcile_calls(state["chat_id"], raw.get("calls"), raw.get("sig"))
+    except BudgetUnavailable as exc:
+        raise ArtifactError("not_configured", NOT_CONFIGURED_REPLY) from exc
     except TamperedState as exc:
         raise ArtifactError("tamper", "The job state did not match its signature.") from exc
     have = state.get("artifacts") or {}

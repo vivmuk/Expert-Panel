@@ -4,12 +4,14 @@ import os
 
 mimetypes.add_type("image/webp", ".webp")
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .api.access import allowed_origins
 from .config import Config, require_api_key
 from .db import PersistentStoreUnavailable
+from .keys import signing_secrets
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,12 +19,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "frame-ancestors 'self'",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+
 
 def create_app():
     require_api_key()
 
     app = Flask(__name__)
     app.config.from_object(Config)
+    # One proxy (Railway, Vercel or Maritime) sits in front and appends the real peer to X-Forwarded-For.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
     CORS(
         app,
         resources={
@@ -31,6 +42,9 @@ def create_app():
             r"/v1/*": {"origins": "*"},
         },
     )
+
+    if not signing_secrets():
+        logger.error("AI_PARTNER_SIGNING_SECRETS is not set. /api/chat will answer 503 until it is.")
 
     if os.environ.get("VERCEL"):
         logger.info("VERCEL is set. Skipping SQLite. Chat jobs stay in the browser.")
@@ -59,5 +73,19 @@ def create_app():
     @app.errorhandler(PersistentStoreUnavailable)
     def no_store(exc):
         return jsonify({"error": {"code": "no_store", "message": str(exc)}}), 503
+
+    @app.errorhandler(404)
+    def not_found(_exc):
+        if request.path.startswith(("/api/", "/v1/", "/mcp")):
+            return jsonify({"error": {"code": "not_found", "message": "Not found."}}), 404
+        from .api.pages import not_found_page
+
+        return not_found_page(), 404, {"Content-Type": "text/html; charset=utf-8"}
+
+    @app.after_request
+    def security_headers(resp):
+        for name, value in SECURITY_HEADERS.items():
+            resp.headers.setdefault(name, value)
+        return resp
 
     return app

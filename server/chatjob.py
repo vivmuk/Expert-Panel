@@ -79,6 +79,7 @@ INCOMPLETE_REPLY = (
 )
 
 DONE_REPLY = "This job is finished. Start a new chat to take another."
+NOT_CONFIGURED_REPLY = "Engagements are paused: this server has no AI_PARTNER_SIGNING_SECRETS set, so it cannot check the call budget."
 
 _LABELS = (
     (1, ("invoice-led", "invoice led")),
@@ -624,7 +625,7 @@ def memory_text(state):
 
 def handle_turn(raw_state, message, complete, recall=None, remember=None, search=None):
     """Advance one job. `complete(name, messages, schema, max_tokens)` calls the model."""
-    from .budget import TamperedState, reconcile_calls
+    from .budget import BudgetUnavailable, TamperedState, reconcile_calls
 
     if search is None:
         from .exa_search import exa_search as search
@@ -633,6 +634,13 @@ def handle_turn(raw_state, message, complete, recall=None, remember=None, search
     state = load_state(raw)
     try:
         state["calls"] = reconcile_calls(state["chat_id"], raw.get("calls"), raw.get("sig"))
+    except BudgetUnavailable:
+        return {
+            "reply": NOT_CONFIGURED_REPLY,
+            "state": state,
+            "next": None,
+            "error": {"code": "not_configured", "message": NOT_CONFIGURED_REPLY},
+        }
     except TamperedState:
         reply = "The job state did not match its signature."
         return {

@@ -1,6 +1,9 @@
+import hashlib
+import hmac
 import json
 import logging
 import os
+import secrets
 import time
 import uuid
 
@@ -12,6 +15,7 @@ from ..chatjob import handle_turn
 from ..chatmemory import recall, remember
 from ..downloads import download_path, save_download
 from ..harnesskit import build_kit_zip
+from ..keys import signing_secret
 from ..skillpack import build_pack_zip
 from ..venice.errors import SPEND_LIMIT_REPLY, out_of_credit
 from .access import origin_allowed, request_origin, require_partner_key
@@ -226,9 +230,27 @@ def _sse(completion_id, model, result):
     yield "data: [DONE]\n\n"
 
 
+_PROCESS_KEY = secrets.token_hex(32)
+
+
+def _session_mac(session_id):
+    key = signing_secret() or _PROCESS_KEY
+    return hmac.new(key.encode(), f"mcp|{session_id}".encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def issue_session():
+    session_id = uuid.uuid4().hex
+    return f"{session_id}.{_session_mac(session_id)}"
+
+
+def session_valid(sent):
+    session_id, _, mac = sent.partition(".")
+    return bool(session_id and mac) and hmac.compare_digest(mac, _session_mac(session_id))
+
+
 def _session_headers(method):
     if method == "initialize":
-        return {"Mcp-Session-Id": uuid.uuid4().hex}
+        return {"Mcp-Session-Id": issue_session()}
     sent = request.headers.get("Mcp-Session-Id", "").strip()
     if sent:
         return {"Mcp-Session-Id": sent}
@@ -245,6 +267,9 @@ def mcp():
     body = request.get_json(force=True, silent=True)
     if not isinstance(body, dict):
         return jsonify({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Expected a JSON-RPC object."}}), 400
+    sent = request.headers.get("Mcp-Session-Id", "").strip()
+    if sent and body.get("method") != "initialize" and not session_valid(sent):
+        return jsonify({"jsonrpc": "2.0", "id": body.get("id"), "error": {"code": -32001, "message": "Unknown session. Send initialize again."}}), 404
     try:
         payload = _rpc(body)
     except Exception as exc:
@@ -299,6 +324,8 @@ def chat_completions():
         if out_of_credit(exc):
             return jsonify({"error": {"message": SPEND_LIMIT_REPLY, "type": "spend_limit"}}), 503
         return jsonify({"error": {"message": "The model call failed. Send the message again.", "type": "model_error"}}), 502
+    if (result.get("error") or {}).get("code") == "not_configured":
+        return jsonify({"error": {"message": result["reply"], "type": "not_configured"}}), 503
     created = int(time.time())
     completion_id = "chatcmpl-" + uuid.uuid4().hex[:24]
     if body.get("stream") is True:
