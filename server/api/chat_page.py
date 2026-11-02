@@ -18,13 +18,13 @@ PAGE = r"""<!DOCTYPE html>
 <header class="top">
   <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet." width="36" height="36"> AI Partner</a>
   <nav class="links">
-    <a href="/chat" aria-current="page">Chat</a>
-    <a href="/demos">Demos</a>
-    <a href="/deck">Deck</a>
-    <a href="/catalog">Catalog</a>
-    <a href="/connect">Connect</a>
-    <a href="/pricing">Pricing</a>
-    <a class="primary" href="/pricing">Get API key</a>
+    <a href="/chat" aria-current="page"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Chat</a>
+    <a href="/demos"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Demos</a>
+    <a href="/deck"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3zM8 20h8M12 16v4"/></svg> Deck</a>
+    <a href="/catalog"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 4h7a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-7a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h8z"/></svg> Catalog</a>
+    <a href="/connect"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7v4M15 7v4M7 11h10v3a5 5 0 0 1-10 0zM12 19v3"/></svg> Connect</a>
+    <a href="/pricing"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13 11 4H4v7l9 9a2 2 0 0 0 2.8 0L20 15.8a2 2 0 0 0 0-2.8z"/></svg> Pricing</a>
+    <a class="primary" href="/pricing"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 2l-2 2m-2 6a5 5 0 1 1-7-7 5 5 0 0 1 7 7zM15 8l6 6M18 11l3 3"/></svg> Get API key</a>
   </nav>
 </header>
 <main class="wrap">
@@ -51,6 +51,10 @@ PAGE = r"""<!DOCTYPE html>
     </div>
   </section>
   <div id="onboard-slot"></div>
+  <div class="chatbar">
+    <img src="/img/brand/avatar.webp" alt="" width="32" height="32">
+    <div><b>AI Partner</b><small>Strategy engagement</small></div>
+  </div>
   <div id="steps" class="steps" hidden></div>
   <div id="log" class="log"></div>
   <div id="output" class="output" hidden></div>
@@ -62,6 +66,10 @@ PAGE = r"""<!DOCTYPE html>
   </div>
   <div id="dock"></div>
 </main>
+<footer class="site-foot">
+  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="28" height="28"> AI Partner</a>
+  <p>Beta. Billing is not live.</p>
+</footer>
 <script id="welcome" type="text/plain">__WELCOME__</script>
 <script>
 const STEPS = [

@@ -31,14 +31,14 @@ def index():
         if not demo:
             continue
         cards.append(
-            f'<article class="plan"><h2><a href="/demos/{slug}">{escape(demo["company"])}</a></h2><p>{escape(demo["problem"])}</p></article>'
+            f'<a class="demo-card" href="/demos/{slug}">'
+            f'<img src="/demos/img/{slug}-cover.webp" alt="" width="1024" height="768">'
+            f'<h2>{escape(demo["company"])}</h2><p>{escape(demo["problem"])}</p></a>'
         )
     body = f"""
-<p class="kicker">Demos</p>
 <h1>Three public engagements.</h1>
 <p class="lede">Demo engagement generated from public information. Not commissioned by the company.</p>
-<img class="accent" src="/img/brand/character.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="280" height="210">
-<div class="plans">{"".join(cards)}</div>
+<div class="demo-grid">{"".join(cards)}</div>
 """
     return Response(_shell("Demos · AI Partner", "/demos", body), mimetype="text/html")
 
@@ -112,6 +112,10 @@ def _page(demo):
     <button type="button" id="modal-close">Close</button>
   </div>
 </div>
+<footer class="site-foot">
+  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="28" height="28"> AI Partner</a>
+  <p>Beta. Billing is not live.</p>
+</footer>
 <script src="/report.js"></script>
 <script src="/voice.js"></script>
 </body>

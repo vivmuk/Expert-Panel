@@ -44,9 +44,10 @@ PAGE = """<!DOCTYPE html>
     <a href="#chatgpt"><img src="/img/marks/openai-blossom.svg" alt="OpenAI blossom, from the OpenAI brand guidelines" height="32"><span class="cap">ChatGPT</span></a>
     <a href="#openai-sdk"><img src="/img/marks/openai-wordmark.svg" alt="OpenAI wordmark, from the OpenAI brand guidelines" height="32"><span class="cap">OpenAI</span></a>
     <a href="#anthropic-sdk"><img src="/img/marks/anthropic.svg" alt="Anthropic mark, from anthropic.com" height="32"><span class="cap">Anthropic</span></a>
-    <span class="pending"><b>Muse</b><span class="cap">Logo not confirmed</span></span>
+    <span class="mark"><img src="/img/marks/muse.svg" alt="Muse mark" height="32"><span class="cap">Muse</span></span>
+    <span class="pending" id="grok-bot"><b>Grok Bot</b><span class="cap">Placeholder</span></span>
   </div>
-  <p class="foot">Trademarks belong to their owners. No endorsement is implied. Muse is Meta's personal AI agent. Meta's brand kit and the Muse pages did not include a standalone logo file, so this slot stays empty.</p>
+  <p class="foot">Trademarks belong to their owners. No endorsement is implied. The Grok Bot slot is a placeholder until an official logo file is available.</p>
   <section class="card" id="chatgpt">
     <h2>ChatGPT</h2>
     <p>Add a custom connector and paste the MCP URL. Send the bearer token in the Authorization header.</p>
@@ -83,7 +84,22 @@ PAGE = """<!DOCTYPE html>
     <pre id="anthropic" data-snippet="anthropic"></pre>
     <button type="button" data-copy="anthropic">Copy</button>
   </section>
+  <section class="card" id="grok-bot-setup">
+    <h2>Grok Bot</h2>
+    <p>Grok Bot is a desktop agent. It connects remote MCP servers as connectors and can follow a pasted instruction.</p>
+    <p>Paste this into a Grok Bot chat:</p>
+    <pre id="grok-prompt"></pre>
+    <button type="button" data-copy="grok-prompt">Copy</button>
+    <p>Or add a custom connector. The URL is streamable HTTP. The header is <span class="mono">Authorization: Bearer</span> and the AI Partner key.</p>
+    <pre id="grok-connector"></pre>
+    <button type="button" data-copy="grok-connector">Copy</button>
+    <p>Verify: ask Grok Bot to list the AI Partner tools.</p>
+  </section>
 </main>
+<footer class="site-foot">
+  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="28" height="28"> AI Partner</a>
+  <p>Beta. Billing is not live.</p>
+</footer>
 <script>
 const mcp = "__MCP__";
 const base = "__BASE__";
@@ -102,7 +118,9 @@ const blocks = {
     "    messages=[{'role': 'user', 'content': 'Decide how Maritime should host a public web agent for a team that already has a repo.'}]",
     ").choices[0].message.content)"
   ].join(nl),
-  anthropic: JSON.stringify([{type: "url", url: mcp, authorization_token: "YOUR_KEY"}], null, 2)
+  anthropic: JSON.stringify([{type: "url", url: mcp, authorization_token: "YOUR_KEY"}], null, 2),
+  "grok-prompt": "Set up AI Partner for me. Fetch " + mcp.replace(/\\/mcp$/, "") + "/get-started.md and follow it.",
+  "grok-connector": ["URL", mcp, "Transport: streamable HTTP", "", "Authorization: Bearer YOUR_KEY"].join(nl)
 };
 Object.keys(blocks).forEach(function (id) {
   document.getElementById(id).textContent = blocks[id];

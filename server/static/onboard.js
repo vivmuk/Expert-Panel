@@ -9,7 +9,8 @@
     ["/img/marks/claude-code.png", "Claude Code mark"],
     ["/img/marks/gemini.svg", "Gemini mark"],
     ["/img/marks/copilot.svg", "GitHub Copilot mark"],
-    ["/img/marks/opencode.png", "OpenCode mark"]
+    ["/img/marks/opencode.png", "OpenCode mark"],
+    ["/img/marks/muse.svg", "Muse mark"]
   ];
 
   var root = document.createElement("div");
@@ -33,6 +34,12 @@
     img.height = 28;
     holder.appendChild(img);
   });
+  var grok = document.createElement("span");
+  grok.className = "onboard-placeholder";
+  grok.setAttribute("role", "img");
+  grok.setAttribute("aria-label", "Grok Bot");
+  grok.textContent = "Grok";
+  holder.appendChild(grok);
   slot.appendChild(root);
 
   var toast = root.querySelector(".onboard-toast");

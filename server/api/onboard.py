@@ -41,6 +41,10 @@ _SIGNUP_PAGE = """<!DOCTYPE html>
   <p id="signup-status" class="status" role="status"></p>
   <pre id="signup-key" hidden></pre>
 </main>
+<footer class="site-foot">
+  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="28" height="28"> AI Partner</a>
+  <p>Beta. Billing is not live.</p>
+</footer>
 <script>
 document.getElementById("signup").addEventListener("submit", function (event) {
   event.preventDefault();

@@ -201,6 +201,26 @@ Point any OpenAI SDK at this base URL. The key is `AI_PARTNER_API_KEY`.
 
 Send `ai_partner_state` back on the next request. The field is on the raw response.
 
+### Grok Bot
+
+Grok Bot is a desktop agent. It connects remote MCP servers as connectors and can follow a pasted instruction. Do this after the other agents.
+
+Paste this into a Grok Bot chat:
+
+```text
+Set up AI Partner for me. Fetch https://HOST/get-started.md and follow it.
+```
+
+Manual route: add a custom connector.
+
+- URL: `https://HOST/mcp`
+- Transport: streamable HTTP
+- Header: `Authorization: Bearer $AI_PARTNER_API_KEY`
+
+Do not paste the key into the chat. Put it only in the connector header.
+
+Verify: Ask Grok Bot: list the AI Partner tools.
+
 ## 4. Verify
 
 Call the MCP tool `list_artifacts`. A working connection returns the catalog groups.
@@ -252,6 +272,7 @@ def render_llms(host):
             f"- [Get started]({origin}/get-started.md): setup playbook for a coding agent.",
             f"- [OpenAPI]({origin}/openapi.json): HTTP API, including signup.",
             f"- [MCP]({origin}/mcp): streamable HTTP MCP. Send Authorization: Bearer $AI_PARTNER_API_KEY.",
+            "- Grok Bot: paste the get-started line into a Grok Bot chat, or add a custom connector for that MCP URL. Ask Grok Bot: list the AI Partner tools.",
             "",
         ]
     )

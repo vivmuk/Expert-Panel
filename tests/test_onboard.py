@@ -19,12 +19,16 @@ def test_get_started_uses_the_request_host(monkeypatch):
     assert "https://HOST" not in text
     assert "claude mcp add --transport http ai-partner --scope user" in text
     assert "list_artifacts" in text and "start_job" in text
+    assert "### Grok Bot" in text
+    assert "Ask Grok Bot: list the AI Partner tools." in text
+    assert text.rfind("### Grok Bot") > text.rfind("### OpenCode")
     llms = client.get("/llms.txt", base_url="https://ai-partner.up.railway.app")
     assert llms.status_code == 200
     body = llms.get_data(as_text=True)
     assert "https://ai-partner.up.railway.app/get-started.md" in body
     assert "https://ai-partner.up.railway.app/openapi.json" in body
     assert "https://ai-partner.up.railway.app/mcp" in body
+    assert "Grok Bot" in body
     pack = client.get("/skills.zip")
     archive = zipfile.ZipFile(io.BytesIO(pack.data))
     assert "run-engagement/SKILL.md" in archive.namelist()
@@ -59,6 +63,8 @@ def test_signup_issues_a_key_and_reissue_hides_the_old_one(monkeypatch):
     script = client.get("/onboard.js").get_data(as_text=True)
     assert "Set up AI Partner for me. Fetch " in script
     assert "/get-started.md and follow it." in script
+    assert script.index("/img/marks/muse.svg") > script.index("/img/marks/opencode.png")
+    assert script.index("Grok Bot") > script.index("/img/marks/muse.svg")
 
 
 def test_signup_key_can_list_artifacts_over_mcp(monkeypatch):

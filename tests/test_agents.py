@@ -139,7 +139,8 @@ def test_deck_links_back_to_chat(client):
     assert "Stop buying slides. Start shipping outcomes." in text
     assert "91%" in text and "~$0.012" in text
     assert "Works with" in text
-    assert "Logo not confirmed" in text
+    assert "/img/marks/muse.svg" in text
+    assert "Grok Bot" in text
     assert "{{DEMO_URL}}" not in text
     connect = client.get("/connect")
     assert connect.status_code == 200
@@ -152,4 +153,6 @@ def test_deck_links_back_to_chat(client):
     assert "/img/marks/claude-code.png" in body
     assert "/img/marks/openai-wordmark.svg" in body
     assert "/img/marks/openai-blossom.svg" in body
-    assert "Logo not confirmed" in body
+    assert "/img/marks/muse.svg" in body
+    assert "Grok Bot" in body
+    assert "list the AI Partner tools" in body
