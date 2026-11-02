@@ -148,4 +148,8 @@ def test_deck_links_back_to_chat(client):
     assert "Works with" in body
     assert "No endorsement is implied." in body
     assert 'href="#claude-code"' in body
+    assert 'href="#claude-app"' in body
+    assert "/img/marks/claude-code.png" in body
+    assert "/img/marks/openai-wordmark.svg" in body
+    assert "/img/marks/openai-blossom.svg" in body
     assert "Logo not confirmed" in body

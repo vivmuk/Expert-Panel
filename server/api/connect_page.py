@@ -37,14 +37,15 @@ PAGE = """<!DOCTYPE html>
   <p class="lede">The web chat stays open. These endpoints need a bearer token from <span class="mono">AI_PARTNER_API_KEYS</span>. If that variable is empty, they answer 401.</p>
   <p class="kicker">Works with</p>
   <div class="works-with">
-    <a href="#cursor-setup"><img src="/img/marks/cursor.svg" alt="Cursor mark" height="32"><span class="cap">Cursor</span></a>
-    <a href="#claude-code"><img src="/img/marks/claude.svg" alt="Claude mark" height="32"><span class="cap">Claude Code</span></a>
-    <a href="#chatgpt"><img src="/img/marks/openai.svg" alt="OpenAI mark" height="32"><span class="cap">ChatGPT</span></a>
-    <a href="#anthropic-sdk"><img src="/img/marks/anthropic.svg" alt="Anthropic mark" height="32"><span class="cap">Anthropic</span></a>
-    <a href="#openai-sdk"><img src="/img/marks/openai.svg" alt="OpenAI mark" height="32"><span class="cap">OpenAI</span></a>
+    <a href="#cursor-setup"><img src="/img/marks/cursor.svg" alt="Cursor cube, from the Cursor brand guidelines" height="32"><span class="cap">Cursor</span></a>
+    <a href="#claude-code"><img src="/img/marks/claude-code.png" alt="Claude Code mark, from the Claude Code docs" height="32"><span class="cap">Claude Code</span></a>
+    <a href="#claude-app"><img src="/img/marks/claude.svg" alt="Claude mark, from claude.com" height="32"><span class="cap">Claude</span></a>
+    <a href="#chatgpt"><img src="/img/marks/openai-blossom.svg" alt="OpenAI blossom, from the OpenAI brand guidelines" height="32"><span class="cap">ChatGPT</span></a>
+    <a href="#openai-sdk"><img src="/img/marks/openai-wordmark.svg" alt="OpenAI wordmark, from the OpenAI brand guidelines" height="32"><span class="cap">OpenAI</span></a>
+    <a href="#anthropic-sdk"><img src="/img/marks/anthropic.svg" alt="Anthropic mark, from anthropic.com" height="32"><span class="cap">Anthropic</span></a>
     <span class="pending"><b>Muse</b><span class="cap">Logo not confirmed</span></span>
   </div>
-  <p class="foot">Trademarks belong to their owners. No endorsement is implied. Muse is a placeholder until the name is confirmed.</p>
+  <p class="foot">Trademarks belong to their owners. No endorsement is implied. Muse is Meta's personal AI agent. Meta's brand kit and the Muse pages did not include a standalone logo file, so this slot stays empty.</p>
   <section class="card" id="chatgpt">
     <h2>ChatGPT</h2>
     <p>Add a custom connector and paste the MCP URL. Send the bearer token in the Authorization header.</p>
@@ -53,9 +54,15 @@ PAGE = """<!DOCTYPE html>
   </section>
   <section class="card" id="claude-code">
     <h2>Claude Code</h2>
-    <p>Claude Code and Claude Desktop speak stdio. This config runs the remote server through mcp-remote. The mark above is the Claude mark.</p>
+    <p>Claude Code speaks stdio. This config runs the remote server through mcp-remote.</p>
     <pre id="claude" data-snippet="claude"></pre>
     <button type="button" data-copy="claude">Copy</button>
+  </section>
+  <section class="card" id="claude-app">
+    <h2>Claude</h2>
+    <p>In the Claude app, add a custom connector and paste the MCP URL. Send the bearer token in the Authorization header.</p>
+    <pre id="claude-app-snippet"></pre>
+    <button type="button" data-copy="claude-app-snippet">Copy</button>
   </section>
   <section class="card" id="cursor-setup">
     <h2>Cursor</h2>
@@ -70,8 +77,8 @@ PAGE = """<!DOCTYPE html>
     <button type="button" data-copy="openai">Copy</button>
   </section>
   <section class="card" id="anthropic-sdk">
-    <h2>Anthropic and Claude</h2>
-    <p>On claude.ai, add a custom connector with the same MCP URL and bearer token. The Messages API can also attach this server. We verified the MCP handshake on <span class="mono">/mcp</span>. We did not call Anthropic's cloud from this repo.</p>
+    <h2>Anthropic</h2>
+    <p>The Messages API can attach this MCP server. We verified the MCP handshake on <span class="mono">/mcp</span>. We did not call Anthropic's cloud from this repo.</p>
     <pre id="anthropic" data-snippet="anthropic"></pre>
     <button type="button" data-copy="anthropic">Copy</button>
   </section>
@@ -83,6 +90,7 @@ const nl = String.fromCharCode(10);
 const blocks = {
   gpt: ["MCP URL", mcp, "", "Authorization: Bearer YOUR_KEY"].join(nl),
   claude: JSON.stringify({mcpServers: {"ai-partner": {command: "npx", args: ["-y", "mcp-remote", mcp, "--header", "Authorization: Bearer YOUR_KEY"]}}}, null, 2),
+  "claude-app-snippet": ["MCP URL", mcp, "", "Authorization: Bearer YOUR_KEY"].join(nl),
   cursor: JSON.stringify({mcpServers: {"ai-partner": {url: mcp, headers: {Authorization: "Bearer YOUR_KEY"}}}}, null, 2),
   openai: [
     "from openai import OpenAI",
