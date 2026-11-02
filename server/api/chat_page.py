@@ -24,6 +24,7 @@ def render_page(welcome, origin=""):
         for name, glyph, text in EXAMPLES
     )
     icons = json.dumps({name: icon(name) for name in CLIENT_ICONS}).replace("</", "<\\/")
+    welcome = welcome.replace("</", "<\\/")
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,7 +68,7 @@ def render_page(welcome, origin=""):
   <div id="onboard-slot" hidden></div>
 </main>
 {FOOT}
-<script id="welcome" type="text/plain">{welcome.replace("</", "<\\/")}</script>
+<script id="welcome" type="text/plain">{welcome}</script>
 <script id="chat-icons" type="application/json">{icons}</script>
 <script src="/chat.js" data-endpoint="/api/chat" defer></script>
 <script src="/onboard.js" defer></script>
