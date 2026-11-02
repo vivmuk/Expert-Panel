@@ -1,5 +1,8 @@
 import logging
+import mimetypes
 import os
+
+mimetypes.add_type("image/webp", ".webp")
 
 from flask import Flask, jsonify
 from flask_cors import CORS

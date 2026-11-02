@@ -89,6 +89,16 @@ def test_old_rate_limit_keys_are_evicted():
     assert allow_in_this_process("198.51.100.8", now=10 + 601)
 
 
+def test_webp_is_served_as_image_webp(monkeypatch):
+    monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("VERCEL", "1")
+    from server import create_app
+
+    res = create_app().test_client().get("/img/brand/avatar.webp")
+    assert res.status_code == 200
+    assert res.mimetype == "image/webp"
+
+
 def test_canonical_hosts_are_allowed(monkeypatch):
     monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
     monkeypatch.setenv("VERCEL", "1")
