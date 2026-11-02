@@ -1,7 +1,7 @@
 """Serve the built React app (web/dist) with SPA fallback."""
 import os
 
-from flask import Blueprint, send_from_directory
+from flask import Blueprint, redirect, send_from_directory
 
 bp = Blueprint("static_serve", __name__)
 
@@ -11,6 +11,11 @@ _DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "web
 @bp.get("/")
 @bp.get("/<path:path>")
 def serve(path="index.html"):
+    # The Docker image builds web/dist. Vercel serves the chat page instead.
+    if not os.path.isdir(_DIST):
+        if path in ("", "index.html"):
+            return redirect("/chat")
+        return ("Not found", 404)
     full = os.path.join(_DIST, path)
     if os.path.isfile(full):
         return send_from_directory(_DIST, path)

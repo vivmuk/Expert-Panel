@@ -33,5 +33,7 @@ class Config:
 
 
 def require_api_key():
-    if not Config.VENICE_API_KEY:
+    # Read at call time. Import-time capture breaks tests and any host that
+    # injects the key after the module is first imported.
+    if not os.environ.get("VENICE_API_KEY"):
         raise RuntimeError("VENICE_API_KEY environment variable is required")

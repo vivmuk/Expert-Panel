@@ -1,0 +1,142 @@
+"""Web chat for one consulting job. The browser sends the job back each turn."""
+import logging
+import threading
+import time
+
+from flask import Blueprint, Response, jsonify, request
+
+from ..chatjob import WELCOME, handle_turn, load_state, render_report
+from ..chatmemory import recall, remember
+from ..harnesskit import build_kit_zip
+from .chat_page import render_page
+
+logger = logging.getLogger(__name__)
+bp = Blueprint("partner_chat", __name__)
+
+WINDOW_SECONDS = 600
+TURN_LIMIT = 20
+_lock = threading.Lock()
+_hits = {}
+
+
+def allow(chat_id, now=None):
+    """Best-effort limit for one warm instance. The client keeps the chat id."""
+    now = time.time() if now is None else now
+    with _lock:
+        hits = [stamp for stamp in _hits.get(chat_id, []) if now - stamp < WINDOW_SECONDS]
+        if len(hits) >= TURN_LIMIT:
+            _hits[chat_id] = hits
+            return False
+        hits.append(now)
+        _hits[chat_id] = hits
+        return True
+
+
+def reset_limits():
+    with _lock:
+        _hits.clear()
+
+
+def complete_with_venice(name, messages, schema, max_tokens):
+    from ..config import Config
+    from ..venice.client import get_client
+
+    model = Config.MODEL_ROLE_DEFAULTS["workchart"] if name == "ChatChart" else Config.MODEL_ROLE_DEFAULTS["expert"]
+    return get_client().structured(
+        model,
+        messages,
+        name,
+        schema,
+        temperature=0.3,
+        max_completion_tokens=max_tokens,
+    )
+
+
+def _body():
+    raw = request.get_json(force=True, silent=True)
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        return None
+    return raw
+
+
+def _bad(message):
+    return jsonify({"error": {"code": "bad_request", "message": message}}), 400
+
+
+@bp.get("/chat")
+def chat_page():
+    return Response(render_page(WELCOME), mimetype="text/html")
+
+
+@bp.post("/api/chat")
+def post_chat():
+    raw = _body()
+    if raw is None:
+        return _bad("Send a JSON object.")
+    message = raw.get("message") or ""
+    if not isinstance(message, str):
+        return _bad("Message must be text.")
+    if len(message) > 8000:
+        return _bad("Message is too long.")
+    state = load_state(raw.get("state"))
+    if not allow(state["chat_id"]):
+        reply = "This chat is sending messages too fast. Wait a few minutes and try again."
+        return jsonify(
+            {
+                "reply": reply,
+                "state": state,
+                "next": None,
+                "error": {"code": "rate", "message": reply},
+            }
+        ), 429
+    try:
+        result = handle_turn(state, message, complete_with_venice, recall, remember)
+    except Exception:
+        logger.exception("chat turn failed at phase %s", state.get("phase"))
+        reply = "The model call failed. Your earlier answers are still here. Send the message again."
+        return jsonify(
+            {
+                "reply": reply,
+                "state": state,
+                "next": None,
+                "error": {"code": "model", "message": reply},
+            }
+        ), 502
+    status = 429 if result.get("error") and result["error"]["code"] == "budget" else 200
+    return jsonify(result), status
+
+
+@bp.post("/api/chat/kit")
+def chat_kit():
+    raw = _body()
+    if raw is None:
+        return _bad("Send a JSON object.")
+    state = load_state(raw.get("state"))
+    try:
+        blob = build_kit_zip(state)
+    except ValueError:
+        return jsonify({"error": {"code": "not_ready", "message": "The work chart is not ready yet."}}), 400
+    return Response(
+        blob,
+        mimetype="application/zip",
+        headers={"Content-Disposition": "attachment; filename=harness-kit.zip"},
+    )
+
+
+@bp.post("/api/chat/report")
+def chat_report():
+    raw = _body()
+    if raw is None:
+        return _bad("Send a JSON object.")
+    state = load_state(raw.get("state"))
+    try:
+        body = render_report(state)
+    except ValueError:
+        return jsonify({"error": {"code": "not_ready", "message": "The report is not ready yet."}}), 400
+    return Response(
+        body,
+        mimetype="text/markdown",
+        headers={"Content-Disposition": "attachment; filename=report.md"},
+    )
