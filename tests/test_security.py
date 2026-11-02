@@ -262,6 +262,17 @@ def test_unknown_api_path_is_404_and_health_reports_the_sha(monkeypatch):
     assert missing.get_json()["error"]["code"] == "not_found"
     health = client.get("/health")
     assert health.get_json()["sha"] == "abc123def"
+    assert len(health.get_json()["build"]) == 12
+
+
+def test_health_falls_back_to_the_vercel_sha(monkeypatch):
+    monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("RAILWAY_GIT_COMMIT_SHA", raising=False)
+    monkeypatch.setenv("VERCEL_GIT_COMMIT_SHA", "vercel123")
+    from server import create_app
+
+    assert create_app().test_client().get("/health").get_json()["sha"] == "vercel123"
 
 
 def test_prompts_label_untrusted_text():

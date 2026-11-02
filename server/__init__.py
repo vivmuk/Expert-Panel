@@ -52,8 +52,9 @@ def create_app():
 
     @app.get("/health")
     def health():
-        sha = os.environ.get("RAILWAY_GIT_COMMIT_SHA") or os.environ.get("GIT_COMMIT") or ""
-        return jsonify({"status": "ok", "sha": sha})
+        from .buildinfo import commit_sha, fingerprint
+
+        return jsonify({"status": "ok", "sha": commit_sha(), "build": fingerprint()})
 
     @app.errorhandler(PersistentStoreUnavailable)
     def no_store(exc):

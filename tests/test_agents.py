@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 
 import pytest
@@ -130,18 +131,16 @@ def test_openai_sdk_against_the_chat_flow(monkeypatch, tmp_path):
         httpd.shutdown()
 
 
-def test_deck_links_back_to_chat(client):
+def test_deck_serves_the_final_file_and_links_back_to_chat(client):
     page = client.get("/deck")
     assert page.status_code == 200
+    with open(os.path.join(os.path.dirname(__file__), "..", "server", "static", "deck", "index.html"), "rb") as handle:
+        assert page.data == handle.read()
     text = page.get_data(as_text=True)
-    assert 'href="/chat"' in text
-    assert "Public, no login." in text
-    assert "Stop buying slides. Start shipping outcomes." in text
-    assert "91%" in text and "~$0.012" in text
-    assert "Works with" in text
-    assert "/img/marks/muse.svg" in text
-    assert "Grok Bot" in text
+    assert text.count('class="slide') == 14
+    assert "/chat" in text
     assert "{{DEMO_URL}}" not in text
+    assert client.get("/deck/").status_code == 200
     connect = client.get("/connect")
     assert connect.status_code == 200
     body = connect.get_data(as_text=True)
