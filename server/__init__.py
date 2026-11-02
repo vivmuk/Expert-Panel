@@ -19,7 +19,14 @@ def create_app():
 
     app = Flask(__name__)
     app.config.from_object(Config)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(
+        app,
+        resources={
+            r"/api/*": {"origins": "*"},
+            r"/mcp": {"origins": "*"},
+            r"/v1/*": {"origins": "*"},
+        },
+    )
 
     if os.environ.get("VERCEL"):
         logger.info("VERCEL is set. Skipping SQLite. Chat jobs stay in the browser.")

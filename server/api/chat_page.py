@@ -1,99 +1,66 @@
 def render_page(welcome):
-    safe = welcome.replace("</", "<\\/")
-    return PAGE.replace("__WELCOME__", safe)
+    return PAGE.replace("__WELCOME__", welcome.replace("</", "<\\/"))
 
 
-PAGE = """<!DOCTYPE html>
+PAGE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Partner</title>
-<style>
-  * { box-sizing: border-box; }
-  html, body { height: 100%; }
-  body {
-    margin: 0;
-    font: 17px/1.45 Georgia, "Iowan Old Style", Palatino, serif;
-    background: #f6f3ec;
-    color: #1c1917;
-  }
-  main {
-    max-width: 40rem;
-    height: 100dvh;
-    margin: 0 auto;
-    padding: 1rem 1rem 0.75rem;
-    display: flex;
-    flex-direction: column;
-  }
-  h1 { font-size: 1.7rem; font-weight: 600; margin: 0 0 0.25rem; }
-  .sub { color: #57534e; margin: 0; }
-  .log {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin: 0.75rem 0;
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-  }
-  .user, .assistant {
-    padding: 0.8rem 0.95rem;
-    border-radius: 0.7rem;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
-  .assistant { background: #fff; border: 1px solid #e7e5e4; }
-  .user { background: #312e81; color: #f5f5f4; margin-left: 1.5rem; }
-  form { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.5rem; }
-  textarea {
-    width: 100%;
-    font: inherit;
-    padding: 0.65rem 0.7rem;
-    border-radius: 0.55rem;
-    border: 1px solid #d6d3d1;
-    background: #fff;
-    resize: vertical;
-  }
-  button {
-    font: inherit;
-    background: #312e81;
-    color: #fff;
-    border: 0;
-    border-radius: 0.55rem;
-    padding: 0.6rem 0.95rem;
-    cursor: pointer;
-  }
-  button.secondary { background: transparent; color: #312e81; border: 1px solid #312e81; }
-  button:disabled { opacity: 0.6; cursor: default; }
-  .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0; }
-  #status { min-height: 1.4em; margin: 0.25rem 0; }
-  button:focus-visible, textarea:focus-visible { outline: 2px solid #312e81; outline-offset: 2px; }
-</style>
+<link rel="stylesheet" href="/app.css">
 </head>
 <body>
-<main>
-  <h1>AI Partner</h1>
-  <p class="sub">One consulting job, from the first question to a harness kit.</p>
+<div class="bar"><span id="progress"></span></div>
+<header class="top">
+  <a class="brand" href="/"><span class="dot"></span> AI Partner</a>
+  <nav class="links">
+    <a href="/" aria-current="page">Chat</a>
+    <a href="/deck">Deck</a>
+    <a href="/connect">Connect</a>
+  </nav>
+</header>
+<main class="wrap">
+  <section id="hero" class="hero">
+    <div>
+      <p class="kicker">The First 1,000</p>
+      <h1>Outcomes, not advice. <em>We hand you the agents that do the work.</em></h1>
+      <p class="lede">Use AI Partner inside the agents you already use. <a href="/connect">Open Connect.</a></p>
+    </div>
+    <img src="/deck/img/01-title.webp" alt="Watercolor of a suitcase releasing small robots into a starry sky.">
+  </section>
+  <div id="steps" class="steps" hidden></div>
   <div id="log" class="log"></div>
-  <p id="status" class="sub" role="status"></p>
-  <div class="row">
-    <button type="button" id="cont" class="secondary" hidden>Continue</button>
-    <button type="button" id="report" class="secondary" hidden>Download report</button>
-    <button type="button" id="kit" class="secondary" hidden>Download harness kit</button>
-    <button type="button" id="pack" class="secondary" hidden>Download skill pack</button>
-    <button type="button" id="fresh" class="secondary">New chat</button>
+  <div id="output" class="output" hidden></div>
+  <p id="status" class="status" role="status"></p>
+  <div id="downloads" class="row" hidden>
+    <button type="button" id="report" class="ghost">Download report</button>
+    <button type="button" id="kit" class="ghost">Download harness kit</button>
+    <button type="button" id="pack" class="ghost">Download skill pack</button>
   </div>
   <form id="form">
-    <label class="sub" for="box">Message</label>
+    <label class="kicker" for="box">Message</label>
     <textarea id="box" rows="3" placeholder="Market entry for a medtech device into Germany"></textarea>
-    <label class="sub" for="file">Optional templates or notes, txt, md, pdf, or docx</label>
+    <label class="kicker" for="file">Optional notes, txt, md, pdf, or docx</label>
     <input id="file" type="file" multiple accept=".txt,.md,.markdown,.pdf,.docx,text/plain">
-    <button type="submit">Send</button>
+    <div class="row">
+      <button class="send" type="submit">Send</button>
+      <button type="button" id="cont" class="ghost" hidden>Continue</button>
+      <button type="button" id="fresh" class="ghost">New chat</button>
+    </div>
   </form>
 </main>
 <script id="welcome" type="text/plain">__WELCOME__</script>
 <script>
+const STEPS = [
+  ["intake", "Intake"],
+  ["maturity", "Maturity"],
+  ["panel", "Panel"],
+  ["chart", "Work Chart"],
+  ["research", "Research"],
+  ["skills", "Skill Pack"],
+  ["kit", "Kit"]
+];
 const STATUS = {
   panel: "Staffing a four-person panel.",
   red_team: "Running the red team.",
@@ -103,17 +70,30 @@ const STATUS = {
   skills: "Writing the skill pack."
 };
 const log = document.getElementById("log");
+const output = document.getElementById("output");
 const status = document.getElementById("status");
 const form = document.getElementById("form");
 const box = document.getElementById("box");
 const cont = document.getElementById("cont");
-const reportBtn = document.getElementById("report");
-const kitBtn = document.getElementById("kit");
-const packBtn = document.getElementById("pack");
-let pendingUploads = [];
+const stepsEl = document.getElementById("steps");
+const hero = document.getElementById("hero");
+const downloads = document.getElementById("downloads");
+const progress = document.getElementById("progress");
 let state = null;
 let messages = [];
 let running = false;
+let pendingUploads = [];
+let view = null;
+
+function phaseStep(phase) {
+  if (phase === "ask_maturity") return 1;
+  if (phase === "panel" || phase === "red_team") return 2;
+  if (phase === "blueprint") return 3;
+  if (phase === "ask_size" || phase === "research" || phase === "synthesize") return 4;
+  if (phase === "skills") return 5;
+  if (phase === "done") return 6;
+  return 0;
+}
 
 function add(role, text) {
   messages.push({ role: role, text: text });
@@ -121,16 +101,107 @@ function add(role, text) {
   div.className = role;
   div.textContent = text;
   log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function paintSteps() {
+  const current = phaseStep(state && state.phase);
+  stepsEl.hidden = false;
+  stepsEl.textContent = "";
+  progress.style.width = ((current + 1) / STEPS.length * 100) + "%";
+  STEPS.forEach(function (step, index) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = step[1];
+    button.disabled = index > current;
+    if (index === (view == null ? current : view)) button.className = "on";
+    else if (index < current) button.className = "done";
+    button.addEventListener("click", function () {
+      view = index === current ? null : index;
+      paint();
+    });
+    stepsEl.appendChild(button);
+  });
+}
+
+function card(title, text) {
+  const el = document.createElement("div");
+  el.className = "card";
+  const h = document.createElement("h2");
+  h.textContent = title;
+  const p = document.createElement("p");
+  p.textContent = text;
+  el.appendChild(h);
+  el.appendChild(p);
+  return el;
+}
+
+function ownerClass(owner) {
+  if (owner === "AI Agent") return "agent";
+  if (owner === "Hybrid") return "hybrid";
+  return "human";
+}
+
+function chartCard(title, steps) {
+  const el = document.createElement("div");
+  el.className = "card";
+  const h = document.createElement("h2");
+  h.textContent = title;
+  el.appendChild(h);
+  (steps || []).forEach(function (step) {
+    const line = document.createElement("p");
+    const tag = document.createElement("span");
+    tag.className = "owner " + ownerClass(step.owner);
+    tag.textContent = step.owner;
+    line.appendChild(tag);
+    line.appendChild(document.createTextNode(step.step + ". " + step.task));
+    el.appendChild(line);
+  });
+  return el;
+}
+
+function showOutput(index) {
+  output.textContent = "";
+  output.hidden = false;
+  log.hidden = true;
+  const s = state || {};
+  if (index === 0) output.appendChild(card("Intake", [s.problem, s.team, s.tools].filter(Boolean).join("\n\n") || "Name the job."));
+  if (index === 1) output.appendChild(card("Maturity", s.maturity ? ("Maturity " + s.maturity) : "Waiting for a score from 1 to 4."));
+  if (index === 2) {
+    const panel = s.panel;
+    const text = panel ? panel.personas.map(function (p) { return p.name + ", " + p.title + ". " + p.insight; }).join("\n\n") + "\n\n" + panel.consensus : "The panel has not run.";
+    output.appendChild(card("Panel", text));
+  }
+  if (index === 3 && s.chart) {
+    output.appendChild(chartCard("Today", s.chart.current));
+    output.appendChild(chartCard("Agent era", s.chart.future));
+  } else if (index === 3) output.appendChild(card("Work Chart", "The chart has not been drawn."));
+  if (index === 4) {
+    const brief = s.brief;
+    const cites = brief && brief.citations ? brief.citations.map(function (c) { return c.title + ". " + c.url; }).join("\n") : "";
+    output.appendChild(card("Research", brief ? (brief.summary + "\n\n" + cites) : "Research has not run."));
+  }
+  if (index === 5) output.appendChild(card("Skill Pack", s.pack ? ("Tier " + s.pack.tier + ". Download the pack from Kit.") : "The pack has not been written."));
+  if (index === 6) output.appendChild(card("Kit", s.phase === "done" ? "The report, harness kit, and skill pack are ready." : "The kit is ready when the pack is written."));
 }
 
 function paint() {
   const phase = state && state.phase;
-  const working = phase === "panel" || phase === "red_team" || phase === "blueprint" || phase === "research" || phase === "synthesize" || phase === "skills";
+  const current = phaseStep(phase);
+  const working = ["panel", "red_team", "blueprint", "research", "synthesize", "skills"].indexOf(phase) >= 0;
   cont.hidden = !working;
-  const done = phase === "done";
-  reportBtn.hidden = !done;
-  kitBtn.hidden = !done;
-  packBtn.hidden = !done;
+  const started = messages.some(function (m) { return m.role === "user"; });
+  hero.hidden = started || !!(state && state.phase && state.phase !== "ask_problem");
+  stepsEl.hidden = !started;
+  if (started) paintSteps();
+  const selected = view == null ? current : view;
+  if ((started || hero.hidden) && view != null && view !== current) showOutput(view);
+  else {
+    output.hidden = true;
+    log.hidden = false;
+  }
+  downloads.hidden = phase !== "done" && selected !== 6;
+  if (selected === 6 && phase === "done") downloads.hidden = false;
 }
 
 function save() {
@@ -139,21 +210,23 @@ function save() {
 
 function setBusy(busy) {
   running = busy;
-  form.querySelector("button").disabled = busy;
+  form.querySelector(".send").disabled = busy;
   box.disabled = busy;
   cont.disabled = busy;
 }
 
 async function post(message) {
+  const uploads = pendingUploads;
+  pendingUploads = [];
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: message, state: state || {}, uploads: pendingUploads })
+    body: JSON.stringify({ message: message, state: state || {}, uploads: uploads })
   });
   const data = await res.json();
-  pendingUploads = [];
   if (data.state) state = data.state;
   if (data.reply) add("assistant", data.reply);
+  view = null;
   save();
   paint();
   if (data.error || !data.next) return null;
@@ -187,10 +260,7 @@ function readUploads() {
   const files = Array.from(input.files || []).slice(0, 4);
   return Promise.all(files.map(function (file) {
     return new Promise(function (resolve) {
-      if (file.size > 500000) {
-        resolve(null);
-        return;
-      }
+      if (file.size > 500000) { resolve(null); return; }
       const ext = (file.name.split(".").pop() || "").toLowerCase();
       const reader = new FileReader();
       reader.onload = function () {
@@ -206,10 +276,7 @@ function readUploads() {
       if (ext === "txt" || ext === "md" || ext === "markdown") reader.readAsText(file);
       else reader.readAsArrayBuffer(file);
     });
-  })).then(function (items) {
-    input.value = "";
-    return items.filter(Boolean);
-  });
+  })).then(function (items) { input.value = ""; return items.filter(Boolean); });
 }
 
 form.addEventListener("submit", function (ev) {
@@ -224,7 +291,6 @@ form.addEventListener("submit", function (ev) {
     run(text);
   });
 });
-
 cont.addEventListener("click", function () { run(""); });
 
 async function download(path, filename) {
@@ -234,10 +300,7 @@ async function download(path, filename) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ state: state })
   });
-  if (!res.ok) {
-    status.textContent = "That file is not ready yet.";
-    return;
-  }
+  if (!res.ok) { status.textContent = "That file is not ready yet."; return; }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -249,11 +312,9 @@ async function download(path, filename) {
   URL.revokeObjectURL(url);
   status.textContent = "";
 }
-
-reportBtn.addEventListener("click", function () { download("/api/chat/report", "report.md"); });
-kitBtn.addEventListener("click", function () { download("/api/chat/kit", "harness-kit.zip"); });
-packBtn.addEventListener("click", function () { download("/api/chat/skill-pack", "skill-pack.zip"); });
-
+document.getElementById("report").addEventListener("click", function () { download("/api/chat/report", "report.md"); });
+document.getElementById("kit").addEventListener("click", function () { download("/api/chat/kit", "harness-kit.zip"); });
+document.getElementById("pack").addEventListener("click", function () { download("/api/chat/skill-pack", "skill-pack.zip"); });
 document.getElementById("fresh").addEventListener("click", function () {
   localStorage.removeItem("ai-partner-chat");
   location.reload();
@@ -265,9 +326,7 @@ try {
     state = saved.state || null;
     saved.messages.forEach(function (item) { add(item.role, item.text); });
   }
-} catch (err) {
-  state = null;
-}
+} catch (err) { state = null; }
 if (!messages.length) add("assistant", document.getElementById("welcome").textContent);
 paint();
 </script>

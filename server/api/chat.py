@@ -1,8 +1,9 @@
 import logging
+import os
 import threading
 import time
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify, request, send_from_directory
 
 from ..chatjob import WELCOME, handle_turn, load_state, render_report
 from ..chatmemory import recall, remember
@@ -11,6 +12,9 @@ from ..harnesskit import build_kit_zip
 from ..skillpack import build_pack_zip
 from ..uploads import take_uploads
 from .chat_page import render_page
+from .connect_page import render_connect
+
+_STATIC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("partner_chat", __name__)
@@ -72,6 +76,17 @@ REPLY_SCHEMA = {
     "required": ["response"],
     "additionalProperties": False,
 }
+
+
+@bp.get("/app.css")
+def app_css():
+    return send_from_directory(_STATIC, "app.css")
+
+
+@bp.get("/connect")
+def connect_page():
+    origin = os.environ.get("PUBLIC_BASE_URL", "").strip() or request.host_url
+    return Response(render_connect(origin), mimetype="text/html")
 
 
 @bp.get("/chat")
