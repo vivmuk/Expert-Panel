@@ -44,9 +44,21 @@ _starts = {}
 DAILY_LIMIT_REPLY = "This network has started its engagements for today. Continue an open one, or come back tomorrow."
 
 
+def client_ip_header():
+    """Railway and Vercel overwrite X-Real-IP at their edge; Railway passes a client's X-Forwarded-For through untouched."""
+    configured = os.environ.get("AI_PARTNER_CLIENT_IP_HEADER", "").strip()
+    if configured:
+        return configured
+    if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("VERCEL"):
+        return "X-Real-IP"
+    return ""
+
+
 def client_ip():
-    """The peer address. ProxyFix in create_app sets it from the hop our proxy appended, never the client's own."""
-    return request.remote_addr or "unknown"
+    """The edge-set client header where the platform has one, else the peer that ProxyFix took from the last hop."""
+    header = client_ip_header()
+    value = request.headers.get(header, "").split(",")[-1].strip() if header else ""
+    return value or request.remote_addr or "unknown"
 
 
 def daily_engagements():

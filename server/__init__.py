@@ -32,7 +32,7 @@ def create_app():
 
     app = Flask(__name__)
     app.config.from_object(Config)
-    # One proxy (Railway, Vercel or Maritime) sits in front and appends the real peer to X-Forwarded-For.
+    # For hosts without an edge-set client header (see client_ip): trust only the hop our one proxy appended.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
     CORS(
         app,

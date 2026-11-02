@@ -33,6 +33,22 @@ def test_a_spoofed_first_forwarded_hop_does_not_escape_the_rate_limit(client):
     assert _turn(client, "xff", "203.0.113.8").status_code == 200
 
 
+def test_on_railway_the_edge_set_real_ip_is_the_key_and_forwarded_for_is_ignored(client, monkeypatch):
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
+
+    def edge(n, real="203.0.113.20"):
+        return client.post(
+            "/api/chat",
+            json={"message": "", "state": {"chat_id": "edge"}},
+            headers={"X-Forwarded-For": f"198.51.100.{n}", "X-Real-IP": real},
+        )
+
+    for n in range(TURN_LIMIT):
+        assert edge(n).status_code == 200
+    assert edge(99).get_json()["error"]["code"] == "rate"
+    assert edge(100, real="203.0.113.21").status_code == 200
+
+
 def test_chat_refuses_with_503_when_no_signing_secret_is_set(client, monkeypatch):
     monkeypatch.delenv("AI_PARTNER_SIGNING_SECRETS", raising=False)
     monkeypatch.delenv("AI_PARTNER_SIGNING_SECRET", raising=False)
