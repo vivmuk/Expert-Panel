@@ -59,8 +59,11 @@ def _write_zip(path, demo):
         archive.writestr("experts.json", json.dumps(demo["experts"], indent=2))
         archive.writestr("top5.json", json.dumps(demo["top5"], indent=2))
         for skill in demo["skills"]:
-            slug = "".join(ch if ch.isalnum() else "-" for ch in skill.lower()).strip("-") or "skill"
-            archive.writestr(f"skills/{slug}/SKILL.md", f"# {skill}\n")
+            name = skill["name"]
+            archive.writestr(
+                f"skills/{name}/SKILL.md",
+                f"---\nname: {name}\ndescription: {skill['purpose']}\n---\n\n# {name}\n\n{skill['purpose']}\n",
+            )
         for item in demo["artifacts"]:
             body = item.get("body") or item.get("title") or item["id"]
             archive.writestr(f"artifacts/{item['id']}.md", as_markdown(item.get("title") or item["id"], body, demo=True))

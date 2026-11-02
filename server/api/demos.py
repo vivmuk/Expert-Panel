@@ -5,7 +5,7 @@ from html import escape
 
 from flask import Blueprint, Response, abort, send_from_directory
 
-from ..demo_schema import valid_demo
+from ..demo_schema import DISCLAIMER, valid_demo
 from .pages import NAV, _shell
 
 bp = Blueprint("demos", __name__)
@@ -37,7 +37,7 @@ def index():
         )
     body = f"""
 <h1>Three public engagements.</h1>
-<p class="lede">Demo engagement generated from public information. Not commissioned by the company.</p>
+<p class="lede">{escape(DISCLAIMER)}</p>
 <div class="demo-grid">{"".join(cards)}</div>
 """
     return Response(_shell("Demos · AI Partner", "/demos", body), mimetype="text/html")
@@ -132,7 +132,7 @@ def _report(demo):
     score = maturity.get("score") if maturity else None
     return f"""
 <p class="kicker">Demo · {escape(demo["company"])}</p>
-<p>{escape(demo["disclaimer"])}</p>
+<p>{escape(DISCLAIMER)}</p>
 <section id="summary">
   {_art(slug, "cover")}
   <h1>{escape(demo["company"])}</h1>

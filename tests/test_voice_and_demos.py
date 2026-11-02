@@ -54,7 +54,9 @@ def test_pipeline_drops_citations_that_search_did_not_return():
                 "citation_url": "https://evil.example/nope",
                 "backers": ["Ada"],
                 "dissenters": [],
-                "confidence": "medium",
+                "confidence": "Medium",
+                "impact": "high",
+                "effort": "huge",
             }]}
         if name == "ChatDemoMaturity":
             return {"score": 2, "reason": "A pilot."}
@@ -80,6 +82,13 @@ def test_pipeline_drops_citations_that_search_did_not_return():
     assert demo["top5"][0]["citation_url"] == ""
     assert demo["experts"][0]["badge"] == "AI-generated expert"
     assert len(demo["debate"]) == 2
+    top = demo["top5"][0]
+    assert (top["confidence"], top["impact"], top["effort"]) == ("medium", "high", "")
+    names = [skill["name"] for skill in demo["skills"]]
+    assert names == ["run-the-engagement", "deploy", "watch"]
+    assert all(skill["purpose"] and skill["files"][0].endswith("/SKILL.md") for skill in demo["skills"])
+    assert not any(name.startswith("skill-") for name in names)
+    assert demo["disclaimer"].startswith("AI-generated demo engagement")
     assert valid_demo(demo)
 
 
@@ -88,9 +97,9 @@ def test_artifact_html_carries_the_demo_footer():
 
     html = as_html("Charter", "## Purpose\n\nRun the count.", demo=True)
     assert "Playfair Display" in html
-    assert "Demo engagement — generated from public information." in html
+    assert "AI-generated demo engagement from public information. Not commissioned by the company." in html
     assert "<h2>Purpose</h2>" in html
-    assert "Demo engagement — generated from public information." in as_markdown("Charter", "Body", demo=True)
+    assert "AI-generated demo engagement from public information. Not commissioned by the company." in as_markdown("Charter", "Body", demo=True)
 
 
 def test_demo_page_renders_the_disclaimer(monkeypatch):

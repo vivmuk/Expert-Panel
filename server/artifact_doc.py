@@ -5,12 +5,12 @@ from html import escape
 def as_markdown(title, body, demo=False):
     footer = ""
     if demo:
-        footer = "\n\n---\n\nDemo engagement — generated from public information.\n"
+        footer = "\n\n---\n\nAI-generated demo engagement from public information. Not commissioned by the company.\n"
     return f"# {title}\n\n{body.strip()}\n{footer}"
 
 
 def as_html(title, body, demo=False):
-    footer = "Demo engagement — generated from public information." if demo else "AI Partner"
+    footer = "AI-generated demo engagement from public information. Not commissioned by the company." if demo else "AI Partner"
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>

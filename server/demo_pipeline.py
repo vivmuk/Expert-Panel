@@ -1,8 +1,9 @@
 """Full-depth demo run: 20 experts, two debate rounds, a judge, and Exa citations only."""
 from concurrent.futures import ThreadPoolExecutor
 
-from .catalog import recommend
-from .demo_schema import empty_demo, keep_citations
+from .catalog import by_id, recommend
+from .demo_schema import LEVELS, empty_demo, keep_citations, level
+from .skillpack import _slug, agent_steps, plan_slots
 
 EXPERTS = 20
 ROUNDS = 2
@@ -90,9 +91,11 @@ _JUDGE_SCHEMA = {
                             "additionalProperties": False,
                         },
                     },
-                    "confidence": {"type": "string"},
+                    "confidence": {"type": "string", "enum": list(LEVELS)},
+                    "impact": {"type": "string", "enum": list(LEVELS)},
+                    "effort": {"type": "string", "enum": list(LEVELS)},
                 },
-                "required": ["title", "detail", "citation_url", "backers", "dissenters", "confidence"],
+                "required": ["title", "detail", "citation_url", "backers", "dissenters", "confidence", "impact", "effort"],
                 "additionalProperties": False,
             },
         }
@@ -145,7 +148,10 @@ def run_demo(slug, problem, complete, search):
     demo["maturity"] = _maturity(problem, complete)
     demo["chart"] = _chart(problem, complete)
     demo["skills"] = _skills(demo["chart"])
-    demo["artifacts"] = [{"id": artifact_id, "title": artifact_id} for artifact_id in recommend({"problem": problem})]
+    demo["artifacts"] = [
+        {"id": artifact_id, "title": (by_id(artifact_id) or {}).get("title") or artifact_id}
+        for artifact_id in recommend({"problem": problem})
+    ]
     demo["generated"] = True
     return demo
 
@@ -285,6 +291,7 @@ def _top5(problem, experts, debate, allowed, complete):
             "role": "user",
             "content": (
                 "Pick the top 5 recommendations. Each citation_url must be one of the URLs listed, or empty. "
+                "Rate confidence, impact, and effort as high, medium, or low. "
                 "Name backers and dissenters only from this roster: "
                 + names
                 + "\n\nURLs:\n" + urls
@@ -310,7 +317,9 @@ def _top5(problem, experts, debate, allowed, complete):
                     for row in (item.get("dissenters") or [])[:4]
                     if isinstance(row, dict)
                 ],
-                "confidence": str(item.get("confidence") or "")[:20],
+                "confidence": level(item.get("confidence")),
+                "impact": level(item.get("impact")),
+                "effort": level(item.get("effort")),
             }
         )
     return found
@@ -342,13 +351,26 @@ def _chart(problem, complete):
 
 
 def _skills(chart):
-    steps = []
-    for step in (chart or {}).get("future") or []:
-        if step.get("owner") in ("AI Agent", "Hybrid"):
-            steps.append(step.get("step") or "Skill")
-    while len(steps) < 10:
-        steps.append(f"Skill {len(steps) + 1}")
-    return steps[:10]
+    """One entry per skill folder the full-depth kit would hold. No padding."""
+    if not chart:
+        return []
+    used = set()
+    found = []
+    for slot in plan_slots("large", agent_steps(chart)):
+        if slot["level"] == "orchestrator":
+            name = _slug("run the engagement", used)
+            purpose = "Run the agent-era process end to end and call the workflow skills in order."
+        else:
+            name = _slug(slot["step"]["step"], used)
+            purpose = f"{slot['step']['owner']}. {slot['step']['task']}"
+        found.append(
+            {
+                "name": name,
+                "purpose": purpose[:300],
+                "files": [f"skills/{name}/SKILL.md", f"skills/{name}/references/research.md", f"skills/{name}/scripts/render.py"],
+            }
+        )
+    return found
 
 
 def _map(items, fn):
