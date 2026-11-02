@@ -100,7 +100,7 @@ The body is `{"status":"ok"}`.
 ```bash
 curl -sS -X POST "https://HOST/api/chat" \
   -H "content-type: application/json" \
-  -d '{"message":"Market entry for a medtech device into Germany. Team: 4 analysts. Tools: Excel and Veeva. Maturity 2.","state":{}}'
+  -d '{"message":"Decide how Maritime should host a public web agent for a team that already has a repo. Team: 4 engineers. Tools: git and a browser. Maturity 2.","state":{}}'
 ```
 
 `next` in that JSON is `blueprint`. Save the `state` object. Post it back with an empty message to draw the work chart.

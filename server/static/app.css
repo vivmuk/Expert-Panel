@@ -28,6 +28,52 @@ body {
   font-weight: 750;
   letter-spacing: -0.03em;
 }
+.persona { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; background: #f0f0ec; }
+.assistant { position: relative; padding-left: 64px; }
+.assistant::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: url("/img/brand/avatar.webp") center/cover no-repeat;
+}
+.landing-hero {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f3efe4;
+  margin-bottom: 18px;
+}
+.landing-hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.landing-copy {
+  position: absolute;
+  z-index: 1;
+  left: 3%;
+  top: 6%;
+  width: min(320px, 34%);
+}
+.landing-copy textarea,
+.landing-copy input[type="file"] { background: rgba(255,255,255,.92); }
+.landing-copy h1 { font-size: clamp(32px, 4vw, 48px); margin-bottom: 8px; }
+.landing-copy .lede { margin-bottom: 10px; font-size: 15px; }
+body:not(.chatting) .landing-copy textarea { height: 68px; }
+body:not(.chatting) label[for="file"],
+body:not(.chatting) #file { display: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.accent {
+  width: min(280px, 100%);
+  border-radius: 14px;
+  display: block;
+  margin: 0 0 16px;
+  background: #f0f0ec;
+}
 .dot { width: 8px; height: 8px; border-radius: 50%; background: #0033cc; }
 .links { display: flex; gap: 14px; }
 .links a { color: #525258; text-decoration: none; font-size: 14px; }
@@ -101,6 +147,7 @@ h1 em, .cobalt { color: #0033cc; font-style: normal; }
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.assistant { padding-left: 56px; }
 .assistant, .card { background: #f0f0ec; }
 .user { background: #0f0f0f; color: #fafaf7; margin-left: 18%; }
 .card h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: -0.02em; }
@@ -166,6 +213,11 @@ input[type="search"] { width: 100%; font: inherit; border: 1px solid rgba(15,15,
   .user { margin-left: 0; }
   .wrap { padding-bottom: 24px; }
   .deliver-grid, .plans { grid-template-columns: 1fr; }
+  .top, .links { flex-wrap: wrap; }
+  .links { justify-content: flex-end; row-gap: 6px; }
+  .landing-hero { min-height: 0; display: flex; flex-direction: column; }
+  .landing-hero img { position: relative; order: 2; height: auto; object-fit: contain; object-position: center; }
+  .landing-copy { position: static; order: 1; width: auto; padding: 8px 4px 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto; transition: none; }

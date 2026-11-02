@@ -23,12 +23,15 @@ def _shell(title, current, body):
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{escape(title)}</title>
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/favicon-512.png" sizes="512x512" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
 <div class="bar"><span style="width:100%"></span></div>
 <header class="top">
-  <a class="brand" href="/chat"><span class="dot"></span> AI Partner</a>
+  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="36" height="36"> AI Partner</a>
   {nav}
 </header>
 <main class="wrap wide">
@@ -82,6 +85,7 @@ document.getElementById("q").addEventListener("input", function () {{
 def render_pricing():
     body = f"""
 <p class="kicker">Pricing</p>
+<img class="accent" src="/img/brand/character.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="280" height="210">
 <h1>Beta pricing. Billing is not live yet; no card required.</h1>
 <div class="plans">
   <article class="plan">

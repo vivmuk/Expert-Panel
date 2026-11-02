@@ -7,13 +7,16 @@ PAGE = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Partner</title>
+<title>AI Partner — Stop buying slides. Start shipping outcomes.</title>
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/favicon-512.png" sizes="512x512" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
 <div class="bar"><span id="progress"></span></div>
 <header class="top">
-  <a class="brand" href="/"><span class="dot"></span> AI Partner</a>
+  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet." width="36" height="36"> AI Partner</a>
   <nav class="links">
     <a href="/chat" aria-current="page">Chat</a>
     <a href="/deck">Deck</a>
@@ -24,13 +27,27 @@ PAGE = r"""<!DOCTYPE html>
   </nav>
 </header>
 <main class="wrap">
-  <section id="hero" class="hero">
-    <div>
-      <p class="kicker">The First 1,000</p>
-      <h1>Outcomes, not advice. <em>We hand you the agents that do the work.</em></h1>
-      <p class="lede">Use AI Partner inside the agents you already use. <a href="/connect">Open Connect.</a></p>
+  <section id="hero" class="landing-hero">
+    <img src="/img/brand/hero.webp" alt="A multi-arm robot with floral helmet art stands on the right of a blank sheet of paper, holding a chart, a plan, a pen, and a magnifying glass.">
+    <div class="landing-copy">
+      <p class="kicker">Outcomes, not blueprints.</p>
+      <h1>Stop buying slides. Start shipping outcomes.</h1>
+      <p class="lede">Describe the business problem. A panel of AI experts debates it, picks the top 5 moves, and ships the harness, skills and artifacts your team runs.</p>
+      <div id="landing-form">
+      <form id="form">
+        <label class="kicker" for="box">What problem is costing you money?</label>
+        <textarea id="box" rows="3" placeholder="Decide how Maritime should host a public web agent for a team that already has a repo."></textarea>
+        <label class="kicker" for="file">Optional notes, txt, md, pdf, or docx</label>
+        <input id="file" type="file" multiple accept=".txt,.md,.markdown,.pdf,.docx,text/plain">
+        <div class="row">
+          <button class="send" type="submit">Solve it</button>
+          <button type="button" id="cont" class="ghost" hidden>Continue</button>
+          <button type="button" id="fresh" class="ghost">New chat</button>
+        </div>
+      </form>
+      </div>
+      <div class="chips" id="chips"></div>
     </div>
-    <img src="/deck/img/01-title.webp" alt="Watercolor of a suitcase releasing small robots into a starry sky.">
   </section>
   <div id="steps" class="steps" hidden></div>
   <div id="log" class="log"></div>
@@ -41,17 +58,7 @@ PAGE = r"""<!DOCTYPE html>
     <button type="button" id="kit" class="ghost">Download harness kit</button>
     <button type="button" id="pack" class="ghost">Download skill pack</button>
   </div>
-  <form id="form">
-    <label class="kicker" for="box">Message</label>
-    <textarea id="box" rows="3" placeholder="Market entry for a medtech device into Germany"></textarea>
-    <label class="kicker" for="file">Optional notes, txt, md, pdf, or docx</label>
-    <input id="file" type="file" multiple accept=".txt,.md,.markdown,.pdf,.docx,text/plain">
-    <div class="row">
-      <button class="send" type="submit">Send</button>
-      <button type="button" id="cont" class="ghost" hidden>Continue</button>
-      <button type="button" id="fresh" class="ghost">New chat</button>
-    </div>
-  </form>
+  <div id="dock"></div>
 </main>
 <script id="welcome" type="text/plain">__WELCOME__</script>
 <script>
@@ -326,6 +333,13 @@ function paint() {
   }
   downloads.hidden = phase !== "done" && selected !== 7;
   if (selected === 7 && phase === "done") downloads.hidden = false;
+  document.body.classList.toggle("chatting", hero.hidden);
+  const slot = document.getElementById(hero.hidden ? "dock" : "landing-form");
+  if (form.parentElement !== slot) slot.appendChild(form);
+  const send = form.querySelector(".send");
+  if (send) send.textContent = hero.hidden ? "Send" : "Solve it";
+  const label = form.querySelector("label");
+  if (label) label.textContent = hero.hidden ? "Message" : "What problem is costing you money?";
 }
 
 function save() {
@@ -452,6 +466,29 @@ try {
   }
 } catch (err) { state = null; }
 if (!messages.length) add("assistant", document.getElementById("welcome").textContent);
+const EXAMPLES = [
+  ["Maritime", "Decide how Maritime should host a public web agent for a team that already has a repo."],
+  ["Keiki", "Choose which channels a Keiki customer agent should answer first."],
+  ["Orchid", "Design how Orchid, at orchid.ai, hands an email thread to an agent."]
+];
+const chips = document.getElementById("chips");
+EXAMPLES.forEach(function (item) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "ghost";
+  button.textContent = item[0];
+  button.addEventListener("click", function () {
+    box.value = item[1];
+    box.focus();
+  });
+  chips.appendChild(button);
+});
+let chip = 0;
+setInterval(function () {
+  if (document.body.classList.contains("chatting")) return;
+  chip = (chip + 1) % EXAMPLES.length;
+  box.placeholder = EXAMPLES[chip][1];
+}, 4000);
 paint();
 </script>
 </body>

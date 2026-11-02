@@ -41,7 +41,7 @@
         "client = OpenAI(base_url=" + JSON.stringify(base) + ", api_key=" + JSON.stringify(key) + ")",
         "print(client.chat.completions.create(",
         "    model='ai-partner',",
-        "    messages=[{'role': 'user', 'content': 'Market entry for a medtech device into Germany.'}]",
+        "    messages=[{'role': 'user', 'content': 'Decide how Maritime should host a public web agent for a team that already has a repo.'}]",
         ").choices[0].message.content)",
       ].join(nl),
       openaijs: [
@@ -50,7 +50,7 @@
         "const client = new OpenAI({ baseURL: " + JSON.stringify(base) + ", apiKey: " + JSON.stringify(key) + " });",
         "const reply = await client.chat.completions.create({",
         "  model: 'ai-partner',",
-        "  messages: [{ role: 'user', content: 'Market entry for a medtech device into Germany.' }]",
+        "  messages: [{ role: 'user', content: 'Decide how Maritime should host a public web agent for a team that already has a repo.' }]",
         "});",
         "console.log(reply.choices[0].message.content);",
       ].join(nl),
@@ -71,7 +71,7 @@
           JSON.stringify(
             JSON.stringify({
               model: "ai-partner",
-              messages: [{ role: "user", content: "Market entry for a medtech device into Germany." }],
+              messages: [{ role: "user", content: "Decide how Maritime should host a public web agent for a team that already has a repo." }],
             })
           ),
       ].join(nl),

@@ -38,10 +38,7 @@ PHASES = (
 WELCOME = (
     "AI Partner takes one consulting job from the first question to a harness kit. "
     "Name the job, in any service line. "
-    "Examples include market entry for a medtech device into Germany, "
-    "pricing for a B2B analytics product, "
-    "finance close for a 40-person company, "
-    "and a Medical Affairs response for a new label."
+    "The demo engagements are Maritime, Keiki, and Orchid (orchid.ai). "
 )
 
 ASK_CONTEXT = "Who is on the team, and which tools do they use today?"

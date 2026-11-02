@@ -11,12 +11,15 @@ PAGE = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Connect · AI Partner</title>
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/favicon-512.png" sizes="512x512" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
 <div class="bar"><span id="progress"></span></div>
 <header class="top">
-  <a class="brand" href="/"><span class="dot"></span> AI Partner</a>
+  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="36" height="36"> AI Partner</a>
   <nav class="links">
     <a href="/chat">Chat</a>
     <a href="/deck">Deck</a>
@@ -28,6 +31,7 @@ PAGE = """<!DOCTYPE html>
 </header>
 <main class="wrap">
   <p class="kicker">Connect</p>
+  <img class="accent" src="/img/brand/character.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="280" height="210">
   <h1>Use AI Partner inside the agents you already use.</h1>
   <p class="lede">The web chat stays open. These endpoints need a bearer token from <span class="mono">AI_PARTNER_API_KEYS</span>. If that variable is empty, they answer 401.</p>
   <section class="card">
@@ -75,7 +79,7 @@ const blocks = {
     "client = OpenAI(base_url=" + JSON.stringify(base) + ", api_key='YOUR_KEY')",
     "print(client.chat.completions.create(",
     "    model='ai-partner',",
-    "    messages=[{'role': 'user', 'content': 'Market entry for a medtech device into Germany.'}]",
+    "    messages=[{'role': 'user', 'content': 'Decide how Maritime should host a public web agent for a team that already has a repo.'}]",
     ").choices[0].message.content)"
   ].join(nl),
   anthropic: JSON.stringify([{type: "url", url: mcp, authorization_token: "YOUR_KEY"}], null, 2)

@@ -120,6 +120,19 @@ def app_css():
     return send_from_directory(_STATIC, "app.css")
 
 
+@bp.get("/favicon.ico")
+@bp.get("/favicon-32.png")
+@bp.get("/favicon-512.png")
+@bp.get("/apple-touch-icon.png")
+def favicon():
+    return send_from_directory(_STATIC, request.path.rsplit("/", 1)[-1])
+
+
+@bp.get("/img/<path:name>")
+def brand_img(name):
+    return send_from_directory(os.path.join(_STATIC, "img"), name)
+
+
 @bp.get("/connect")
 def connect_page():
     origin = os.environ.get("PUBLIC_BASE_URL", "").strip() or request.host_url
