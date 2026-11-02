@@ -5,7 +5,7 @@ import zipfile
 
 from server.chatjob import handle_turn
 from server.exa_search import EXA_URL, exa_search
-from server.skillpack import MAX_SKILLS, pack_files
+from server.skillpack import MAX_SKILLS, STRATEGY_SKILLS, pack_files
 from server.uploads import take_uploads
 from tests.test_chatjob import ONE_SHOT, fake_model
 
@@ -47,22 +47,20 @@ def _manifest(files):
     return json.loads(files["skills/skills.json"])
 
 
-def test_small_tier_is_task_skills_capped_at_10():
+def test_small_tier_is_task_skills_capped_at_3():
     files = pack_files(_state("small", 12))
     manifest = _manifest(files)
     assert manifest["tier"] == "small"
-    assert len(manifest["skills"]) == MAX_SKILLS
-    assert [item["level"] for item in manifest["skills"]] == ["task"] * MAX_SKILLS
+    assert len(manifest["skills"]) == STRATEGY_SKILLS
+    assert [item["level"] for item in manifest["skills"]] == ["task"] * STRATEGY_SKILLS
     _assert_frontmatter(files, manifest)
 
 
-def test_medium_tier_is_an_orchestrator_plus_subskills():
+def test_medium_tier_uses_the_same_three_skill_cap():
     files = pack_files(_state("medium", 12))
     manifest = _manifest(files)
-    assert len(manifest["skills"]) == 6
-    assert manifest["skills"][0]["level"] == "orchestrator"
-    assert manifest["skills"][0]["dependencies"]["skills"]
-    assert all(item["level"] == "workflow" for item in manifest["skills"][1:])
+    assert len(manifest["skills"]) == STRATEGY_SKILLS
+    assert [item["level"] for item in manifest["skills"]] == ["task"] * STRATEGY_SKILLS
     _assert_frontmatter(files, manifest)
 
 

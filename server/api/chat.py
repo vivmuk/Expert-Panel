@@ -21,25 +21,59 @@ bp = Blueprint("partner_chat", __name__)
 
 WINDOW_SECONDS = 600
 TURN_LIMIT = 20
+GLOBAL_LIMIT = 200
+MAX_KEYS = 2000
 _lock = threading.Lock()
 _hits = {}
+_global = []
 
 
-def allow_in_this_process(chat_id, now=None):
+def client_ip():
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        hop = forwarded.split(",")[0].strip()
+        if hop:
+            return hop
+    return request.remote_addr or "unknown"
+
+
+def allow_in_this_process(ip, now=None):
     now = time.time() if now is None else now
     with _lock:
-        hits = [stamp for stamp in _hits.get(chat_id, []) if now - stamp < WINDOW_SECONDS]
+        _evict(now)
+        fresh = [stamp for stamp in _global if now - stamp < WINDOW_SECONDS]
+        if len(fresh) >= GLOBAL_LIMIT:
+            _global[:] = fresh
+            return False
+        hits = [stamp for stamp in _hits.get(ip, []) if now - stamp < WINDOW_SECONDS]
         if len(hits) >= TURN_LIMIT:
-            _hits[chat_id] = hits
+            _hits[ip] = hits
             return False
         hits.append(now)
-        _hits[chat_id] = hits
+        _hits[ip] = hits
+        fresh.append(now)
+        _global[:] = fresh
+        if len(_hits) > MAX_KEYS:
+            oldest = min(_hits, key=lambda key: _hits[key][-1] if _hits[key] else 0)
+            _hits.pop(oldest, None)
         return True
+
+
+def _evict(now):
+    stale = [key for key, stamps in _hits.items() if not stamps or now - stamps[-1] >= WINDOW_SECONDS]
+    for key in stale:
+        _hits.pop(key, None)
+    if len(_hits) <= MAX_KEYS:
+        return
+    ranked = sorted(_hits, key=lambda key: _hits[key][-1] if _hits[key] else 0)
+    for key in ranked[: len(_hits) - MAX_KEYS]:
+        _hits.pop(key, None)
 
 
 def reset_limits():
     with _lock:
         _hits.clear()
+        _global.clear()
 
 
 def complete_with_venice(name, messages, schema, max_tokens):
@@ -101,13 +135,17 @@ def post_root_chat():
         return _bad("Send a JSON object.")
     if "state" in raw or "uploads" in raw:
         return post_chat()
+    if not allow_in_this_process(client_ip()):
+        return jsonify({"response": "This chat is sending messages too fast. Wait a few minutes and try again."}), 429
     message = raw.get("message")
     if not isinstance(message, str) or not message.strip():
         return _bad("message is required")
     source = raw.get("source") if isinstance(raw.get("source"), str) else ""
-    user = message.strip()[:8000]
+    from ..chatjob import untrusted
+
+    user = untrusted("Message", message.strip()[:8000])
     if source:
-        user = f"Channel: {source}\n\n{user}"
+        user = untrusted("Channel", source[:200]) + "\n\n" + user
     try:
         data = complete_with_venice(
             "ChatReply",
@@ -142,10 +180,12 @@ def post_chat():
         return _bad("Message must be text.")
     if len(message) > 8000:
         return _bad("Message is too long.")
-    state = load_state(raw.get("state"))
+    incoming = raw.get("state") if isinstance(raw.get("state"), dict) else {}
     if raw.get("uploads"):
-        state["uploads"] = take_uploads(raw.get("uploads"), state.get("uploads") or [])
-    if not allow_in_this_process(state["chat_id"]):
+        incoming = dict(incoming)
+        incoming["uploads"] = take_uploads(raw.get("uploads"), incoming.get("uploads") or [])
+    if not allow_in_this_process(client_ip()):
+        state = load_state(incoming)
         reply = "This chat is sending messages too fast. Wait a few minutes and try again."
         return jsonify(
             {
@@ -156,7 +196,7 @@ def post_chat():
             }
         ), 429
     try:
-        result = handle_turn(state, message, complete_with_venice, recall, remember, exa_search)
+        result = handle_turn(incoming, message, complete_with_venice, recall, remember, exa_search)
     except Exception:
         logger.exception("chat turn failed at phase %s", state.get("phase"))
         reply = "The model call failed. Your earlier answers are still here. Send the message again."
@@ -168,7 +208,8 @@ def post_chat():
                 "error": {"code": "model", "message": reply},
             }
         ), 502
-    status = 429 if result.get("error") and result["error"]["code"] == "budget" else 200
+    code = (result.get("error") or {}).get("code")
+    status = 400 if code == "tamper" else 429 if code == "budget" else 200
     return jsonify(result), status
 
 

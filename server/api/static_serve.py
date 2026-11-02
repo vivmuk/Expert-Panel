@@ -1,7 +1,7 @@
 """Serve the built React app (web/dist) with SPA fallback."""
 import os
 
-from flask import Blueprint, redirect, send_from_directory
+from flask import Blueprint, jsonify, redirect, send_from_directory
 
 bp = Blueprint("static_serve", __name__)
 
@@ -16,6 +16,8 @@ def _redirect_home():
 @bp.get("/")
 @bp.get("/<path:path>")
 def serve(path="index.html"):
+    if path == "api" or path.startswith("api/"):
+        return jsonify({"error": {"code": "not_found", "message": "Not found."}}), 404
     if path in ("", "index.html") and _redirect_home():
         return redirect("/chat")
     if os.environ.get("VERCEL") and not os.path.isdir(_DIST):

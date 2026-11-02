@@ -31,7 +31,7 @@ def keyed(monkeypatch, tmp_path):
 def test_agent_endpoints_reject_missing_keys(client):
     denied = client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
     assert denied.status_code == 401
-    assert "AI_PARTNER_API_KEYS" in denied.get_json()["error"]["message"]
+    assert denied.get_json()["error"]["message"] == "invalid or missing API key"
     denied = client.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "Hi"}]})
     assert denied.status_code == 401
     assert client.get("/health").status_code == 200

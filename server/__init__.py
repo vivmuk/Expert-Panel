@@ -4,6 +4,7 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 
+from .api.access import allowed_origins
 from .config import Config, require_api_key
 from .db import PersistentStoreUnavailable
 
@@ -22,7 +23,7 @@ def create_app():
     CORS(
         app,
         resources={
-            r"/api/*": {"origins": "*"},
+            r"/api/*": {"origins": sorted(allowed_origins()) or ["https://api.invalid"]},
             r"/mcp": {"origins": "*"},
             r"/v1/*": {"origins": "*"},
         },
@@ -48,7 +49,8 @@ def create_app():
 
     @app.get("/health")
     def health():
-        return jsonify({"status": "ok"})
+        sha = os.environ.get("RAILWAY_GIT_COMMIT_SHA") or os.environ.get("GIT_COMMIT") or ""
+        return jsonify({"status": "ok", "sha": sha})
 
     @app.errorhandler(PersistentStoreUnavailable)
     def no_store(exc):

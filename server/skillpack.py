@@ -4,7 +4,7 @@ import re
 import zipfile
 
 MAX_SKILLS = 10
-MEDIUM_SKILLS = 6
+STRATEGY_SKILLS = 3
 
 VIV = {
     "blue": "#7fb2ff",
@@ -28,15 +28,18 @@ def agent_steps(chart):
     return [{"step": "Draft the agent steps", "task": summary, "owner": "Hybrid"}]
 
 
+def skill_cap(tier):
+    return MAX_SKILLS if tier == "large" else STRATEGY_SKILLS
+
+
 def plan_slots(tier, steps):
     steps = list(steps)
-    if tier == "small":
-        return [{"level": "task", "step": step} for step in steps[:MAX_SKILLS]]
-    total = MEDIUM_SKILLS if tier == "medium" else MAX_SKILLS
-    subs = steps[: max(0, total - 1)]
-    return [{"level": "orchestrator", "step": None}] + [
-        {"level": "workflow", "step": step} for step in subs
-    ]
+    if tier == "large":
+        subs = steps[: MAX_SKILLS - 1]
+        return [{"level": "orchestrator", "step": None}] + [
+            {"level": "workflow", "step": step} for step in subs
+        ]
+    return [{"level": "task", "step": step} for step in steps[:STRATEGY_SKILLS]]
 
 
 def pack_manifest(state):
@@ -48,7 +51,7 @@ def pack_files(state):
     chart = state.get("chart")
     brief = state.get("brief")
     tier = state.get("size")
-    if not chart or not brief or tier not in ("small", "medium", "large"):
+    if not chart or not brief or tier not in ("small", "medium", "large", "strategy"):
         raise ValueError("skill pack is not ready")
     steps = agent_steps(chart)
     slots = plan_slots(tier, steps)[:MAX_SKILLS]
@@ -322,7 +325,7 @@ def _readme(state, manifest):
     lines = [
         "# Skill pack",
         "",
-        f"Tier is {manifest['tier']}. {len(manifest['skills'])} skills. Cap is {MAX_SKILLS}.",
+        f"Tier is {manifest['tier']}. {len(manifest['skills'])} skills. Cap is {skill_cap(manifest['tier'])}.",
         "",
         "The harness reads this folder from CLAUDE.md and model-routing.md.",
         "Start with skills/skills.json. Call the skill whose description matches the playbook step.",

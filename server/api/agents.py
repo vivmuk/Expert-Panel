@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 import uuid
@@ -10,10 +11,11 @@ from ..chatmemory import recall, remember
 from ..downloads import download_path, save_download
 from ..harnesskit import build_kit_zip
 from ..skillpack import build_pack_zip
-from .access import require_partner_key
+from .access import origin_allowed, require_partner_key
 from .chat import complete_with_venice, exa_search
 
 bp = Blueprint("agents", __name__)
+logger = logging.getLogger(__name__)
 
 PROTOCOL = "2025-03-26"
 
@@ -153,23 +155,79 @@ def _rpc(body):
     }
 
 
+MODELS = ("ai-partner", "ai-partner-full")
+
+
+def _completion(completion_id, model, created, result):
+    return {
+        "id": completion_id,
+        "object": "chat.completion",
+        "created": created,
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": result["reply"]},
+                "finish_reason": "stop",
+            }
+        ],
+        "ai_partner_state": result["state"],
+    }
+
+
+def _sse(completion_id, model, result):
+    created = int(time.time())
+    opening = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": model,
+        "choices": [{"index": 0, "delta": {"role": "assistant", "content": result["reply"]}, "finish_reason": None}],
+    }
+    closing = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": model,
+        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+    }
+    yield f"data: {json.dumps(opening)}\n\n"
+    yield f"data: {json.dumps(closing)}\n\n"
+    yield "data: [DONE]\n\n"
+
+
+def _session_headers(method):
+    if method == "initialize":
+        return {"Mcp-Session-Id": uuid.uuid4().hex}
+    sent = request.headers.get("Mcp-Session-Id", "").strip()
+    if sent:
+        return {"Mcp-Session-Id": sent}
+    return {}
+
+
 @bp.route("/mcp", methods=["POST"])
 def mcp():
     denied = require_partner_key()
     if denied:
         return denied
+    if not origin_allowed():
+        return jsonify({"error": {"code": "forbidden", "message": "Origin is not allowed."}}), 403
     body = request.get_json(force=True, silent=True)
     if not isinstance(body, dict):
         return jsonify({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Expected a JSON-RPC object."}}), 400
-    payload = _rpc(body)
-    session = request.headers.get("Mcp-Session-Id") or uuid.uuid4().hex
+    try:
+        payload = _rpc(body)
+    except Exception as exc:
+        logger.exception("mcp call failed")
+        payload = {
+            "jsonrpc": "2.0",
+            "id": body.get("id"),
+            "error": {"code": -32000, "message": f"AI Partner error: {exc.__class__.__name__}."},
+        }
+    headers = _session_headers(body.get("method"))
     if payload is None:
-        return Response(status=202, headers={"Mcp-Session-Id": session})
-    return Response(
-        json.dumps(payload),
-        mimetype="application/json",
-        headers={"Mcp-Session-Id": session},
-    )
+        return Response(status=202, headers=headers)
+    return Response(json.dumps(payload), mimetype="application/json", headers=headers)
 
 
 @bp.route("/mcp", methods=["GET", "DELETE"])
@@ -177,6 +235,8 @@ def mcp_other():
     denied = require_partner_key()
     if denied:
         return denied
+    if not origin_allowed():
+        return jsonify({"error": {"code": "forbidden", "message": "Origin is not allowed."}}), 403
     return Response(status=405, headers={"Allow": "POST"})
 
 
@@ -194,24 +254,19 @@ def chat_completions():
             break
     if not user.strip():
         return jsonify({"error": {"message": "messages must include a user turn.", "type": "invalid_request_error"}}), 400
-    result = _turn(user, body.get("ai_partner_state") or {})
+    model = body.get("model") or "ai-partner"
+    if model not in MODELS:
+        return jsonify({"error": {"message": "model is not available.", "type": "invalid_request_error"}}), 400
+    state = body.get("ai_partner_state") if isinstance(body.get("ai_partner_state"), dict) else {}
+    if model == "ai-partner-full":
+        state = dict(state)
+        state["depth"] = "full"
+    result = _turn(user, state)
     created = int(time.time())
-    return jsonify(
-        {
-            "id": "chatcmpl-" + uuid.uuid4().hex[:24],
-            "object": "chat.completion",
-            "created": created,
-            "model": body.get("model") or "ai-partner",
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": result["reply"]},
-                    "finish_reason": "stop",
-                }
-            ],
-            "ai_partner_state": result["state"],
-        }
-    )
+    completion_id = "chatcmpl-" + uuid.uuid4().hex[:24]
+    if body.get("stream") is True:
+        return Response(_sse(completion_id, model, result), mimetype="text/event-stream")
+    return jsonify(_completion(completion_id, model, created, result))
 
 
 @bp.get("/v1/models")
@@ -222,7 +277,10 @@ def models():
     return jsonify(
         {
             "object": "list",
-            "data": [{"id": "ai-partner", "object": "model", "owned_by": "ai-partner"}],
+            "data": [
+                {"id": "ai-partner", "object": "model", "owned_by": "ai-partner"},
+                {"id": "ai-partner-full", "object": "model", "owned_by": "ai-partner"},
+            ],
         }
     )
 

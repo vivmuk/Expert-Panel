@@ -50,7 +50,7 @@ run exceeding 3× its estimate.
 
 The demo is a chat at `/chat`. You name a consulting job in any service line. The page asks who is on the team, which tools they use, and where they sit on a four-point AI maturity scale. It then runs a four-person panel, an optional red team, and a work chart. Each model call is its own request, so a Vercel function can finish inside its time limit. The browser keeps the job and sends it back on the next turn. When the job is done, the page downloads a report and a harness kit zip.
 
-The kit contains `CLAUDE.md`, `playbook.md`, `model-routing.md`, `project-state-schema.md`, and a skill pack of at most 10 skills. After the work chart the chat asks whether the client is small, medium, or large, unless you already said so. It then searches with Venice Exa, writes a brief that keeps the source URLs, and builds the pack. Download skill pack is a second zip. The same files are under `skills/` in the harness kit, and `CLAUDE.md` points at `skills/skills.json`.
+The kit is one harness: `CLAUDE.md`, `playbook.md`, `model-routing.md`, `project-state-schema.md`, and a skill pack. Small and medium engagements cap the pack at 3 skills. A large team caps it at 10, with one orchestrator. After the work chart the chat asks whether the client is small, medium, or large, unless you already said so. It then searches with Venice Exa, writes a brief that keeps the source URLs, and builds the pack. Download skill pack is a second zip. The same files are under `skills/` in the harness kit, and `CLAUDE.md` points at `skills/skills.json`.
 
 ### Run the chat locally
 

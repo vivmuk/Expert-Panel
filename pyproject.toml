@@ -5,3 +5,6 @@ requires-python = ">=3.12"
 
 [tool.vercel]
 entrypoint = "api.index:app"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

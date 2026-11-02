@@ -4,6 +4,7 @@ import zipfile
 import pytest
 
 from server.api.chat import TURN_LIMIT, reset_limits
+from server.budget import reset as reset_budget
 from server.chatjob import MAX_OUTPUT_TOKENS, handle_turn, render_report
 from server.chatmemory import recall, remember
 from server.config import Config
@@ -89,8 +90,10 @@ def fake_model(calls):
 @pytest.fixture(autouse=True)
 def _clear_rate_limits():
     reset_limits()
+    reset_budget()
     yield
     reset_limits()
+    reset_budget()
 
 
 def test_three_questions_then_panel():
@@ -201,7 +204,7 @@ def test_kit_zip_contains_the_agent_skills():
     assert "Pilot-led" in claude
     assert "Germany" in claude
     routing = archive.read("model-routing.md").decode()
-    assert "qwen3-next-80b" in routing
+    assert "deepseek-v4-1-flash-1017-uncensored" in routing
     report = render_report(finished["state"])
     assert "Pilot-led" in report
     assert "Ada" in report
@@ -308,16 +311,20 @@ def test_chat_page_and_health(client):
     assert "/chat" in root.headers["Location"]
 
 
-def test_rate_limit_is_per_chat(client):
+def test_rate_limit_is_per_ip(client):
     state = {}
     for _ in range(TURN_LIMIT):
         res = client.post("/api/chat", json={"message": "", "state": state})
         assert res.status_code == 200
         state = res.get_json()["state"]
-    blocked = client.post("/api/chat", json={"message": "", "state": state})
+    blocked = client.post("/api/chat", json={"message": "", "state": {}})
     assert blocked.status_code == 429
     assert blocked.get_json()["error"]["code"] == "rate"
-    other = client.post("/api/chat", json={"message": "", "state": {}})
+    other = client.post(
+        "/api/chat",
+        json={"message": "", "state": {}},
+        headers={"X-Forwarded-For": "203.0.113.10"},
+    )
     assert other.status_code == 200
 
 
