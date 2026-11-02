@@ -1,4 +1,4 @@
-# ✦ AI Partner — Constellation Platform
+# AI Partner
 
 An all-in-one replacement for a management-consulting engagement, powered by the
 [Venice AI](https://venice.ai) API. Describe a problem; AI Partner assembles a
@@ -64,6 +64,8 @@ Open http://localhost:5000/chat
 
 `/` redirects to `/chat` unless `APP_HOME_REDIRECT=0`. `VERCEL=1` skips SQLite. Leave it unset when you want the engagement database from the next section.
 
+The Railway app is [https://ai-partner.up.railway.app](https://ai-partner.up.railway.app). The Vercel app is [https://ai-partner-hq.vercel.app](https://ai-partner-hq.vercel.app). Both origins are on the CORS and MCP allowlists. The Maritime deployment stays [https://74da9def-954d-4df0-9234-04a7301c4740.mtm.sh](https://74da9def-954d-4df0-9234-04a7301c4740.mtm.sh).
+
 Maritime builds the root `Dockerfile` and runs `python start.py`. Set `PORT` in the platform. Do not set it in the image. The Railway image is `Dockerfile.railway`.
 
 Use a fresh Venice key. An old key is still in this repo's git history. Revoke that key in the Venice dashboard.
@@ -85,20 +87,18 @@ Set these environment variables on the project. Do not commit them.
 
 - `VENICE_API_KEY` is required.
 - `SUPERMEMORY_API_KEY` is optional. Recall stays off when it is empty.
-- `PUBLIC_BASE_URL` is optional. Set it to the deployed origin, such as `https://your-app.vercel.app`, so the last message prints absolute links.
+- `PUBLIC_BASE_URL` is optional. Setup pages print the host from the request. Set it only when a link is built outside a request. On Railway use `https://ai-partner.up.railway.app`. On Vercel use `https://ai-partner-hq.vercel.app`.
 
 ### Check a live deploy
 
-Replace `HOST` with the deployment host.
-
 ```bash
-curl -sS "https://HOST/health"
+curl -sS "https://ai-partner.up.railway.app/health"
 ```
 
 The body is `{"status":"ok"}`.
 
 ```bash
-curl -sS -X POST "https://HOST/api/chat" \
+curl -sS -X POST "https://ai-partner.up.railway.app/api/chat" \
   -H "content-type: application/json" \
   -d '{"message":"Decide how Maritime should host a public web agent for a team that already has a repo. Team: 4 engineers. Tools: git and a browser. Maturity 2.","state":{}}'
 ```
@@ -106,7 +106,7 @@ curl -sS -X POST "https://HOST/api/chat" \
 `next` in that JSON is `blueprint`. Save the `state` object. Post it back with an empty message to draw the work chart.
 
 ```bash
-curl -sS -X POST "https://HOST/api/chat" \
+curl -sS -X POST "https://ai-partner.up.railway.app/api/chat" \
   -H "content-type: application/json" \
   -d @turn2.json
 ```
@@ -116,7 +116,7 @@ curl -sS -X POST "https://HOST/api/chat" \
 Save the finished state as `done.json` with the shape `{"state": <state>}`. Download the kit.
 
 ```bash
-curl -sS -X POST "https://HOST/api/chat/kit" \
+curl -sS -X POST "https://ai-partner.up.railway.app/api/chat/kit" \
   -H "content-type: application/json" \
   -d @done.json \
   -o harness-kit.zip

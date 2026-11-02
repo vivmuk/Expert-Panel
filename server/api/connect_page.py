@@ -35,34 +35,44 @@ PAGE = """<!DOCTYPE html>
   <img class="accent" src="/img/brand/character.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="280" height="210">
   <h1>Use AI Partner inside the agents you already use.</h1>
   <p class="lede">The web chat stays open. These endpoints need a bearer token from <span class="mono">AI_PARTNER_API_KEYS</span>. If that variable is empty, they answer 401.</p>
-  <section class="card">
+  <p class="kicker">Works with</p>
+  <div class="works-with">
+    <a href="#cursor-setup"><img src="/img/marks/cursor.svg" alt="Cursor mark" height="32"><span class="cap">Cursor</span></a>
+    <a href="#claude-code"><img src="/img/marks/claude.svg" alt="Claude mark" height="32"><span class="cap">Claude Code</span></a>
+    <a href="#chatgpt"><img src="/img/marks/openai.svg" alt="OpenAI mark" height="32"><span class="cap">ChatGPT</span></a>
+    <a href="#anthropic-sdk"><img src="/img/marks/anthropic.svg" alt="Anthropic mark" height="32"><span class="cap">Anthropic</span></a>
+    <a href="#openai-sdk"><img src="/img/marks/openai.svg" alt="OpenAI mark" height="32"><span class="cap">OpenAI</span></a>
+    <span class="pending"><b>Muse</b><span class="cap">Logo not confirmed</span></span>
+  </div>
+  <p class="foot">Trademarks belong to their owners. No endorsement is implied. Muse is a placeholder until the name is confirmed.</p>
+  <section class="card" id="chatgpt">
     <h2>ChatGPT</h2>
     <p>Add a custom connector and paste the MCP URL. Send the bearer token in the Authorization header.</p>
-    <pre id="gpt"></pre>
+    <pre id="gpt" data-snippet="gpt"></pre>
     <button type="button" data-copy="gpt">Copy</button>
   </section>
-  <section class="card">
-    <h2>Claude</h2>
-    <p>On claude.ai, add a custom connector with the same MCP URL and bearer token. Claude Desktop speaks stdio, so this config runs the remote server through mcp-remote.</p>
-    <pre id="claude"></pre>
+  <section class="card" id="claude-code">
+    <h2>Claude Code</h2>
+    <p>Claude Code and Claude Desktop speak stdio. This config runs the remote server through mcp-remote. The mark above is the Claude mark.</p>
+    <pre id="claude" data-snippet="claude"></pre>
     <button type="button" data-copy="claude">Copy</button>
   </section>
-  <section class="card">
+  <section class="card" id="cursor-setup">
     <h2>Cursor</h2>
     <p>Put this in <span class="mono">.cursor/mcp.json</span>.</p>
-    <pre id="cursor"></pre>
+    <pre id="cursor" data-snippet="cursor"></pre>
     <button type="button" data-copy="cursor">Copy</button>
   </section>
-  <section class="card">
+  <section class="card" id="openai-sdk">
     <h2>OpenAI SDK</h2>
     <p>Point the client at the OpenAI-compatible base URL. The reply is the next turn of the same job. Send <span class="mono">ai_partner_state</span> back on the following request. The Python SDK keeps that field on the raw response.</p>
-    <pre id="openai"></pre>
+    <pre id="openai" data-snippet="openai"></pre>
     <button type="button" data-copy="openai">Copy</button>
   </section>
-  <section class="card">
-    <h2>Anthropic SDK</h2>
-    <p>The Messages API can attach this MCP server. We verified the MCP handshake on <span class="mono">/mcp</span>. We did not call Anthropic's cloud from this repo.</p>
-    <pre id="anthropic"></pre>
+  <section class="card" id="anthropic-sdk">
+    <h2>Anthropic and Claude</h2>
+    <p>On claude.ai, add a custom connector with the same MCP URL and bearer token. The Messages API can also attach this server. We verified the MCP handshake on <span class="mono">/mcp</span>. We did not call Anthropic's cloud from this repo.</p>
+    <pre id="anthropic" data-snippet="anthropic"></pre>
     <button type="button" data-copy="anthropic">Copy</button>
   </section>
 </main>

@@ -155,8 +155,9 @@ def voice_file(name):
 
 @bp.get("/connect")
 def connect_page():
-    origin = os.environ.get("PUBLIC_BASE_URL", "").strip() or request.host_url
-    return Response(render_connect(origin), mimetype="text/html")
+    from .access import request_origin
+
+    return Response(render_connect(request_origin()), mimetype="text/html")
 
 
 @bp.get("/catalog")

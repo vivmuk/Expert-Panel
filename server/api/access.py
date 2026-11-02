@@ -3,7 +3,7 @@ import hmac
 import os
 from urllib.parse import urlparse
 
-from flask import jsonify, request
+from flask import has_request_context, jsonify, request
 
 from ..keys import verify_key
 
@@ -33,8 +33,14 @@ def require_partner_key():
     return jsonify(UNAUTHORIZED), 401
 
 
+CANONICAL_ORIGINS = (
+    "https://ai-partner.up.railway.app",
+    "https://ai-partner-hq.vercel.app",
+)
+
+
 def allowed_origins():
-    found = set()
+    found = {origin.rstrip("/") for origin in CANONICAL_ORIGINS}
     base = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
     if base:
         found.add(base)
@@ -43,6 +49,15 @@ def allowed_origins():
         if item:
             found.add(item)
     return found
+
+
+def request_origin():
+    """Origin to print in setup snippets. The request wins over PUBLIC_BASE_URL."""
+    if has_request_context():
+        host = (request.host_url or "").strip().rstrip("/")
+        if host:
+            return host
+    return os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
 
 
 def origin_allowed():

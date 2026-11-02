@@ -13,7 +13,7 @@ from ..chatmemory import recall, remember
 from ..downloads import download_path, save_download
 from ..harnesskit import build_kit_zip
 from ..skillpack import build_pack_zip
-from .access import origin_allowed, require_partner_key
+from .access import origin_allowed, request_origin, require_partner_key
 from .chat import complete_with_venice, exa_search
 
 bp = Blueprint("agents", __name__)
@@ -97,10 +97,7 @@ TOOLS = [
 
 
 def _public_base():
-    base = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
-    if base:
-        return base
-    return request.host_url.rstrip("/")
+    return request_origin()
 
 
 def _turn(message, state):

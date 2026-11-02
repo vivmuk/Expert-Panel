@@ -941,8 +941,7 @@ def chart_reply(state):
 
 
 def closing_text(state):
-    import os
-
+    from .api.access import request_origin
     from .skillpack import agent_steps, plan_slots, skill_cap
 
     count = len(plan_slots(state["size"], agent_steps(state["chart"])))
@@ -952,7 +951,7 @@ def closing_text(state):
         "CLAUDE.md and model-routing.md point at skills/skills.json.",
         "Download the report at /api/chat/report, the kit at /api/chat/kit, and the skill pack at /api/chat/skill-pack. POST this job state.",
     ]
-    base = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+    base = request_origin()
     if base:
         lines.append(
             f"On this host those paths are {base}/api/chat/report, {base}/api/chat/kit, and {base}/api/chat/skill-pack."

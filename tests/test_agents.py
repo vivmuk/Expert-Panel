@@ -136,6 +136,16 @@ def test_deck_links_back_to_chat(client):
     text = page.get_data(as_text=True)
     assert 'href="/chat"' in text
     assert "Public, no login." in text
+    assert "Stop buying slides. Start shipping outcomes." in text
+    assert "91%" in text and "~$0.012" in text
+    assert "Works with" in text
+    assert "Logo not confirmed" in text
     assert "{{DEMO_URL}}" not in text
-    assert client.get("/connect").status_code == 200
-    assert b"/mcp" in client.get("/connect").data
+    connect = client.get("/connect")
+    assert connect.status_code == 200
+    body = connect.get_data(as_text=True)
+    assert "/mcp" in body
+    assert "Works with" in body
+    assert "No endorsement is implied." in body
+    assert 'href="#claude-code"' in body
+    assert "Logo not confirmed" in body

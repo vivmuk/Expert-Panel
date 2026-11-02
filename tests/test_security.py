@@ -89,6 +89,46 @@ def test_old_rate_limit_keys_are_evicted():
     assert allow_in_this_process("198.51.100.8", now=10 + 601)
 
 
+def test_canonical_hosts_are_allowed(monkeypatch):
+    monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
+    monkeypatch.delenv("AI_PARTNER_ORIGINS", raising=False)
+    monkeypatch.setenv("AI_PARTNER_API_KEYS", "partner-test-key")
+    from server import create_app
+
+    client = create_app().test_client()
+    for origin in ("https://ai-partner.up.railway.app", "https://ai-partner-hq.vercel.app"):
+        allowed = client.options(
+            "/api/chat",
+            headers={"Origin": origin, "Access-Control-Request-Method": "POST"},
+        )
+        assert allowed.headers.get("Access-Control-Allow-Origin") == origin
+        mcp = client.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            headers={"Authorization": "Bearer partner-test-key", "Origin": origin},
+        )
+        assert mcp.status_code != 403
+    page = client.get("/connect", base_url="https://ai-partner-hq.vercel.app")
+    text = page.get_data(as_text=True)
+    assert "https://ai-partner-hq.vercel.app/mcp" in text
+    assert "web-production-c3fdc" not in text
+
+
+def test_connect_uses_the_request_host_not_a_stale_env(monkeypatch):
+    monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://web-production-c3fdc.up.railway.app")
+    from server import create_app
+
+    client = create_app().test_client()
+    text = client.get("/connect", base_url="https://ai-partner.up.railway.app").get_data(as_text=True)
+    assert "https://ai-partner.up.railway.app/mcp" in text
+    assert "https://ai-partner.up.railway.app/v1" in text
+    assert "web-production-c3fdc" not in text
+
+
 def test_cors_blocks_a_foreign_origin(monkeypatch):
     monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
     monkeypatch.setenv("VERCEL", "1")
