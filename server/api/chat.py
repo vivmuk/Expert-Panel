@@ -45,7 +45,7 @@ DAILY_LIMIT_REPLY = "This network has started its engagements for today. Continu
 
 
 def client_ip_header():
-    """Railway and Vercel overwrite X-Real-IP at their edge; Railway passes a client's X-Forwarded-For through untouched."""
+    """Railway and Vercel set X-Real-IP at their edge, replacing any value the client sent. Railway documents no X-Forwarded-For."""
     configured = os.environ.get("AI_PARTNER_CLIENT_IP_HEADER", "").strip()
     if configured:
         return configured
