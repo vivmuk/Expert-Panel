@@ -602,7 +602,22 @@ def _intake(state, message):
     return "", state
 
 
+class TurnFailed(Exception):
+    """A model step failed. `state` is the signed job state to hand back so a retry resumes here."""
+
+    def __init__(self, state):
+        super().__init__("model step failed")
+        self.state = state
+
+
 def _run_work(state, complete, recall, remember, search):
+    try:
+        return _work(state, complete, recall, remember, search)
+    except Exception as exc:
+        raise TurnFailed(_pack("", state, None)["state"]) from exc
+
+
+def _work(state, complete, recall, remember, search):
     if state["calls"] >= MAX_MODEL_CALLS:
         return _pack(
             BUDGET_REPLY,

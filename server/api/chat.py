@@ -7,12 +7,13 @@ from flask import Blueprint, Response, jsonify, request, send_from_directory
 
 from ..artifacts import ArtifactError, generate_artifact
 from ..catalog import groups, recommend
-from ..chatjob import WELCOME, handle_turn, load_state, render_report
+from ..chatjob import WELCOME, TurnFailed, handle_turn, load_state, render_report
 from ..chatmemory import recall, remember
 from ..exa_search import exa_search
 from ..harnesskit import build_kit_zip
 from ..skillpack import build_pack_zip
 from ..uploads import take_uploads
+from ..venice.errors import SPEND_LIMIT_REPLY, out_of_credit
 from .chat_page import render_page
 from .connect_page import render_connect
 from .pages import render_catalog, render_pricing
@@ -213,8 +214,10 @@ def post_root_chat():
             REPLY_SCHEMA,
             500,
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("stateless chat failed")
+        if out_of_credit(exc):
+            return jsonify({"response": SPEND_LIMIT_REPLY}), 503
         return jsonify({"response": "The model call failed. Send the message again."}), 502
     text = str((data or {}).get("response") or "").strip() if isinstance(data, dict) else ""
     if not text:
@@ -249,8 +252,18 @@ def post_chat():
         ), 429
     try:
         result = handle_turn(incoming, message, complete_with_venice, recall, remember, exa_search)
-    except Exception:
+    except Exception as exc:
+        state = exc.state if isinstance(exc, TurnFailed) else load_state(incoming)
         logger.exception("chat turn failed at phase %s", state.get("phase"))
+        if out_of_credit(exc):
+            return jsonify(
+                {
+                    "reply": SPEND_LIMIT_REPLY,
+                    "state": state,
+                    "next": None,
+                    "error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY},
+                }
+            ), 503
         reply = "The model call failed. Your earlier answers are still here. Send the message again."
         return jsonify(
             {
@@ -320,6 +333,11 @@ def chat_artifact():
     except ArtifactError as exc:
         status = 400 if exc.code in ("unknown", "tamper", "limit", "budget") else 502
         return jsonify({"error": {"code": exc.code, "message": str(exc)}}), status
+    except Exception as exc:
+        logger.exception("artifact %s failed", artifact_id)
+        if out_of_credit(exc):
+            return jsonify({"error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY}}), 503
+        return jsonify({"error": {"code": "model", "message": "The model call failed. Try again."}}), 502
     return jsonify(result)
 
 

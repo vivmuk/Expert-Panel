@@ -13,6 +13,7 @@ from ..chatmemory import recall, remember
 from ..downloads import download_path, save_download
 from ..harnesskit import build_kit_zip
 from ..skillpack import build_pack_zip
+from ..venice.errors import SPEND_LIMIT_REPLY, out_of_credit
 from .access import origin_allowed, request_origin, require_partner_key
 from .chat import complete_with_venice, exa_search
 
@@ -248,10 +249,11 @@ def mcp():
         payload = _rpc(body)
     except Exception as exc:
         logger.exception("mcp call failed")
+        message = SPEND_LIMIT_REPLY if out_of_credit(exc) else f"AI Partner error: {exc.__class__.__name__}."
         payload = {
             "jsonrpc": "2.0",
             "id": body.get("id"),
-            "error": {"code": -32000, "message": f"AI Partner error: {exc.__class__.__name__}."},
+            "error": {"code": -32000, "message": message},
         }
     headers = _session_headers(body.get("method"))
     if payload is None:
@@ -290,7 +292,13 @@ def chat_completions():
     if model == "ai-partner-full":
         state = dict(state)
         state["depth"] = "full"
-    result = _turn(user, state)
+    try:
+        result = _turn(user, state)
+    except Exception as exc:
+        logger.exception("completion turn failed")
+        if out_of_credit(exc):
+            return jsonify({"error": {"message": SPEND_LIMIT_REPLY, "type": "spend_limit"}}), 503
+        return jsonify({"error": {"message": "The model call failed. Send the message again.", "type": "model_error"}}), 502
     created = int(time.time())
     completion_id = "chatcmpl-" + uuid.uuid4().hex[:24]
     if body.get("stream") is True:
