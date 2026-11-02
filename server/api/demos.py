@@ -1,6 +1,7 @@
 """Long-form pages for the three public demo engagements."""
 import json
 import os
+import re
 import zlib
 from html import escape
 
@@ -10,7 +11,8 @@ from .. import art
 from ..catalog import by_id
 from ..demo_schema import DISCLAIMER, valid_demo
 from ..icons import icon
-from .pages import ARTIFACT_ICONS, page_head, shell, task_slug
+from .deck import frameable
+from .pages import ARTIFACT_ICONS, DECK_EMBED_SCRIPT, deck_embed, page_head, shell, task_slug
 
 bp = Blueprint("demos", __name__)
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static", "demos"))
@@ -101,7 +103,7 @@ def kit_file(slug, name):
 def client_deck(slug):
     if slug not in SLUGS or not os.path.isfile(os.path.join(ROOT, slug, "deck.html")):
         abort(404)
-    return send_from_directory(os.path.join(ROOT, slug), "deck.html", mimetype="text/html")
+    return frameable(send_from_directory(os.path.join(ROOT, slug), "deck.html", mimetype="text/html"))
 
 
 @bp.get("/demos/<slug>/kit.zip")
@@ -141,7 +143,7 @@ def _page(demo):
         "/demos",
         body,
         extra_head='<link rel="stylesheet" href="/report.css">\n',
-        scripts='<script src="/report.js" defer></script>\n',
+        scripts='<script src="/report.js" defer></script>\n' + (DECK_EMBED_SCRIPT if _has_deck(demo["slug"]) else ""),
         body_class="report",
     )
 
@@ -188,6 +190,7 @@ def _report(demo):
     <p class="take">{escape(take)}</p>
     {_top_list(top)}
   </div>
+  {_deck_embed(demo)}
 </section>
 <section id="market" class="report-section">
   {_section_head("02", "Market analysis", f"{len(cites)} public pages, each with the note the research agents kept.")}
@@ -240,6 +243,24 @@ def _deck_button(slug):
     if not _has_deck(slug):
         return ""
     return f'<a class="btn primary deck-btn" href="/demos/{escape(slug)}/deck" target="_blank" rel="noopener">{icon("monitor-play")}Open the client deck</a>'
+
+
+def _slide_count(slug):
+    with open(os.path.join(ROOT, slug, "deck.html"), encoding="utf-8") as handle:
+        return len(re.findall(r'<section class="slide\b', handle.read()))
+
+
+def _deck_embed(demo):
+    slug = demo["slug"]
+    if not _has_deck(slug):
+        return ""
+    return deck_embed(
+        f"/demos/{slug}/deck",
+        f'{demo["company"]} client deck · AI Partner',
+        "The client deck",
+        kicker=f'{demo["company"]} · {_slide_count(slug)} slides',
+        lede="The whole engagement as the deck your team would present.",
+    )
 
 
 def _section_head(number, title, lede):

@@ -538,3 +538,40 @@ details.more[open] summary .ico { transform: rotate(180deg); }
 .connect-hero .cta-actions { margin-top: 4px; }
 .connect-hero > .form-card { justify-self: stretch; }
 .connect-hero .pill-copy code { white-space: normal; overflow-wrap: anywhere; }
+
+/* ---------- inline decks ---------- */
+.deck-embed { margin: 8px 0 0; display: grid; gap: 12px; min-width: 0; }
+.deck-embed-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
+.deck-embed-head h2 { margin: 4px 0 0; font-size: var(--t-h3); letter-spacing: -.01em; }
+.deck-embed-head .muted { margin: 4px 0 0; font-size: 14px; }
+.deck-embed-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.deck-frame {
+  padding: clamp(6px, 1vw, 10px); border-radius: var(--r);
+  background: linear-gradient(180deg, var(--paper-2), var(--paper-3));
+  border: 1px solid var(--rule); box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, .7);
+}
+.deck-stage {
+  position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-sm);
+  background: var(--paper); border: 1px solid var(--rule); transition: box-shadow .2s var(--ease-out);
+}
+.deck-stage:focus-within { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--cobalt); }
+.deck-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: var(--paper); }
+.deck-embed.scaled .deck-stage iframe { width: 1120px; height: 630px; transform: scale(var(--deck-scale, 1)); transform-origin: 0 0; }
+.deck-stage:fullscreen { border: 0; border-radius: 0; }
+.deck-stage:fullscreen iframe { width: 100% !important; height: 100% !important; transform: none !important; }
+.deck-stage:-webkit-full-screen iframe { width: 100% !important; height: 100% !important; transform: none !important; }
+.deck-hint { margin: 0; font: 12px/1.6 var(--mono); color: var(--ink-3-aa); }
+.deck-hint kbd { font-size: 10px; padding: 1px 5px; }
+.deck-hint .hint-touch { display: none; }
+@media (pointer: coarse) {
+  .deck-hint .hint-keys { display: none; }
+  .deck-hint .hint-touch { display: inline; }
+}
+.about-page .deck-embed { margin-bottom: clamp(32px, 6vw, 64px); }
+@media (max-width: 640px) {
+  .deck-embed-head { align-items: flex-start; }
+  .deck-embed-actions { width: 100%; }
+  .deck-embed-actions .btn { flex: 1 1 0; justify-content: center; }
+  .deck-hint { font-size: 11px; }
+}
+@media print { .deck-embed { display: none; } }

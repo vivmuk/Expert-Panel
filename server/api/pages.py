@@ -12,7 +12,7 @@ NAV_ITEMS = (
     ("/demos", "layers", "Demos"),
     ("/what-you-get", "package", "What you get"),
     ("/catalog", "book-open", "Catalog"),
-    ("/deck", "monitor-play", "Deck"),
+    ("/about", "monitor-play", "About"),
 )
 
 FONTS = (
@@ -74,7 +74,7 @@ FOOT = """
   <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="24" height="24"><span>AI Partner</span></a>
   <p class="foot-note">Your team directs the agents. Your first engagement is free.</p>
   <nav class="foot-links" aria-label="Footer">
-    <a href="/demos">Demos</a><a href="/what-you-get">What you get</a><a href="/catalog">Catalog</a><a href="/deck">Deck</a><a href="/connect">Connect</a><a href="/get-started.md">get-started.md</a>
+    <a href="/demos">Demos</a><a href="/what-you-get">What you get</a><a href="/catalog">Catalog</a><a href="/about">About</a><a href="/deck">Deck</a><a href="/connect">Connect</a><a href="/get-started.md">get-started.md</a>
   </nav>
 </footer>
 """
@@ -138,6 +138,30 @@ def page_head(kicker, title, lede, extra=""):
     {extra}
   </div>
 </section>"""
+
+
+DECK_EMBED_SCRIPT = '<script src="/deck-embed.js" defer></script>\n'
+
+
+def deck_embed(src, title, heading, kicker="Deck", lede=""):
+    """An inline 16:9 deck. deck-embed.js renders it in a fixed 1120x630 viewport scaled to fit, so slides never clip."""
+    src = escape(src)
+    lede_html = f'<p class="muted">{escape(lede)}</p>' if lede else ""
+    return f"""<figure class="deck-embed" data-deck-embed>
+  <figcaption class="deck-embed-head">
+    <div><p class="kicker">{icon("monitor-play")}{escape(kicker)}</p><h2>{escape(heading)}</h2>{lede_html}</div>
+    <div class="deck-embed-actions">
+      <button type="button" class="btn small ghost" data-deck-fullscreen>{icon("maximize")}Fullscreen</button>
+      <a class="btn small ghost" href="{src}" target="_blank" rel="noopener">{icon("external-link")}Open in new tab</a>
+    </div>
+  </figcaption>
+  <div class="deck-frame">
+    <div class="deck-stage">
+      <iframe src="{src}" title="{escape(title)}" loading="lazy" allow="fullscreen" allowfullscreen referrerpolicy="same-origin"></iframe>
+    </div>
+  </div>
+  <p class="deck-hint"><span class="hint-keys">Click or tab into the deck, then use <kbd>←</kbd> <kbd>→</kbd> to move between slides. <kbd>Esc</kbd> leaves fullscreen.</span><span class="hint-touch">Swipe the deck to change slides. Tap Fullscreen to read it full size.</span></p>
+</figure>"""
 
 
 ARTIFACT_ICONS = {

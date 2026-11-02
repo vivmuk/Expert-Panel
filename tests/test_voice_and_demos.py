@@ -212,3 +212,42 @@ def test_inner_page_art_has_alt_text_sizes_and_lazy_loading(monkeypatch):
     home = client.get("/chat").get_data(as_text=True)
     assert "hero.webp" not in home
     assert not re.search(r'src="/(img/(catalog|what-you-get)|demos/img)/', home)
+
+
+def _iframe(html, src):
+    import re
+
+    tags = [tag for tag in re.findall(r"<iframe [^>]+>", html) if f'src="{src}"' in tag]
+    assert len(tags) == 1, src
+    return tags[0]
+
+
+def test_decks_are_embedded_inline_with_same_origin_framing(monkeypatch):
+    import re
+    from pathlib import Path
+
+    client = _client(monkeypatch)
+    for slug in ("maritime", "keiki", "orchid"):
+        html = client.get(f"/demos/{slug}").get_data(as_text=True)
+        tag = _iframe(html, f"/demos/{slug}/deck")
+        assert re.search(r'title="[^"]{10,}"', tag) and 'loading="lazy"' in tag and "allowfullscreen" in tag
+        assert "tabindex=\"-1\"" not in tag
+        assert html.index('class="exec card"') < html.index("data-deck-embed") < html.index('id="market"')
+        assert "data-deck-fullscreen" in html and "Open in new tab" in html and "/deck-embed.js" in html
+        assert "14 slides" in html
+        deck = client.get(f"/demos/{slug}/deck")
+        assert deck.headers["X-Frame-Options"] == "SAMEORIGIN"
+        assert deck.headers["Content-Security-Policy"] == "frame-ancestors 'self'"
+
+    about = client.get("/about")
+    assert about.status_code == 200
+    html = about.get_data(as_text=True)
+    assert "The First 1,000" in html and "/deck-embed.js" in html
+    _iframe(html, "/deck")
+    deck = client.get("/deck")
+    assert deck.data == Path("server/static/deck/index.html").read_bytes()
+    assert deck.headers["X-Frame-Options"] == "SAMEORIGIN"
+
+    home = client.get("/chat").get_data(as_text=True)
+    assert "<iframe" not in home and "deck-embed" not in home
+    assert client.get("/deck-embed.js").status_code == 200

@@ -164,6 +164,11 @@ def report_js():
     return send_from_directory(_STATIC, "report.js")
 
 
+@bp.get("/deck-embed.js")
+def deck_embed_js():
+    return send_from_directory(_STATIC, "deck-embed.js")
+
+
 @bp.get("/voice/<path:name>")
 def voice_file(name):
     return send_from_directory(os.path.join(_STATIC, "voice"), name)

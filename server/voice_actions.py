@@ -7,6 +7,7 @@ PAGES = (
     "/demos/keiki",
     "/demos/orchid",
     "/deck",
+    "/about",
     "/catalog",
     "/connect",
 )
