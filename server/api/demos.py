@@ -120,11 +120,7 @@ def _page(demo):
 
 
 def _report(demo):
-    images = _images(demo["slug"])
-    gallery = "".join(
-        f'<img class="accent" src="/demos/img/{escape(name)}" alt="{escape(demo["company"])} illustration." loading="lazy" width="280" height="210">'
-        for name in images
-    )
+    slug = demo["slug"]
     cites = demo["market"].get("citations") or []
     top = demo.get("top5") or []
     answer = top[0]["title"] if top else "The public pages below are the record so far."
@@ -134,7 +130,7 @@ def _report(demo):
 <p class="kicker">Demo · {escape(demo["company"])}</p>
 <p>{escape(demo["disclaimer"])}</p>
 <section id="summary">
-  <img class="spot" src="/img/brand/character.webp" alt="A multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="96" height="72">
+  {_art(slug, "cover")}
   <h1>{escape(demo["company"])}</h1>
   {_DIVIDER}
   <aside class="note"><strong>The panel's take.</strong> {escape(answer)}</aside>
@@ -149,14 +145,13 @@ def _report(demo):
   {_top_list(top)}
 </section>
 <section id="market">
-  <img class="spot" src="/img/brand/avatar.webp" alt="" width="72" height="72">
   <h2>Market analysis</h2>
   {_DIVIDER}
+  {_art(slug, "market")}
   <p>{escape(demo["market"].get("summary") or "Not generated yet. Run scripts/run_demo.py.")}</p>
   <p class="inference">Counts on this page are from the citation list. They are not a market-size estimate.</p>
   <div class="toolbar" id="market-map">{_citation_buttons(cites)}</div>
   <p id="market-tip" class="note" hidden></p>
-  {gallery}
 </section>
 <section id="experts">
   <h2>Expert panel</h2>
@@ -167,12 +162,14 @@ def _report(demo):
 <section id="debate">
   <h2>Debate</h2>
   {_DIVIDER}
+  {_art(slug, "panel")}
   <div class="toolbar" id="rounds"></div>
   <div class="timeline" id="timeline">{_debate(demo.get("debate") or [])}</div>
 </section>
 <section id="top5">
   <h2>Top 5</h2>
   {_DIVIDER}
+  {_art(slug, "panel")}
   <div class="toolbar">
     <button type="button" data-sort="confidence">Confidence</button>
     <button type="button" data-sort="impact">Impact</button>
@@ -195,6 +192,7 @@ def _report(demo):
 <section id="skills">
   <h2>Harness and skill pack</h2>
   {_DIVIDER}
+  {_art(slug, "build")}
   <div class="toolbar" id="pack-tabs"><button type="button" class="on" data-tab="tree">Files</button><button type="button" data-tab="skills">Skills</button></div>
   <pre class="tree" id="pack-tree">{_tree(demo)}</pre>
   <div id="pack-skills">{_skills(demo.get("skills") or [])}</div>
@@ -208,11 +206,33 @@ def _report(demo):
 """
 
 
-def _images(slug):
-    folder = os.path.join(ROOT, "img")
-    if not os.path.isdir(folder):
-        return []
-    return sorted(name for name in os.listdir(folder) if name.startswith(slug + "-") and name.endswith(".webp"))
+_ART = {
+    ("maritime", "cover"): "A floral-helmet robot stands on a rangoli beside a harbor of shipping containers and shines a light on a locked gate.",
+    ("maritime", "market"): "The robot holds charts, a compass, and a telescope beside a port grid of shipping containers.",
+    ("maritime", "panel"): "The robot sits at a conference table of charts and a container model, with smaller robots around the table and a harbor outside.",
+    ("maritime", "build"): "The robot holds laptops beside a glowing frame, with shipping containers stacked behind.",
+    ("keiki", "cover"): "The robot stands on a rangoli while smaller robots carry message cards up a stair and across a gap.",
+    ("keiki", "market"): "The robot studies a field of speech bubbles with a telescope, a map, and a chart.",
+    ("keiki", "panel"): "The robot sits at a round table of charts with smaller robots, holding a magnifying glass and a calculator.",
+    ("keiki", "build"): "The robot holds a tablet and a blueprint beside a glowing rack of shapes, with smaller robots on carts.",
+    ("orchid", "cover"): "The robot stands between two arched doorways, one showing a phone calendar and the other an office building.",
+    ("orchid", "market"): "The robot looks through a telescope across a grid of colored tiles, holding charts and a tablet.",
+    ("orchid", "panel"): "The robot stands behind a round table of notebooks and blocks, with smaller robots seated around it.",
+    ("orchid", "build"): "The robot holds a blueprint and a magnifying glass beside a glowing frame of cubes and a cylinder.",
+}
+
+
+def _art(slug, kind):
+    name = f"{slug}-{kind}.webp"
+    if not os.path.isfile(os.path.join(ROOT, "img", name)):
+        return ""
+    cls = "hero-art" if kind == "cover" else "section-art"
+    loading = "" if kind == "cover" else " loading=\"lazy\""
+    alt = _ART.get((slug, kind), "")
+    return (
+        f'<img class="{cls}" src="/demos/img/{escape(name)}" alt="{escape(alt)}" '
+        f'width="1024" height="768"{loading}>'
+    )
 
 
 def _citation_buttons(items):

@@ -107,6 +107,20 @@ def test_demo_page_renders_the_disclaimer(monkeypatch):
     assert 'id="market"' in text
     assert "https://maritime.sh/docs/web-apps" in text
     assert "Cal.com" not in text
+    summary, market = text.split('id="market"', 1)
+    market = market.split('id="experts"', 1)[0]
+    debate, top5 = text.split('id="debate"', 1)[1].split('id="top5"', 1)
+    top5 = top5.split('id="maturity"', 1)[0]
+    skills = text.split('id="skills"', 1)[1].split('id="artifacts"', 1)[0]
+    assert summary.index("maritime-cover.webp") < summary.index("<h1>")
+    assert market.index("Market analysis") < market.index("maritime-market.webp")
+    assert debate.index("Debate") < debate.index("maritime-panel.webp")
+    assert top5.index("Top 5") < top5.index("maritime-panel.webp")
+    assert skills.index("Harness and skill pack") < skills.index("maritime-build.webp")
+    for slug in ("keiki", "orchid"):
+        other = client.get(f"/demos/{slug}").get_data(as_text=True)
+        for kind in ("cover", "market", "panel", "build"):
+            assert f"{slug}-{kind}.webp" in other
     index = client.get("/demos")
     assert b"Keiki" in index.data and b"Orchid" in index.data
     chat = client.get("/chat")
