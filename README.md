@@ -46,6 +46,82 @@ Pre-run estimates (`POST /api/estimate`), a confirm dialog above $2, a live cost
 ticker during runs, per-engagement totals, and a circuit breaker that aborts any
 run exceeding 3× its estimate.
 
+## Try the demo
+
+The demo is a chat at `/chat`. You name a consulting job in any service line. The page asks who is on the team, which tools they use, and where they sit on a four-point AI maturity scale. It then runs a four-person panel, an optional red team, and a work chart. Each model call is its own request, so a Vercel function can finish inside its time limit. The browser keeps the job and sends it back on the next turn. When the job is done, the page downloads a report and a harness kit zip.
+
+The kit contains `CLAUDE.md`, `playbook.md`, `model-routing.md`, `project-state-schema.md`, and one `SKILL.md` for each agent step.
+
+### Run the chat locally
+
+```bash
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt
+VENICE_API_KEY=your-key VERCEL=1 .venv/bin/flask --app api.index:app run --port 5000
+```
+
+Open http://localhost:5000/chat
+
+`VERCEL=1` skips SQLite, which is how the hosted demo runs. Leave it unset when you want the engagement database from the next section.
+
+Use a fresh Venice key. An old key is still in this repo's git history. Revoke that key in the Venice dashboard.
+
+### Deploy on Vercel
+
+In the project settings, use these values.
+
+- Framework preset is Flask if Vercel offers it. Otherwise choose Other. Do not choose Vite.
+- Root directory is the repository root.
+- Build command is empty.
+- Output directory is empty.
+- Install command stays the default. Vercel installs `requirements.txt`.
+- Python version stays the default, 3.12.
+
+The Flask app is `app` in `api/index.py`. `pyproject.toml` points Vercel at `api.index:app`. `vercel.json` sets the function limit to 60 seconds.
+
+Set these environment variables on the project. Do not commit them.
+
+- `VENICE_API_KEY` is required.
+- `SUPERMEMORY_API_KEY` is optional. Recall stays off when it is empty.
+- `PUBLIC_BASE_URL` is optional. Set it to the deployed origin, such as `https://your-app.vercel.app`, so the last message prints absolute links.
+
+### Check a live deploy
+
+Replace `HOST` with the deployment host.
+
+```bash
+curl -sS "https://HOST/health"
+```
+
+The body is `{"status":"ok"}`.
+
+```bash
+curl -sS -X POST "https://HOST/api/chat" \
+  -H "content-type: application/json" \
+  -d '{"message":"Market entry for a medtech device into Germany. Team: 4 analysts. Tools: Excel and Veeva. Maturity 2.","state":{}}'
+```
+
+`next` in that JSON is `blueprint`. Save the `state` object. Post it back with an empty message to draw the work chart.
+
+```bash
+curl -sS -X POST "https://HOST/api/chat" \
+  -H "content-type: application/json" \
+  -d @turn2.json
+```
+
+`turn2.json` is `{"message":"","state": <state from the first response>}`.
+
+Save the finished state as `done.json` with the shape `{"state": <state>}`. Download the kit.
+
+```bash
+curl -sS -X POST "https://HOST/api/chat/kit" \
+  -H "content-type: application/json" \
+  -d @done.json \
+  -o harness-kit.zip
+```
+
+The zip includes `CLAUDE.md` and at least one `skills/<step>/SKILL.md`.
+
 ## Local development
 
 ```bash
