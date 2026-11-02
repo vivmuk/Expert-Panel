@@ -289,6 +289,7 @@ def load_state(raw):
     pack = raw.get("pack")
     if isinstance(pack, dict) and pack.get("tier") in ("small", "medium", "large"):
         state["pack"] = {"tier": pack["tier"]}
+    state["artifacts"] = _artifacts(raw.get("artifacts"))
     phase = raw.get("phase")
     state["phase"] = _rewind(state, phase if phase in PHASES else "ask_problem")
     return state
@@ -364,6 +365,19 @@ def _uploads(raw):
         kind = item.get("kind") if item.get("kind") in ("source", "template") else "source"
         if name and text:
             found.append({"name": name, "text": text, "kind": kind})
+    return found
+
+
+def _artifacts(raw):
+    from .catalog import by_id
+
+    if not isinstance(raw, dict):
+        return {}
+    found = {}
+    for key, value in list(raw.items())[:40]:
+        if not by_id(key) or not isinstance(value, str) or not value.strip():
+            continue
+        found[key] = value.strip()[:20000]
     return found
 
 

@@ -5,6 +5,8 @@ import time
 
 from flask import Blueprint, Response, jsonify, request, send_from_directory
 
+from ..artifacts import ArtifactError, generate_artifact
+from ..catalog import groups, recommend
 from ..chatjob import WELCOME, handle_turn, load_state, render_report
 from ..chatmemory import recall, remember
 from ..exa_search import exa_search
@@ -13,6 +15,7 @@ from ..skillpack import build_pack_zip
 from ..uploads import take_uploads
 from .chat_page import render_page
 from .connect_page import render_connect
+from .pages import render_catalog, render_pricing
 
 _STATIC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
 
@@ -121,6 +124,16 @@ def app_css():
 def connect_page():
     origin = os.environ.get("PUBLIC_BASE_URL", "").strip() or request.host_url
     return Response(render_connect(origin), mimetype="text/html")
+
+
+@bp.get("/catalog")
+def catalog_page():
+    return Response(render_catalog(), mimetype="text/html")
+
+
+@bp.get("/pricing")
+def pricing_page():
+    return Response(render_pricing(), mimetype="text/html")
 
 
 @bp.get("/chat")
@@ -245,6 +258,30 @@ def chat_skill_pack():
         mimetype="application/zip",
         headers={"Content-Disposition": "attachment; filename=skill-pack.zip"},
     )
+
+
+@bp.get("/api/catalog")
+def catalog_json():
+    return jsonify({"groups": groups(), "recommend_default": recommend({})})
+
+
+@bp.post("/api/chat/artifact")
+def chat_artifact():
+    raw = _body()
+    if raw is None:
+        return _bad("Send a JSON object.")
+    artifact_id = raw.get("artifact_id")
+    if not isinstance(artifact_id, str) or not artifact_id.strip():
+        return _bad("artifact_id is required")
+    if not allow_in_this_process(client_ip()):
+        return jsonify({"error": {"code": "rate", "message": "This chat is sending messages too fast. Wait a few minutes and try again."}}), 429
+    incoming = raw.get("state") if isinstance(raw.get("state"), dict) else {}
+    try:
+        result = generate_artifact(incoming, artifact_id.strip(), complete_with_venice)
+    except ArtifactError as exc:
+        status = 400 if exc.code in ("unknown", "tamper", "limit", "budget") else 502
+        return jsonify({"error": {"code": exc.code, "message": str(exc)}}), status
+    return jsonify(result)
 
 
 @bp.post("/api/chat/report")

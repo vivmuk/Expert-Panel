@@ -15,9 +15,12 @@ PAGE = r"""<!DOCTYPE html>
 <header class="top">
   <a class="brand" href="/"><span class="dot"></span> AI Partner</a>
   <nav class="links">
-    <a href="/" aria-current="page">Chat</a>
+    <a href="/chat" aria-current="page">Chat</a>
     <a href="/deck">Deck</a>
+    <a href="/catalog">Catalog</a>
     <a href="/connect">Connect</a>
+    <a href="/pricing">Pricing</a>
+    <a class="primary" href="/pricing">Get API key</a>
   </nav>
 </header>
 <main class="wrap">
@@ -57,6 +60,7 @@ const STEPS = [
   ["maturity", "Maturity"],
   ["panel", "Panel"],
   ["chart", "Work Chart"],
+  ["artifacts", "Artifacts"],
   ["research", "Research"],
   ["skills", "Skill Pack"],
   ["kit", "Kit"]
@@ -89,9 +93,9 @@ function phaseStep(phase) {
   if (phase === "ask_maturity") return 1;
   if (phase === "panel" || phase === "red_team") return 2;
   if (phase === "blueprint") return 3;
-  if (phase === "ask_size" || phase === "research" || phase === "synthesize") return 4;
-  if (phase === "skills") return 5;
-  if (phase === "done") return 6;
+  if (phase === "ask_size" || phase === "research" || phase === "synthesize") return 5;
+  if (phase === "skills") return 6;
+  if (phase === "done") return 7;
   return 0;
 }
 
@@ -176,13 +180,133 @@ function showOutput(index) {
     output.appendChild(chartCard("Today", s.chart.current));
     output.appendChild(chartCard("Agent era", s.chart.future));
   } else if (index === 3) output.appendChild(card("Work Chart", "The chart has not been drawn."));
-  if (index === 4) {
+  if (index === 4) renderArtifacts();
+  if (index === 5) {
     const brief = s.brief;
     const cites = brief && brief.citations ? brief.citations.map(function (c) { return c.title + ". " + c.url; }).join("\n") : "";
     output.appendChild(card("Research", brief ? (brief.summary + "\n\n" + cites) : "Research has not run."));
   }
-  if (index === 5) output.appendChild(card("Skill Pack", s.pack ? ("Tier " + s.pack.tier + ". Download the pack from Kit.") : "The pack has not been written."));
-  if (index === 6) output.appendChild(card("Kit", s.phase === "done" ? "The report, harness kit, and skill pack are ready." : "The kit is ready when the pack is written."));
+  if (index === 6) output.appendChild(card("Skill Pack", s.pack ? ("Tier " + s.pack.tier + ". Download the pack from Kit.") : "The pack has not been written."));
+  if (index === 7) output.appendChild(card("Kit", s.phase === "done" ? "The report, harness kit, skill pack, and any generated artifacts are ready." : "The kit is ready when the pack is written."));
+}
+
+function renderArtifacts() {
+  const holder = document.createElement("div");
+  holder.id = "artifact-grid";
+  output.appendChild(holder);
+  const note = document.createElement("p");
+  note.className = "kicker";
+  note.textContent = "Strategy includes 5 catalog artifacts. Harness Build covers the full catalog.";
+  output.appendChild(note);
+  const all = document.createElement("button");
+  all.type = "button";
+  all.className = "ghost";
+  all.textContent = "Download all";
+  all.addEventListener("click", function () { download("/api/chat/kit", "harness-kit.zip"); });
+  output.appendChild(all);
+  fetch("/api/catalog").then(function (res) { return res.json(); }).then(function (data) {
+    const recommended = recommendIds(state || {});
+    data.groups.forEach(function (group) {
+      const h = document.createElement("h2");
+      h.textContent = group.task;
+      holder.appendChild(h);
+      const grid = document.createElement("div");
+      grid.className = "deliver-grid";
+      group.artifacts.forEach(function (item) {
+        grid.appendChild(artifactCard(item, recommended.indexOf(item.id) >= 0));
+      });
+      holder.appendChild(grid);
+    });
+  });
+}
+
+function recommendIds(s) {
+  const text = ((s.problem || "") + " " + (s.service_line || "")).toLowerCase();
+  const picks = ["research-brief", "market-sizing", "issue-tree", "work-chart", "exec-memo"];
+  if (text.indexOf("pric") >= 0) picks.push("pricing-analysis");
+  if (text.indexOf("cost") >= 0 || text.indexOf("inventory") >= 0) picks.push("cost-reduction");
+  return picks.slice(0, 6);
+}
+
+function artifactCard(item, recommended) {
+  const card = document.createElement("article");
+  card.className = "deliver";
+  const h = document.createElement("h3");
+  h.textContent = item.title;
+  card.appendChild(h);
+  if (recommended) {
+    const badge = document.createElement("p");
+    badge.className = "kicker";
+    badge.textContent = "Recommended";
+    card.appendChild(badge);
+  }
+  const p = document.createElement("p");
+  p.textContent = item.purpose;
+  card.appendChild(p);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = (state && state.artifacts && state.artifacts[item.id]) ? "Regenerate" : "Generate";
+  button.addEventListener("click", function () { generateArtifact(item.id, card); });
+  card.appendChild(button);
+  if (state && state.artifacts && state.artifacts[item.id]) showArtifact(card, item.id, state.artifacts[item.id]);
+  return card;
+}
+
+function showArtifact(card, id, markdown) {
+  let pre = card.querySelector("pre");
+  if (!pre) {
+    pre = document.createElement("pre");
+    card.appendChild(pre);
+  }
+  pre.textContent = markdown;
+  let row = card.querySelector(".row");
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "row";
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "ghost";
+    copy.textContent = "Copy";
+    copy.addEventListener("click", function () {
+      navigator.clipboard.writeText(pre.textContent);
+      copy.textContent = "Copied";
+      setTimeout(function () { copy.textContent = "Copy"; }, 1500);
+    });
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "ghost";
+    save.textContent = "Download .md";
+    save.addEventListener("click", function () {
+      const blob = new Blob([pre.textContent], {type: "text/markdown"});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = id + ".md";
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+    row.appendChild(copy);
+    row.appendChild(save);
+    card.appendChild(row);
+  }
+}
+
+async function generateArtifact(id, card) {
+  status.textContent = "Writing the artifact.";
+  const res = await fetch("/api/chat/artifact", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({state: state || {}, artifact_id: id})
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    status.textContent = (data.error && data.error.message) || "The artifact was not written.";
+    return;
+  }
+  if (data.state) state = data.state;
+  save();
+  showArtifact(card, id, data.markdown);
+  status.textContent = "";
 }
 
 function paint() {
@@ -200,8 +324,8 @@ function paint() {
     output.hidden = true;
     log.hidden = false;
   }
-  downloads.hidden = phase !== "done" && selected !== 6;
-  if (selected === 6 && phase === "done") downloads.hidden = false;
+  downloads.hidden = phase !== "done" && selected !== 7;
+  if (selected === 7 && phase === "done") downloads.hidden = false;
 }
 
 function save() {

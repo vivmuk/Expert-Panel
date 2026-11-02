@@ -67,7 +67,15 @@ def test_mcp_handshake_and_start_job(keyed):
     assert note.status_code == 202
     listed = keyed.post("/mcp", headers=headers, json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     names = [tool["name"] for tool in listed.get_json()["result"]["tools"]]
-    assert names == ["start_job", "chat_turn", "get_work_chart", "get_kit", "get_skill_pack"]
+    assert names == [
+        "start_job",
+        "chat_turn",
+        "get_work_chart",
+        "get_kit",
+        "list_artifacts",
+        "generate_artifact",
+        "get_skill_pack",
+    ]
     called = keyed.post(
         "/mcp",
         headers=headers,

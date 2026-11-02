@@ -34,11 +34,14 @@ def kit_files(state):
     }
     if state.get("pack") and state.get("brief") and state.get("size"):
         files.update(pack_files(state))
-        return files
-    used = set()
-    for step in agent_steps:
-        slug = _slug(step["step"], used)
-        files[f"skills/{slug}/SKILL.md"] = _skill(step, state)
+    else:
+        used = set()
+        for step in agent_steps:
+            slug = _slug(step["step"], used)
+            files[f"skills/{slug}/SKILL.md"] = _skill(step, state)
+    for artifact_id, text in (state.get("artifacts") or {}).items():
+        if isinstance(artifact_id, str) and isinstance(text, str) and text.strip():
+            files[f"artifacts/{artifact_id}.md"] = text
     return files
 
 

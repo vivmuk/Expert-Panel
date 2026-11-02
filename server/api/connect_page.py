@@ -18,9 +18,12 @@ PAGE = """<!DOCTYPE html>
 <header class="top">
   <a class="brand" href="/"><span class="dot"></span> AI Partner</a>
   <nav class="links">
-    <a href="/">Chat</a>
+    <a href="/chat">Chat</a>
     <a href="/deck">Deck</a>
+    <a href="/catalog">Catalog</a>
     <a href="/connect" aria-current="page">Connect</a>
+    <a href="/pricing">Pricing</a>
+    <a class="primary" href="/pricing">Get API key</a>
   </nav>
 </header>
 <main class="wrap">

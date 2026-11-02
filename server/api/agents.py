@@ -6,6 +6,8 @@ import uuid
 
 from flask import Blueprint, Response, jsonify, request, send_file
 
+from ..artifacts import ArtifactError, generate_artifact
+from ..catalog import groups
 from ..chatjob import handle_turn
 from ..chatmemory import recall, remember
 from ..downloads import download_path, save_download
@@ -64,6 +66,24 @@ TOOLS = [
         },
     },
     {
+        "name": "list_artifacts",
+        "description": "List every consulting artifact type, grouped by the thesis task map.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "generate_artifact",
+        "description": "Write one catalog artifact from the job state. Returns markdown and the updated state.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "artifact_id": {"type": "string"},
+                "state": {"type": "object"},
+            },
+            "required": ["artifact_id", "state"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "get_skill_pack",
         "description": "Build the skill pack from the job state and return a download URL.",
         "inputSchema": {
@@ -105,6 +125,18 @@ def _tool(name, arguments):
         return _zip(arguments.get("state") or {}, build_kit_zip)
     if name == "get_skill_pack":
         return _zip(arguments.get("state") or {}, build_pack_zip)
+    if name == "list_artifacts":
+        return _ok({"groups": groups()})
+    if name == "generate_artifact":
+        try:
+            result = generate_artifact(
+                arguments.get("state") or {},
+                arguments.get("artifact_id") or "",
+                complete_with_venice,
+            )
+        except ArtifactError as exc:
+            return _err(str(exc))
+        return _ok(result)
     return _err(f"Unknown tool {name}.")
 
 
