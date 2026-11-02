@@ -1,458 +1,1082 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Partner · Stop buying slides. Start shipping outcomes.</title>
-<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:opsz,wght@5..120,560;5..120,680&family=Source+Sans+3:wght@400;600&display=swap">
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI Partner · The First 1,000</title>
+<meta name="description" content="An AI partner consultancy that delivers working agents, not advice. Style: Constellation Paper.">
 <style>
-:root {
-  --paper: #f7f4ee;
-  --ink: #142033;
-  --ink-2: #3d4a63;
-  --teal: #1f8a93;
-  --gold: #d08900;
-  --pink: #e23d78;
-  --card: #fff;
-  --wash: #fff8ea;
-  --serif: "Playfair Display", Georgia, serif;
-  --sans: "Source Sans 3", "Helvetica Neue", sans-serif;
+/* ==========================================================================
+   STYLE: "Constellation Paper" (see STYLE.md)
+   Derived from vivDesign (designviv.up.railway.app) + harness-engineering base.
+   ======================================================================== */
+:root{
+  --company:"AI Partner";
+  --paper:#FAFAF7; --paper-2:#F0F0EC; --paper-3:#E6E6E0;
+  --ink:#0F0F0F; --ink-2:#525258; --ink-3:#8A8A92;
+  --rule:rgba(15,15,15,.12); --rule-2:rgba(15,15,15,.22);
+  --cobalt:#0033CC; --cobalt-dk:#001F7A; --cobalt-lt:#3366FF; --cobalt-wash:#E8EDFB;
+  --magenta:#FF2E93; --acid:#F5FF40; --amber:#D4760A;
+  --own-human:#0F0F0F; --own-agent:#0033CC; --own-hybrid:#FF2E93; --own-twin:#D4760A;
+  --sans:"Inter","Geist","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+  --mono:"JetBrains Mono","Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --ease-out:cubic-bezier(.23,1,.32,1); --ease-io:cubic-bezier(.77,0,.175,1);
+  --pad:clamp(18px,4vw,64px);
+  --t-h2:clamp(26px,3.6vw,52px);
+  --t-h3:clamp(17px,1.6vw,22px);
+  --t-body:clamp(14px,1.15vw,17px);
+  --t-small:clamp(11px,.9vw,13px);
+  --r:14px;
 }
-* { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.45 var(--sans); }
-button, a { font: inherit; }
-.progress { position: fixed; left: 0; top: 0; height: 4px; width: 0; background: var(--gold); z-index: 5; }
-.chrome { position: fixed; top: 14px; left: 28px; right: 28px; display: flex; justify-content: space-between; align-items: center; z-index: 4; pointer-events: none; }
-.chrome a { pointer-events: auto; color: var(--ink); text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-.chrome img { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; }
-.chrome span { color: var(--ink-2); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
-.deck { height: 100%; }
-.slide { display: none; height: 100%; padding: 72px 56px 78px; overflow: auto; }
-.slide.active { display: flex; flex-direction: column; gap: 14px; }
-.slide.title.active { display: grid; grid-template-columns: 1.15fr .85fr; grid-template-rows: auto 1fr; align-items: center; }
-.kicker { margin: 0; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; color: var(--ink-2); }
-h1, h2 { font-family: var(--serif); font-weight: 560; letter-spacing: -0.02em; line-height: 1.02; margin: 0; }
-h1 { font-size: clamp(40px, 5vw, 64px); max-width: 12em; }
-h2 { font-size: clamp(32px, 3.4vw, 48px); max-width: 22ch; }
-p { margin: 0; }
-.lede { font-size: 18px; max-width: 46ch; color: var(--ink); }
-.muted { color: var(--ink-2); }
-a.link { color: var(--teal); }
-.nav { position: fixed; left: 28px; right: 88px; bottom: 16px; display: flex; align-items: center; gap: 10px; z-index: 4; }
-.nav button, .copy, .step, .task, .card button { cursor: pointer; }
-.nav button.round { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); }
-.dots { display: flex; gap: 6px; flex: 1; }
-.dots button { width: 100%; max-width: 42px; height: 22px; border: 0; background: transparent; position: relative; }
-.dots button::after { content: ""; position: absolute; left: 2px; right: 2px; top: 10px; height: 3px; border-radius: 2px; background: #e4dccb; }
-.dots button.on::after { background: var(--gold); }
-.counter { font-size: 13px; color: var(--ink-2); min-width: 48px; text-align: right; }
-button:focus-visible, a:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden}
+body{font-size:var(--t-body);line-height:1.45}
+.deck{position:fixed;inset:0;overflow:hidden}
+.slide{position:absolute;inset:0;padding:calc(var(--pad) + 18px) var(--pad) calc(var(--pad) + 30px);display:flex;flex-direction:column;gap:clamp(12px,2vh,24px);
+  opacity:0;visibility:hidden;transform:translateX(40px);transition:opacity .5s var(--ease-out),transform .6s var(--ease-out),visibility 0s .6s;overflow:hidden}
+.slide.active{opacity:1;visibility:visible;transform:none;transition:opacity .5s var(--ease-out),transform .6s var(--ease-out)}
+.slide.prev{transform:translateX(-40px)}
+.kicker{font-family:var(--mono);font-size:var(--t-small);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.kicker b{color:var(--cobalt);font-weight:600}
+h1,h2,h3{font-weight:800;letter-spacing:-.025em;line-height:1.02}
+h2{font-size:var(--t-h2);max-width:24ch}
+h2 em,h1 em{font-style:normal;color:var(--cobalt)}
+h3{font-size:var(--t-h3);letter-spacing:-.01em;line-height:1.15}
+p{max-width:62ch}
+.muted{color:var(--ink-2)} .faint{color:var(--ink-3)}
+.mono{font-family:var(--mono)}
+.label{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid var(--rule-2);color:var(--ink-2);background:var(--paper);white-space:nowrap}
+.label.est{background:var(--acid);border-color:#d8e000;color:var(--ink)}
+.label.asp{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.ph{font-family:var(--mono);background:var(--acid);color:var(--ink);padding:.05em .35em;border-radius:4px;outline:2px dashed var(--ink);outline-offset:2px}
+.body{flex:1;min-height:0;display:grid;gap:clamp(10px,1.4vw,18px)}
+.card{background:var(--paper-2);border:1px solid var(--rule);border-radius:var(--r);padding:clamp(14px,1.6vw,24px);display:flex;flex-direction:column;gap:8px;min-height:0;position:relative}
+.card.ink{background:var(--ink);color:var(--paper);border-color:var(--ink)} .card.ink .muted{color:#b9b9c0}
+.card.cobalt{background:var(--cobalt);color:#fff;border-color:var(--cobalt)} .card.cobalt .muted{color:#c9d4ff}
+.card.wash{background:var(--cobalt-wash);border-color:rgba(0,51,204,.18)}
+.num{font-family:var(--mono);font-size:var(--t-small);color:var(--cobalt);font-weight:600}
+.card.cobalt .num,.card.ink .num{color:var(--acid)}
+canvas{display:block}
 
-.title .kicker { grid-column: 1; grid-row: 1; }
-.title .copyblock { grid-column: 1; grid-row: 2; }
-.title .hero { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
-.title img.hero, .title .hero img { width: 100%; height: auto; display: block; }
-.title .actions { display: flex; gap: 16px; align-items: center; margin-top: 8px; }
-.title .actions a.primary { background: var(--ink); color: var(--paper); text-decoration: none; border-radius: 999px; padding: 10px 16px; }
+/* chrome */
+.progress{position:fixed;left:0;top:0;height:4px;background:var(--cobalt);width:0;z-index:20;transition:width .5s var(--ease-out)}
+.topbar{position:fixed;top:12px;left:var(--pad);right:var(--pad);display:flex;justify-content:space-between;align-items:center;z-index:15;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);pointer-events:none}
+.topbar .brand{color:var(--ink);font-weight:700}
+.topbar .brand i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--cobalt);margin-right:6px;vertical-align:1px}
+.nav{position:fixed;bottom:12px;left:var(--pad);right:var(--pad);display:flex;align-items:center;gap:12px;z-index:15}
+.dots{display:flex;gap:6px;flex:1;flex-wrap:nowrap}
+.dots button{width:22px;height:22px;border:0;background:transparent;cursor:pointer;position:relative;padding:0}
+.dots button::after{content:"";position:absolute;left:5px;right:5px;top:10px;height:3px;border-radius:2px;background:var(--rule-2);transition:background .3s}
+.dots button.on::after{background:var(--cobalt)}
+.dots button.seen::after{background:var(--ink-3)}
+.navbtn{width:40px;height:40px;border-radius:50%;border:1px solid var(--rule-2);background:var(--paper);color:var(--ink);font-size:18px;cursor:pointer;display:grid;place-items:center;transition:background .2s,color .2s}
+.navbtn:hover{background:var(--ink);color:var(--paper)}
+.navbtn:focus-visible,.dots button:focus-visible,button:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+.counter{font-family:var(--mono);font-size:12px;color:var(--ink-2);min-width:52px;text-align:right}
 
-.tasks { display: grid; gap: 6px; align-content: start; }
-.task { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(80px, 1fr) 28px; gap: 8px; align-items: center; text-align: left; background: transparent; border: 0; color: var(--ink); padding: 2px 0; }
-.task.on .name { color: var(--teal); }
-.meter { height: 10px; background: #efe6d6; }
-.meter i { display: block; height: 10px; background: var(--teal); }
-.task.low .meter i { background: var(--pink); }
-.detail, .card, .plan, .demo, .stage, .econ { background: var(--card); border-radius: 12px; padding: 14px 16px; }
-.detail { background: var(--wash); border-top: 3px solid var(--pink); }
-.split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.layout { display: grid; grid-template-columns: 1.35fr .75fr; gap: 22px; min-height: 0; }
-.steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
-.step { text-align: left; background: var(--card); border: 1px solid transparent; border-radius: 12px; padding: 12px; color: var(--ink); }
-.step.on { border-color: var(--ink); background: var(--wash); }
-.step b { display: block; font-family: var(--serif); font-size: 22px; font-weight: 560; }
-.stage { min-height: 0; }
-.gets { display: grid; grid-template-columns: 1.1fr 1.1fr .9fr; gap: 12px; min-height: 0; }
-.card img { width: 100%; height: 132px; object-fit: cover; object-position: center 30%; border-radius: 8px; display: block; }
-.card h3, .plan h3, .demo h3 { font-family: var(--serif); font-weight: 560; font-size: 22px; margin: 8px 0; }
-.excerpt { font-size: 15px; }
-.tag { display: inline-block; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--pink); }
-.catalog { display: flex; flex-wrap: wrap; gap: 6px; align-content: start; }
-.catalog span { background: #e7f5f6; color: #12343a; border-radius: 999px; padding: 4px 8px; font-size: 13px; }
-.demos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.demo { text-decoration: none; color: inherit; display: block; }
-.demo img { width: 100%; height: auto; border-radius: 8px; display: block; }
-.demo:hover, .demo:focus-visible { outline: 2px solid var(--teal); }
-.voice { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.works { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0; }
-pre { margin: 8px 0 0; background: var(--ink); color: var(--paper); border-radius: 12px; padding: 12px; font-size: 13px; overflow: auto; white-space: pre-wrap; }
-.copy { margin-top: 8px; background: var(--paper); color: var(--ink); border: 1px solid var(--ink); border-radius: 999px; padding: 6px 12px; }
-.logos { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
-.logos a, .pending { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 92px; min-height: 78px; padding: 8px; background: var(--card); border-radius: 12px; text-decoration: none; color: var(--ink); }
-.logos img, .mark img { height: 32px; width: auto; display: block; }
-.mark { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 92px; min-height: 78px; padding: 8px; background: var(--card); border-radius: 12px; }
-.pending { border: 1px dashed var(--ink-2); background: transparent; color: var(--ink-2); }
-.pending b { font-family: var(--serif); font-size: 18px; font-weight: 560; }
-.cap, .foot { font-size: 12px; color: var(--ink-2); }
-.plans { display: grid; grid-template-columns: .8fr 1.2fr .9fr; gap: 12px; }
-.plan .price { font-family: var(--serif); font-size: 40px; line-height: 1; }
-.plan.featured { background: var(--wash); border-top: 3px solid var(--gold); }
-.econ-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-.econ strong { display: block; font-family: var(--serif); font-size: 32px; font-weight: 560; }
-.asp { background: var(--wash); border-top: 3px solid var(--gold); }
-.ask { display: grid; grid-template-columns: 1.2fr .8fr; gap: 18px; align-items: center; }
-.ask ol { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
-.ask img { width: min(100%, 420px); height: auto; justify-self: end; }
-@media (max-width: 900px) {
-  .slide { padding: 72px 18px 84px; overflow: auto; }
-  .title, .layout, .gets, .demos, .voice, .works, .plans, .econ-grid, .ask, .steps, .split { grid-template-columns: 1fr; }
-  .title .hero { grid-column: 1; grid-row: auto; }
-  h1 { font-size: 36px; }
+/* owner tags */
+.own{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:4px;white-space:nowrap;border:1px solid currentColor}
+.own.h{color:var(--own-human)} .own.a{color:#fff;background:var(--own-agent);border-color:var(--own-agent)}
+.own.y{color:var(--own-hybrid);background:#fff} .own.t{color:#fff;background:var(--own-twin);border-color:var(--own-twin)}
+.own.n{color:var(--ink-3);border-style:dashed}
+.owners{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-size:13px;color:var(--ink-2)}
+.owners b{font-size:20px;color:var(--ink);margin-right:4px}
+.legend{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+/* S1 title */
+#s1{justify-content:space-between}
+#s1 .hero{position:relative;flex:1;min-height:0}
+#s1 canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#s1 .promise{display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:end}
+#s1 .promise h2{font-size:clamp(26px,3.4vw,50px);max-width:21ch}
+#s1 .promise .meta{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.hint{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+
+/* S2 problem */
+#s2 .bg{position:absolute;left:0;right:0;top:40px;bottom:0;width:100%;height:calc(100% - 40px)}
+#s2 > *:not(.bg){position:relative;z-index:1}
+#s2 .body{grid-template-columns:repeat(3,1fr);align-content:end}
+#s2 .big{font-size:clamp(34px,6vw,92px);font-weight:850;letter-spacing:-.035em;line-height:.98;max-width:15ch}
+#s2 .big s{text-decoration-thickness:.08em;text-decoration-color:var(--magenta);color:var(--ink-3)}
+#s2 .big em{font-style:normal;color:var(--cobalt)}
+#s2 .card{background:rgba(250,250,247,.94)}
+
+/* S3 what we do */
+#s3 .body{grid-template-columns:repeat(3,1fr);grid-template-rows:1fr auto}
+#s3 .stage .arrow{position:absolute;right:-16px;top:50%;width:22px;height:22px;transform:translateY(-50%);z-index:2;background:var(--paper);color:var(--ink);border:1px solid var(--rule-2);border-radius:50%;display:grid;place-items:center;font-size:12px}
+#s3 .stage ul.pts{list-style:none;display:flex;flex-direction:column;gap:6px;margin-top:auto}
+#s3 .stage ul.pts li{padding-top:6px;border-top:1px solid var(--rule)}
+#s3 .card.cobalt ul.pts li{border-color:rgba(255,255,255,.25)}
+#s3 .stage .huge{font-size:clamp(40px,5vw,80px);font-weight:850;letter-spacing:-.04em;line-height:.9}
+#s3 .stage .legend{margin-top:auto}
+#s3 .also{grid-column:1/-1;flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap}
+
+/* S4 first job */
+#s4 .head{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end}
+blockquote{border-left:4px solid var(--cobalt);padding:6px 0 6px 14px;max-width:44ch}
+blockquote p{font-size:clamp(15px,1.3vw,19px);font-weight:600;letter-spacing:-.01em;line-height:1.3}
+blockquote cite{display:block;font-style:normal;font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:6px;text-transform:uppercase;letter-spacing:.05em}
+#s4 .body{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+.chat{background:#E9EEF5;border-radius:var(--r);border:1px solid var(--rule);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.chat .bar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--paper);border-bottom:1px solid var(--rule);font-size:13px}
+.chat .bar .av{width:28px;height:28px;border-radius:50%;background:var(--cobalt);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px;flex:none}
+.chat .bar small{display:block;color:var(--ink-3);font-size:11px}
+.chat .log{flex:1;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:7px}
+.msg{max-width:86%;padding:7px 11px;border-radius:12px;font-size:clamp(12.5px,1vw,14px);line-height:1.38;background:#fff;border:1px solid var(--rule);opacity:0;transform:translateY(8px);transition:opacity .35s var(--ease-out),transform .35s var(--ease-out)}
+.msg.in{opacity:1;transform:none}
+.msg.me{align-self:flex-end;background:#DCF2C9;border-color:#c5e3ad}
+.msg .tag{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--cobalt);margin-right:6px;font-weight:700}
+.msg .file{display:flex;gap:8px;align-items:center;margin-top:6px;padding:6px 8px;border-radius:8px;background:var(--cobalt-wash);font-family:var(--mono);font-size:11px}
+.msg .file b{background:var(--cobalt);color:#fff;border-radius:4px;padding:2px 5px;font-size:10px}
+.steps{list-style:none;display:flex;flex-direction:column;min-height:0}
+.steps li{display:grid;grid-template-columns:28px 1fr;gap:10px;padding:7px 0;border-top:1px solid var(--rule);opacity:.35;transition:opacity .3s}
+.steps li.on{opacity:1}
+.steps li .n{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--cobalt);color:var(--cobalt);font-family:var(--mono);font-size:11px;display:grid;place-items:center;font-weight:700}
+.steps li.on .n{background:var(--cobalt);color:#fff}
+.steps li b{display:block;font-size:clamp(13.5px,1.1vw,16px)}
+.steps li span{color:var(--ink-2);font-size:clamp(12px,.92vw,13.5px);display:block;line-height:1.35}
+.steps li .tool{font-family:var(--mono);font-size:10.5px;color:var(--cobalt)}
+.replay{align-self:flex-start;font-family:var(--mono);font-size:11px;border:1px solid var(--rule-2);background:var(--paper);border-radius:999px;padding:4px 10px;cursor:pointer;margin-top:6px}
+.show-m{display:none}
+
+/* use cases */
+.uc .head{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:end}
+.uc .head p{margin-top:8px}
+.uc .body{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.ba{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--rule-2);min-height:0;user-select:none;-webkit-user-select:none;touch-action:pan-y}
+.ba .layer{position:absolute;inset:0;padding:clamp(10px,1.2vw,16px);display:flex;flex-direction:column;gap:6px}
+.ba .before{background:var(--paper-3)}
+.ba .after{background:var(--paper);clip-path:inset(0 0 0 var(--x,50%))}
+.ba .lh{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.ba .after .lh{color:var(--cobalt)}
+.ba ol{list-style:none;flex:1;display:grid;grid-auto-rows:1fr;gap:5px;min-height:0}
+.ba li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;padding:3px 10px;border-radius:9px;background:rgba(255,255,255,.55);border:1px solid var(--rule);min-height:0;overflow:hidden}
+.ba .after li{background:#fff}
+.ba li .i{font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+.ba li .t{font-size:clamp(12px,1vw,14.5px);line-height:1.22}
+.ba li .t small{display:block;color:var(--ink-3);font-size:clamp(10.5px,.82vw,12px)}
+.ba .before li .t{color:var(--ink-2)}
+.ba .handle{position:absolute;top:0;bottom:0;left:clamp(14px,var(--x,50%),calc(100% - 14px));width:2px;background:var(--cobalt);transform:translateX(-1px);pointer-events:none;z-index:3}
+.ba .handle::after{content:"◀ ▶";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--cobalt);color:#fff;font-size:9px;letter-spacing:2px;padding:9px 8px;border-radius:999px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,51,204,.35)}
+.ba input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;z-index:4;margin:0}
+.ba-tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ba-tabs .hint{margin-right:4px}
+.ba-tabs button{font-family:var(--mono);font-size:11px;border:1px solid var(--rule-2);background:var(--paper);color:var(--ink);border-radius:999px;padding:4px 10px;cursor:pointer}
+.ba-tabs button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.side{display:flex;flex-direction:column;gap:clamp(8px,1vw,14px);min-height:0}
+.files{list-style:none;font-family:var(--mono);font-size:clamp(11px,.88vw,12.5px);display:flex;flex-direction:column;gap:4px}
+.files li{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.files li::before{content:"▸";color:var(--cobalt)}
+.card.ink .files li::before{color:var(--acid)}
+.files li span{color:#a9a9b2;font-family:var(--sans)}
+.deltas{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.delta b{display:block;font-size:clamp(17px,1.7vw,26px);letter-spacing:-.02em;line-height:1.05}
+.delta span{font-size:12px;color:var(--ink-2);display:block;line-height:1.3;margin-top:3px}
+
+/* S8 stack */
+#s8 .body{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr) minmax(0,1fr);grid-template-rows:1fr 1fr}
+#s8 .globe{grid-row:1/3;grid-column:2;padding:0;overflow:hidden;background:var(--paper)}
+#s8 .globe canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+#s8 .globe .cap{position:absolute;left:16px;right:16px;bottom:14px;pointer-events:none}
+#s8 .globe .cap b{font-size:clamp(16px,1.5vw,20px);letter-spacing:-.01em;line-height:1.15;display:block}
+#s8 .globe .cap span{font-size:12.5px;color:var(--ink-2)}
+.modes{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto}
+.modes span{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);color:#fff}
+.repo{font-family:var(--mono);font-size:11px;color:var(--cobalt)}
+.card.cobalt .repo,.card.ink .repo{color:var(--acid)}
+
+/* S9 artifacts */
+#s9 .body{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr)}
+#s9 .card{justify-content:flex-start}
+#s9 ul.plain li{padding:12px 0}
+.tree{font-family:var(--mono);font-size:clamp(11px,1.12vw,16px);line-height:1.9;white-space:pre;overflow:hidden}
+.tree .d{color:var(--acid)} .tree .c{color:#8f8f99}
+ul.plain{list-style:none;display:flex;flex-direction:column}
+ul.plain li{padding:8px 0;border-top:1px solid var(--rule)}
+ul.plain li b{display:block;font-size:clamp(13.5px,1.1vw,16px)}
+ul.plain li span{color:var(--ink-2);font-size:clamp(12px,.95vw,13.5px)}
+
+/* S10 model */
+#s10 .body{grid-template-columns:minmax(0,.8fr) minmax(0,1.1fr) minmax(0,1.1fr);grid-template-rows:1fr auto}
+#s10 .open{grid-column:1/-1;flex-direction:row;gap:18px;align-items:flex-start;flex-wrap:wrap}
+#s10 .open ul{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;flex:1;min-width:0}
+#s10 .open li{border-top:1px solid var(--rule);padding-top:6px;color:var(--ink-2)}
+.price{font-size:clamp(28px,3.4vw,52px);font-weight:850;letter-spacing:-.03em;line-height:1}
+.price small{font-size:.36em;font-weight:600;letter-spacing:0;opacity:.8}
+.ticks{list-style:none;display:flex;flex-direction:column;gap:6px;margin-top:auto}
+.ticks li{padding-left:18px;position:relative;line-height:1.35}
+.ticks li::before{content:"";position:absolute;left:0;top:.5em;width:8px;height:8px;border-radius:2px;background:var(--cobalt)}
+.card.cobalt .ticks li::before,.card.ink .ticks li::before{background:var(--acid)}
+
+/* S11 why */
+#s11 .body{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:1fr auto}
+#s11 .stat{justify-content:space-between}
+#s11 .stat b{font-size:clamp(40px,6vw,96px)!important}
+#s11 .stat b{font-size:clamp(34px,4.4vw,68px);font-weight:850;letter-spacing:-.04em;line-height:.95;display:block}
+#s11 .now,#s11 .who{grid-column:span 2}
+
+/* S12 ask */
+#s12 .kin{display:flex;font-weight:900;font-size:clamp(64px,12vw,190px);line-height:.85;letter-spacing:-.04em;color:var(--cobalt);cursor:pointer;user-select:none;min-height:1em}
+#s12 .kin span{display:inline-block;will-change:transform;transform-origin:50% 80%}
+#s12 .body{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);align-content:end}
+#s12 .credit{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:auto}
+
+/* responsive */
+@media (max-width:820px){
+  :root{--pad:16px}
+  .slide{padding:44px 16px 72px;gap:12px;overflow-y:auto;overflow-x:hidden}
+  .hide-m{display:none!important}
+  .show-m{display:block}
+  h2{font-size:clamp(24px,7vw,34px)}
+  .body{flex:none}
+  #s1 .promise{grid-template-columns:1fr;gap:12px}
+  #s1 .promise h2{font-size:27px}
+  #s2 .body{grid-template-columns:1fr}
+  #s2 .big{font-size:42px}
+  #s3 .body{grid-template-columns:1fr;grid-template-rows:none}
+  #s3 .stage .arrow{display:none}
+  #s3 .stage .huge{font-size:34px}
+  #s4 .head{grid-template-columns:1fr}
+  #s4 .body{grid-template-columns:1fr}
+  #s4 .chat{height:400px}
+  .uc .head{grid-template-columns:1fr}
+  .uc .body{grid-template-columns:1fr}
+  .ba{height:460px}
+  .ba li{padding:3px 8px;gap:6px}
+  .ba li .t small{display:none}
+  #s8 .body{grid-template-columns:1fr;grid-template-rows:none}
+  #s8 .globe{grid-row:auto;grid-column:auto;height:260px}
+  #s9 .body,#s10 .body{grid-template-columns:1fr;grid-template-rows:none}
+  #s10 .open{flex-direction:column}
+  #s10 .open ul{grid-template-columns:1fr;width:100%}
+  #s2 .bg{opacity:.45}
+  #s11 .stat b{font-size:44px!important}
+  #s11 .body{grid-template-columns:1fr 1fr;grid-template-rows:none}
+  #s11 .now,#s11 .who{grid-column:1/-1}
+  #s12 .body{grid-template-columns:1fr}
+  #s12 .kin{font-size:84px}
+  .nav{bottom:0;left:0;right:0;gap:6px;background:var(--paper);border-top:1px solid var(--rule);padding:8px 12px}
+  .dots button{width:16px}
+  .dots button::after{left:3px;right:3px}
+  .navbtn{width:36px;height:36px}
+  .topbar{top:0;left:0;right:0;padding:12px 16px 8px;background:var(--paper)}
 }
-#guide { bottom: 72px; }
-@media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; }
+@media (prefers-reduced-motion:reduce){
+  .slide,.slide.active,.msg{transition:none}
 }
-</style>
-</head>
-<body>
+@media print{
+  html,body{overflow:visible;height:auto}
+  .deck{position:static}
+  .slide{position:relative;opacity:1;visibility:visible;transform:none;height:100vh;page-break-after:always}
+  .nav,.progress,.topbar{display:none}
+}
+
+/* ==========================================================================
+   ADDED Nov 2: mini SVG diagrams on slide 03, slide 09 component map,
+   slide 10 program-resources table. Additive only; nothing above changed.
+   ======================================================================== */
+#s3 .mini{display:block;width:100%;height:clamp(40px,7vh,64px);margin:4px 0 2px;overflow:visible}
+.mini text{font-family:var(--mono);font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;fill:var(--ink-3)}
+.mpanel .ln line{stroke:var(--cobalt);stroke-width:1;opacity:.35;stroke-dasharray:4 3}
+.mpanel .ex circle{fill:var(--cobalt)} .mpanel .ex .dis{fill:#fff;stroke:var(--magenta);stroke-width:2}
+.mpanel .cons{fill:var(--cobalt);stroke:#fff;stroke-width:2.5}
+.mwork .bar{fill:var(--rule-2)} .mwork .tag{fill:var(--paper-3);stroke:var(--rule-2)}
+.mwork .tag.a{--c:var(--own-agent)} .mwork .tag.y{--c:var(--own-hybrid)} .mwork .tag.h{--c:var(--own-human)} .mwork .tag.t{--c:var(--own-twin)}
+.mkit .f rect{fill:none;stroke:#fff;stroke-width:1.4} .mkit .f line{stroke:var(--acid);stroke-width:1.4}
+.mkit .ar{stroke:var(--acid);stroke-width:2;fill:none}
+.mkit .zip rect{fill:var(--acid)} .mkit .zip text{fill:var(--ink);font-weight:700;font-size:10px}
+.mkit > text{fill:#c9d4ff}
+.slide.active .mpanel .ex circle{animation:mpop .7s var(--ease-out) both;animation-delay:var(--d)}
+.slide.active .mpanel .ln line{animation:mdash 2.4s linear infinite}
+.slide.active .mpanel .cons{animation:mpulse 2.4s var(--ease-out) .9s infinite;transform-box:fill-box;transform-origin:center}
+.slide.active .mwork .tag{animation:mtag .6s var(--ease-out) both;animation-delay:var(--d)}
+.slide.active .mkit .f{animation:mfile .8s var(--ease-out) both;animation-delay:var(--d)}
+.slide.active .mkit .zip{animation:mpop .6s var(--ease-out) .85s both;transform-box:fill-box;transform-origin:center}
+@keyframes mpop{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
+@keyframes mdash{to{stroke-dashoffset:-28}}
+@keyframes mpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
+@keyframes mtag{from{fill:var(--paper-3)}to{fill:var(--c);stroke:var(--c)}}
+.mwork .tag{fill:var(--c)}
+@keyframes mfile{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.mpanel .ex circle{transform-box:fill-box;transform-origin:center}
+
+/* slide 09: component map */
+#scomp .body{grid-template-columns:minmax(0,1.75fr) minmax(0,1fr)}
+#scomp .archc{padding:clamp(8px,1vw,14px);justify-content:center}
+#scomp svg.arch{width:100%;height:100%;max-height:100%;display:block}
+svg.arch text{font-family:var(--sans)}
+svg.arch .lanes text{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;fill:var(--ink-3)}
+svg.arch .lanes .lnote{text-transform:none;letter-spacing:.02em}
+svg.arch .lanes line{stroke:var(--rule-2);stroke-dasharray:3 4}
+svg.arch .fl{fill:none;stroke:var(--cobalt);stroke-width:1.6;stroke-dasharray:5 5;opacity:.75}
+svg.arch .fl.nxl{stroke:var(--ink-3);opacity:.6}
+svg.arch .fl.up{stroke:var(--ink-2);opacity:.45;stroke-width:1.3}
+.slide.active svg.arch .fl{animation:mdash 1.6s linear infinite}
+.slide.active svg.arch .fl.rv{animation-direction:normal}
+svg.arch .client circle{fill:var(--ink)} svg.arch .client .halo{fill:none;stroke:var(--cobalt);stroke-width:2}
+.slide.active svg.arch .client .halo{animation:halo 2.6s var(--ease-out) infinite;transform-box:fill-box;transform-origin:center}
+@keyframes halo{from{opacity:.8;transform:scale(1)}to{opacity:0;transform:scale(2.2)}}
+svg.arch .client text{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;fill:var(--ink-2)}
+svg.arch .nd{cursor:pointer;outline:none}
+svg.arch .nd > rect{fill:#fff;stroke:var(--rule-2);stroke-width:1.2;transition:stroke .2s,fill .2s}
+svg.arch .nd.nx > rect{stroke-dasharray:5 4;fill:var(--paper)}
+svg.arch .nd .pt{fill:var(--cobalt)}
+svg.arch .nd.nx .pt{fill:#fff;stroke:var(--ink-3);stroke-width:1.5;stroke-dasharray:2 2}
+svg.arch .nd .tn{font-size:13px;font-weight:800;fill:var(--ink)}
+svg.arch .nd .ts{font-family:var(--mono);font-size:9.5px;letter-spacing:.03em;fill:var(--ink-3)}
+svg.arch .nd:hover > rect,svg.arch .nd:focus-visible > rect,svg.arch .nd.sel > rect{stroke:var(--cobalt);stroke-width:2.4}
+svg.arch .core > rect{fill:var(--cobalt);stroke:var(--cobalt)}
+svg.arch .core .tn{fill:#fff}
+svg.arch .core .steps2 rect{fill:rgba(255,255,255,.12);stroke:rgba(255,255,255,.28)}
+svg.arch .core .steps2 text{font-family:var(--mono);font-size:11px;fill:#fff}
+svg.arch .core .stars circle{fill:var(--acid)}
+.slide.active svg.arch .core .steps2 rect{animation:stepon 4.8s steps(1) infinite}
+.slide.active svg.arch .core .steps2 rect:nth-of-type(2){animation-delay:1.2s}
+.slide.active svg.arch .core .steps2 rect:nth-of-type(3){animation-delay:2.4s}
+.slide.active svg.arch .core .steps2 rect:nth-of-type(4){animation-delay:3.6s}
+@keyframes stepon{0%{fill:rgba(255,255,255,.34)}25%,100%{fill:rgba(255,255,255,.12)}}
+svg.arch .core:hover > rect,svg.arch .core.sel > rect{stroke:var(--ink);stroke-width:3}
+svg.arch .venice > rect{fill:var(--cobalt-wash);stroke:rgba(0,51,204,.3)}
+svg.arch .venice .chip{fill:#fff;stroke:rgba(0,51,204,.25)}
+svg.arch .venice .cm{font-family:var(--mono);font-size:10.5px;font-weight:600;fill:var(--cobalt)}
+svg.arch .venice .cs{font-size:9.5px;fill:var(--ink-2)}
+.cinsp{gap:6px;min-height:0;overflow:hidden}
+.cinsp .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--acid);margin-top:8px}
+.cinsp h3{font-size:clamp(20px,1.9vw,28px)}
+.cinsp p{font-size:clamp(13px,1.05vw,15.5px);line-height:1.42}
+.cinsp .ckey{display:flex;gap:14px;flex-wrap:wrap;margin-top:auto;padding-top:10px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#b9b9c0}
+.cinsp .ckey span{display:inline-flex;align-items:center;gap:6px}
+.cinsp .rdot{border-color:var(--acid)} .cinsp .rdot.on{background:var(--acid);box-shadow:none} .cinsp .rdot.off{border-color:#8f8f99}
+
+/* slide 10: program resources table */
+.rdot{display:inline-block;flex:none;width:11px;height:11px;border-radius:50%;border:2px solid var(--cobalt);background:transparent}
+.rdot.on{background:var(--cobalt);box-shadow:0 0 0 3px rgba(0,51,204,.16)}
+.rdot.half{background:linear-gradient(90deg,var(--cobalt) 50%,transparent 50%)}
+.rdot.off{border-color:var(--ink-3);border-style:dashed}
+.cmp{display:flex;flex-direction:column;border:1px solid var(--rule-2);border-radius:var(--r);overflow:hidden;min-height:0}
+.cmp .row{display:grid;flex:1;border-top:1px solid var(--rule);transition:background .2s}
+.cmp .row:first-child{border-top:0}
+.cmp .row > *{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cmp .row .usc{background:var(--cobalt-wash)}
+.cmp .row:not(.hd):hover{background:var(--paper-2)}
+.cmp .row:not(.hd):hover .usc{background:var(--cobalt);color:#fff}
+.cmp .hd{flex:none;background:var(--paper-3)}
+.cmp .hd > *{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:8px 12px!important}
+.cmp .hd .usc{background:var(--cobalt);color:#fff}
+.cmp.res{flex:1;min-height:0}
+.cmp.res .row{grid-template-columns:minmax(0,.62fr) minmax(0,1.3fr) minmax(0,.55fr) minmax(0,1.45fr)}
+.cmp.res .row > *{padding:7px 12px;font-size:clamp(12px,.98vw,14.5px);line-height:1.3}
+.cmp.res .row b small{display:block;font-family:var(--mono);font-size:10px;font-weight:500;color:var(--ink-3);width:100%}
+.cmp.res .row .offr{color:var(--ink-2)} .cmp.res .row .offr b{color:var(--ink)}
+.cmp.res .row .stc{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;flex-wrap:nowrap}
+.cmp.res .usc b{color:var(--cobalt)} .cmp.res .row:not(.hd):hover .usc b{color:#fff}
+.resfoot{display:flex;justify-content:space-between;align-items:center;gap:8px 24px;flex-wrap:wrap}
+.resfoot p{font-size:clamp(12px,.98vw,14.5px);color:var(--ink-2);display:flex;gap:6px 10px;flex-wrap:wrap;align-items:baseline}
+.resfoot .ownst b{color:var(--ink)}
+.resfoot .key{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);gap:14px}
+.resfoot .key span{display:inline-flex;align-items:center;gap:6px}
+.src2{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.02em;line-height:1.4}
+#s12 a{color:inherit;text-underline-offset:3px;overflow-wrap:anywhere}
+@media (max-width:820px){
+  #scomp .body{grid-template-columns:1fr}
+  #scomp .archc{overflow-x:auto}
+  #scomp svg.arch{min-width:0;height:auto}
+  .cmp.res{flex:none}
+  .cmp.res .row{grid-template-columns:1fr}
+  .cmp.res .hd{display:none}
+  .cmp.res .row > *{padding:5px 12px}
+}
+@media (prefers-reduced-motion:reduce){
+  .mini *,svg.arch *{animation:none!important}
+}
+.cmp.res .row .offr > span,.cmp.res .row .usc > span{display:block}
+.resfoot p.ownst{display:block;flex:1 1 520px}
+.resfoot p.ownst .num{margin-right:8px}
+.resfoot .key{flex:none}
+@media (max-width:820px){ .dots{gap:2px;min-width:0} .dots button{flex:1 1 0;min-width:0;width:auto} .dots button::after{left:2px;right:2px} }
+@media (max-width:820px){ .resfoot .key{flex:1 1 100%;flex-wrap:wrap;gap:6px 14px} }
+</style></head><body>
 <div class="progress" id="progress"></div>
-<header class="chrome">
-  <a href="/chat"><img src="/img/brand/avatar.webp" alt="" width="32" height="32"> AI Partner</a>
-  <span id="topic">Title</span>
-</header>
+<div class="topbar"><span class="brand"><i></i><span data-company></span></span><span class="hide-m">The First 1,000 · Nov 2026</span></div>
+
 <main class="deck" id="deck">
-  <section class="slide title active" id="s1" data-topic="Title" aria-label="Title">
-    <p class="kicker">Outcomes, not blueprints.</p>
-    <div class="copyblock">
-      <h1>Stop buying slides. Start shipping outcomes.</h1>
-      <p class="lede">AI Partner runs the engagement: a panel, a Top 5, and a harness your team can run.</p>
-      <div class="actions">
-        <a class="primary" href="/chat">Start at /chat</a>
-        <span class="muted">Public, no login.</span>
+
+<section class="slide" id="s1" aria-label="Title">
+  <div class="kicker"><b>01</b> For Darshan Golchha and The First 1,000 selection team</div>
+  <div class="hero">
+    <canvas id="tp" aria-hidden="true"></canvas>
+    <h1 class="sr" data-company></h1>
+  </div>
+  <div class="promise">
+    <h2>Outcomes, not advice. We redesign how your team works and hand you <em>the agents that do the work.</em></h2>
+    <div class="meta">
+      <p class="muted">Describe a problem in Slack or Telegram. An expert panel works through it, Work Chart redesigns the workflow, and you get an agent kit that plugs into tools you already use.</p>
+      <span class="hint">Move the pointer through the title. Click to scatter. Use ← → or swipe to navigate.</span>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s2" aria-label="Problem">
+  <canvas class="bg" id="md" aria-hidden="true"></canvas>
+  <div class="kicker"><b>02</b> The problem</div>
+  <div class="big">Consultants hand over a <s>deck</s>. Teams needed a <em>working agent</em>.</div>
+  <div class="body">
+    <div class="card"><span class="num">A</span><h3>The advice stops where the work starts.</h3><p class="muted">A strategy deck says "use AI in sales ops." It doesn't say which step, which owner, or what the agent is allowed to do.</p></div>
+    <div class="card"><span class="num">B</span><h3>Pilots live on a new platform. Teams don't.</h3><p class="muted">People work in Slack, email and the CRM. An agent that needs its own tab gets opened twice and forgotten.</p></div>
+    <div class="card"><span class="num">C</span><h3>Nothing is left behind to maintain.</h3><p class="muted">When the engagement ends there are no instructions, playbooks or guardrails that the next person or agent can pick up.</p></div>
+  </div>
+</section>
+
+<section class="slide" id="s3" aria-label="What we do">
+  <div class="kicker"><b>03</b> What <span data-company></span> does</div>
+  <h2>Three steps from a problem in chat to <em>agents running in your tools.</em></h2>
+  <div class="body">
+    <div class="card stage"><span class="arrow hide-m">→</span>
+      <span class="huge">01</span><h3>Panel thinking</h3>
+      <p class="muted">A custom panel of AI expert personas, staffed for this problem, argues it out using live web and X research with citations.</p>
+      <svg class="mini mpanel" viewBox="0 0 240 64" aria-hidden="true"><g class="ln"><line x1="16" y1="12" x2="120" y2="32"/><line x1="44" y1="52" x2="120" y2="32"/><line x1="70" y1="8" x2="120" y2="32"/><line x1="170" y1="8" x2="120" y2="32"/><line x1="196" y1="52" x2="120" y2="32"/><line x1="224" y1="14" x2="120" y2="32"/></g><g class="ex"><circle cx="16" cy="12" r="5" style="--d:0.00s"/><circle cx="44" cy="52" r="5" style="--d:0.12s"/><circle cx="70" cy="8" r="5" style="--d:0.24s"/><circle cx="170" cy="8" r="5" style="--d:0.36s"/><circle cx="196" cy="52" r="5" style="--d:0.48s"/><circle class="dis" cx="224" cy="14" r="5" style="--d:.6s"/></g><circle class="cons" cx="120" cy="32" r="9"/><text x="120" y="62" text-anchor="middle">consensus · dissent</text></svg>
+      <ul class="pts"><li>Consensus and dissent map</li><li>Now / Next / Later recommendations</li><li>Red Team attack on the plan</li></ul>
+    </div>
+    <div class="card stage wash"><span class="arrow hide-m">→</span>
+      <span class="huge" style="color:var(--cobalt)">02</span><h3>Workflow blueprint</h3>
+      <p class="muted">Work Chart maps the process as it runs today and as it runs with agents, one step at a time. Every step gets an owner.</p>
+      <svg class="mini mwork" viewBox="0 0 240 64" aria-hidden="true"><rect class="bar" x="0" y="4" width="176" height="9" rx="3"/><rect class="tag a" x="196" y="3" width="44" height="11" rx="5" style="--d:0.30s"/><rect class="bar" x="0" y="19" width="150" height="9" rx="3"/><rect class="tag y" x="196" y="18" width="44" height="11" rx="5" style="--d:0.48s"/><rect class="bar" x="0" y="34" width="164" height="9" rx="3"/><rect class="tag h" x="196" y="33" width="44" height="11" rx="5" style="--d:0.66s"/><rect class="bar" x="0" y="49" width="132" height="9" rx="3"/><rect class="tag t" x="196" y="48" width="44" height="11" rx="5" style="--d:0.84s"/></svg>
+      <div class="legend"><span class="own h">Human</span><span class="own a">AI Agent</span><span class="own y">Hybrid</span><span class="own t">Digital Twin</span></div>
+    </div>
+    <div class="card stage cobalt">
+      <span class="huge" style="color:var(--acid)">03</span><h3>Harness and agents, delivered</h3>
+      <p class="muted">A harness generator turns the blueprint into a downloadable agent kit, installed where the team already works.</p>
+      <svg class="mini mkit" viewBox="0 0 240 64" aria-hidden="true"><g class="f" style="--d:0.00s"><rect x="6" y="8" width="24" height="30" rx="3"/><line x1="11" y1="18" x2="25" y2="18"/><line x1="11" y1="25" x2="22" y2="25"/></g><g class="f" style="--d:0.14s"><rect x="38" y="8" width="24" height="30" rx="3"/><line x1="43" y1="18" x2="57" y2="18"/><line x1="43" y1="25" x2="54" y2="25"/></g><g class="f" style="--d:0.28s"><rect x="70" y="8" width="24" height="30" rx="3"/><line x1="75" y1="18" x2="89" y2="18"/><line x1="75" y1="25" x2="86" y2="25"/></g><g class="f" style="--d:0.42s"><rect x="102" y="8" width="24" height="30" rx="3"/><line x1="107" y1="18" x2="121" y2="18"/><line x1="107" y1="25" x2="118" y2="25"/></g><g class="f" style="--d:0.56s"><rect x="134" y="8" width="24" height="30" rx="3"/><line x1="139" y1="18" x2="153" y2="18"/><line x1="139" y1="25" x2="150" y2="25"/></g><path class="ar" d="M168,23 L186,23" /><g class="zip"><rect x="194" y="6" width="40" height="34" rx="5"/><text x="214" y="28" text-anchor="middle">ZIP</text></g><text x="120" y="60" text-anchor="middle">rules · playbooks · agents · skills</text></svg>
+      <ul class="pts"><li>CLAUDE.md, playbooks, agents, skills</li><li>Model routing and state schema</li><li>Anti-patterns and an improvement loop</li></ul>
+    </div>
+    <div class="card also"><span class="label">Also</span><p>The classic consulting work, blueprinting and strategy, comes out of the same panels. The main focus is building harnesses and agents for client teams.</p></div>
+  </div>
+</section>
+
+<section class="slide" id="s4" aria-label="The first consulting job">
+  <div class="kicker"><b>04</b> The first consulting job, start to finish <span class="label est">Illustrative walkthrough</span></div>
+  <div class="head">
+    <h2>One job, run end to end <em>inside a chat thread.</em></h2>
+    <blockquote><p>"I'd be interested to see the first consulting job your agents can take from start to finish."</p><cite>Darshan Golchha, The First 1,000</cite></blockquote>
+  </div>
+  <div class="body">
+    <div class="chat">
+      <div class="bar"><span class="av">AP</span><div><b data-company></b><small>Slack · #public-agent · demo engagement: Maritime, from public info</small></div></div>
+      <div class="log" id="chatlog">
+        <div class="msg me" data-step="1">We have a repo and want a public web agent on Maritime. Nobody owns what runs after deploy. Can you fix that?</div>
+        <div class="msg" data-step="1"><span class="tag">Intake</span>Three questions before I staff a panel: which framework, how many users, and who signs off on anything that goes public?</div>
+        <div class="msg me" data-step="1">Python agent. A few hundred users at launch. Our CTO signs off.</div>
+        <div class="msg" data-step="2"><span class="tag">Deep Dive</span>Staffing 24 experts: platform engineers, security, developer experience, support, agent ops. Pre-run estimate is under $2, so no confirmation needed. Running.</div>
+        <div class="msg" data-step="2"><span class="tag">Panel report</span>Consensus: deploy from the repo on every merge, not by hand. Dissent: security wants a human gate before anything goes public. Sources cited.</div>
+        <div class="msg" data-step="3"><span class="tag">Work Chart</span>Today vs agent era is ready. 7 steps: 3 AI Agent, 2 Hybrid, 1 Human, 1 Digital Twin.<div class="file"><b>CHART</b>repo-to-public-agent · rev 1</div></div>
+        <div class="msg me" data-step="4">Step 6 has to stay with a person. Our CTO requires it.</div>
+        <div class="msg" data-step="4"><span class="tag">Revised</span>Step 6 is now Human-owned, with an agent-drafted summary to review. Saved as rev 2.</div>
+        <div class="msg" data-step="5"><span class="tag">Red Team</span>Top risk: prompt injection through the public chat window. Added a review gate and an anti-pattern rule every agent must follow.</div>
+        <div class="msg" data-step="6"><span class="tag">Harness</span>Your agent kit is ready. Install notes for this workspace are inside.<div class="file"><b>ZIP</b>maritime-agent-harness.zip</div></div>
+        <div class="msg me" data-step="7">Installed. The smoke-test report for tomorrow's deploy just landed in my DMs.</div>
       </div>
     </div>
-    <div class="hero">
-      <img src="/img/brand/character.webp" alt="A multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="1024" height="768">
-    </div>
-  </section>
-
-  <section class="slide" id="s2" data-topic="The problem" aria-label="The problem">
-    <p class="kicker">The problem · thesis draft, October 2026 · author's assessment</p>
-    <h2>Your consulting invoice is your company's AI maturity score.</h2>
-    <div class="layout">
-      <div class="tasks" id="tasks"></div>
-      <aside class="detail" id="task-detail" aria-live="polite"></aside>
-    </div>
-  </section>
-
-  <section class="slide" id="s3" data-topic="How it works" aria-label="How it works">
-    <p class="kicker">How it works · the full panel</p>
-    <h2>Twenty experts. Then a decision. Then a build.</h2>
-    <div class="steps" id="steps"></div>
-    <article class="stage" id="stage" aria-live="polite"></article>
-  </section>
-
-  <section class="slide" id="s4" data-topic="What you get" aria-label="What you get">
-    <p class="kicker">What you get</p>
-    <h2>The picture, the page, and 31 artifacts.</h2>
-    <div class="gets">
-      <article class="card">
-        <img src="/img/what-you-get/research-brief.webp" alt="A robot on a library ladder ties books on the shelves to a brief on the table.">
-        <h3>Research brief</h3>
-        <p class="excerpt">Public pages describe Maritime as a host for AI agents, including public web agents, a quickstart, a CLI, and framework choice. No market-size figure is taken from these pages.</p>
-        <p class="tag">Maritime demo · public pages</p>
-      </article>
-      <article class="card">
-        <img src="/img/what-you-get/expert-panel.webp" alt="Robots in different hats sit around a table under one shared lightbulb.">
-        <h3>Panel</h3>
-        <p class="excerpt">Count the stock, then set a reorder point by store.</p>
-        <p class="tag">Recorded sample in the repo. Not a customer.</p>
-      </article>
-      <article class="card">
-        <img src="/img/what-you-get/harness-kit.webp" alt="An open suitcase holds tools, gears, and a robot, with two small robots beside it.">
-        <h3>Harness kit</h3>
-        <p class="excerpt">kit/problem.md, market.md, top5.json, skills/, artifacts/.</p>
-        <p class="tag">Files the kit zip contains</p>
-        <p class="kicker">Catalog, 31 artifacts</p>
-        <div class="catalog" id="catalog"></div>
-      </article>
-    </div>
-  </section>
-
-  <section class="slide" id="s5" data-topic="Live demos" aria-label="Live demos">
-    <p class="kicker">Live demos · public information · not commissioned</p>
-    <h2>Three companies. None of them hired us.</h2>
-    <div class="demos">
-      <a class="demo" href="/demos/maritime">
-        <img src="/demos/img/maritime-cover.webp" alt="A floral-helmet robot stands on a rangoli beside a harbor of shipping containers and shines a light on a locked gate.">
-        <h3>Maritime</h3>
-        <p class="muted">How a team should host a public web agent. /demos/maritime</p>
-      </a>
-      <a class="demo" href="/demos/keiki">
-        <img src="/demos/img/keiki-cover.webp" alt="The robot stands on a rangoli while smaller robots carry message cards up a stair and across a gap.">
-        <h3>Keiki</h3>
-        <p class="muted">Messaging channels and the gap between them. /demos/keiki</p>
-      </a>
-      <a class="demo" href="/demos/orchid">
-        <img src="/demos/img/orchid-cover.webp" alt="The robot stands between two arched doorways, one showing a phone calendar and the other an office building.">
-        <h3>Orchid</h3>
-        <p class="muted">A calendar on one side, an office on the other. /demos/orchid</p>
-      </a>
-    </div>
-  </section>
-
-  <section class="slide" id="s6" data-topic="Voice guide" aria-label="Voice guide">
-    <p class="kicker">Voice guide</p>
-    <h2>Talk to the site. It moves, and it stays on a list.</h2>
-    <div class="voice">
-      <article class="card"><h3>Hear</h3><p>Push to talk. Speech becomes text with xAI <span class="muted">stt-xai-v1</span>.</p></article>
-      <article class="card"><h3>Decide</h3><p>Mercury 3 maps the words onto a fixed list: open a page, open a demo, scroll, fill the problem, set depth, start, or copy a snippet.</p></article>
-      <article class="card"><h3>Speak</h3><p>The reply is spoken with xAI <span class="muted">tts-xai-v1</span>, voice Carina. The same button is on this deck.</p></article>
-    </div>
-    <p class="muted">It does not invent new actions. If the words do not match the list, it answers in speech and leaves the page alone.</p>
-  </section>
-
-  <section class="slide" id="s7" data-topic="Works where your team works" aria-label="Works where your team works">
-    <p class="kicker">Works where your team works</p>
-    <h2>An MCP server, and an OpenAI-compatible API.</h2>
-    <div class="works">
-      <article class="card">
-        <h3>MCP</h3>
-        <p class="muted">Paste this URL. Send the bearer token on the header. The full files are on <a class="link" href="/connect">/connect</a>.</p>
-        <pre id="deck-mcp"></pre>
-        <button class="copy" type="button" data-copy="deck-mcp">Copy</button>
-      </article>
-      <article class="card">
-        <h3>OpenAI SDK</h3>
-        <p class="muted">Point the client at <span class="muted">/v1</span>. The model name is ai-partner.</p>
-        <pre id="deck-api"></pre>
-        <button class="copy" type="button" data-copy="deck-api">Copy</button>
-      </article>
-    </div>
-    <div>
-      <p class="kicker">Works with</p>
-      <div class="logos" id="logos"></div>
-      <p class="foot">Trademarks belong to their owners. No endorsement is implied. Grok Bot is a placeholder until an official logo file is available.</p>
-    </div>
-  </section>
-
-  <section class="slide" id="s8" data-topic="Pricing" aria-label="Pricing">
-    <p class="kicker">Pricing · beta · billing is not live</p>
-    <h2>Three ways in. No card on file.</h2>
-    <div class="plans">
-      <article class="plan">
-        <h3>Starter</h3>
-        <p class="price">Free</p>
-        <p>Free beta. 1 strategy engagement.</p>
-      </article>
-      <article class="plan featured">
-        <h3>Strategy</h3>
-        <p class="price">$10</p>
-        <p>One engagement. 1 harness and 3 skills, plus the panel, the research, and up to 5 catalog artifacts.</p>
-      </article>
-      <article class="plan">
-        <h3>Harness Build</h3>
-        <p class="price">Contact</p>
-        <p>The full catalog, the 10-skill pack, and custom harnesses. <a class="link" href="mailto:vivmuk@gmail.com">vivmuk@gmail.com</a></p>
-      </article>
-    </div>
-  </section>
-
-  <section class="slide" id="s9" data-topic="Unit economics" aria-label="Unit economics">
-    <p class="kicker">Unit economics · measured</p>
-    <h2>The costs we have actually counted.</h2>
-    <div class="econ-grid">
-      <article class="econ"><span class="tag">Measured</span><strong>~$0.012</strong><p>Model cost for one run.</p></article>
-      <article class="econ"><span class="tag">Measured</span><strong>$0.06</strong><p>Exa, already inside the margin below.</p></article>
-      <article class="econ"><span class="tag">Measured</span><strong>$0.59</strong><p>Stripe fee, already inside the margin below.</p></article>
-      <article class="econ"><span class="tag">Measured</span><strong>91%</strong><p>Railway margin at 100 engagements a month.</p></article>
-      <article class="econ"><span class="tag">Measured</span><strong>93%</strong><p>Railway margin at 1,000 engagements a month.</p></article>
-    </div>
-    <article class="asp">
-      <span class="tag">Aspirational</span>
-      <p>The $10 Strategy price is a beta proposal. Billing is not live, so these margins are not collected revenue. Anything outside the five measured figures above is not a forecast.</p>
-    </article>
-  </section>
-
-  <section class="slide" id="s10" data-topic="Ask" aria-label="Ask and next steps">
-    <p class="kicker">Ask · next steps</p>
-    <h2>Try the work. Then tell us what to build.</h2>
-    <div class="ask">
-      <ol>
-        <li><a class="link" href="/chat">Open /chat</a> and describe one problem. Public, no login.</li>
-        <li>Read <a class="link" href="/demos/maritime">Maritime</a>, <a class="link" href="/demos/keiki">Keiki</a>, and <a class="link" href="/demos/orchid">Orchid</a>.</li>
-        <li>Paste the connector from <a class="link" href="/connect">/connect</a> into the tool you already use.</li>
-        <li>For a Harness Build, write to <a class="link" href="mailto:vivmuk@gmail.com">vivmuk@gmail.com</a>.</li>
+    <div class="side">
+      <ol class="steps" id="steps">
+        <li data-step="1"><span class="n">1</span><div><b>Intake in chat</b><span>The client describes the problem in Slack or Telegram. Clarifying questions, no forms.</span></div></li>
+        <li data-step="2"><span class="n">2</span><div><b>Panel works the problem</b><span>Custom expert panel, cited web and X research, cost estimate before each run.</span><span class="tool">Expert-Panel · Deep Dive</span></div></li>
+        <li data-step="3"><span class="n">3</span><div><b>Workflow redesigned</b><span>Each step owned by Human, AI Agent, Hybrid or Digital Twin.</span><span class="tool">Expert-Panel · Work Chart</span></div></li>
+        <li data-step="4"><span class="n">4</span><div><b>Client revises in plain language</b><span>Every change saved in revision history.</span></div></li>
+        <li data-step="5"><span class="n">5</span><div><b>Red Team before the build</b><span>Pre-mortem lead, hostile regulator and rival strategist attack the plan.</span><span class="tool">Expert-Panel · Red Team</span></div></li>
+        <li data-step="6"><span class="n">6</span><div><b>Agent kit generated</b><span>Rules, playbooks, agents, skills and model routing in one zip.</span><span class="tool">harness-engineering</span></div></li>
+        <li data-step="7"><span class="n">7</span><div><b>Installed, then run</b><span>The kit goes into tools the team already uses. Agent ops retainer optional.</span></div></li>
       </ol>
-      <img src="/img/brand/character.webp" alt="A multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="640" height="480">
+      <button class="replay" id="replay">↻ Replay the job</button>
     </div>
-  </section>
+  </div>
+</section>
+
+<section class="slide uc" id="s5" aria-label="Use case: Maritime demo engagement">
+  <div class="kicker"><b>05</b> Use case A · Demo engagement: Maritime <span class="label est">Illustrative estimates, not results</span></div>
+  <div class="head">
+    <div><h2>A repo becomes a public agent <em>in a day, not a week.</em></h2><p class="muted hide-m">AI-generated from Maritime's public docs, not a client. Three agents: deploy, pre-launch smoke tests, launch review.</p></div>
+    <div class="ba-tabs" data-for="bas5"><span class="hint hide-m">Drag the divider</span><button data-x="100">Today</button><button data-x="0">Agent era</button></div>
+  </div>
+  <div class="body">
+    <div class="ba" id="bas5" style="--x:0%">
+      <div class="layer before"><div class="lh"><span>Today</span><span>Owner</span></div><ol>
+        <li><span class="i">01</span><span class="t">Engineer wires hosting and secrets by hand<small>Undocumented steps, no checklist</small></span><span class="own h">Human</span></li>
+        <li><span class="i">02</span><span class="t">Agent rules sit in one prompt<small>Nobody owns what it may say</small></span><span class="own n">No owner</span></li>
+        <li><span class="i">03</span><span class="t">Engineer clicks through the chat before each deploy<small>Hours of manual work each release</small></span><span class="own h">Human</span></li>
+        <li><span class="i">04</span><span class="t">Engineer preps a launch by searching hosting docs and old threads<small>Often skipped when busy</small></span><span class="own h">Human</span></li>
+        <li><span class="i">05</span><span class="t">Launch-review notes compiled by hand<small>Decisions recorded weeks later</small></span><span class="own h">Human</span></li>
+        <li><span class="i">06</span><span class="t">Monthly cost and error review<small>Problems are already live</small></span><span class="own h">Human</span></li>
+        <li><span class="i">07</span><span class="t">Security reviews the agent at the end<small>Late rework</small></span><span class="own h">Human</span></li>
+      </ol></div>
+      <div class="layer after"><div class="lh"><span>Agent era</span><span>Owner</span></div><ol>
+        <li><span class="i">01</span><span class="t">Engineer describes the agent; kit writes the config<small>Framework, secrets, public URL</small></span><span class="own y">Hybrid</span></li>
+        <li><span class="i">02</span><span class="t">Deploy agent ships each merge to Maritime<small>Each deploy links to its commit</small></span><span class="own a">AI Agent</span></li>
+        <li><span class="i">03</span><span class="t">Weekly cost and error digest to the CTO<small>Replaces the monthly review</small></span><span class="own a">AI Agent</span></li>
+        <li><span class="i">04</span><span class="t">Smoke-test agent checks /chat before each deploy goes live<small>Answers, guardrails, response time</small></span><span class="own a">AI Agent</span></li>
+        <li><span class="i">05</span><span class="t">Launch review turned into decisions, risks, actions<small>Draft in 48h, engineer edits</small></span><span class="own y">Hybrid</span></li>
+        <li><span class="i">06</span><span class="t">CTO approves what goes public<small>Required human gate (rev 2)</small></span><span class="own h">Human</span></li>
+        <li><span class="i">07</span><span class="t">Rehearse the launch against a twin of a hostile user<small>Test prompt injection before users do</small></span><span class="own t">Digital Twin</span></li>
+      </ol></div>
+      <div class="handle"></div>
+      <input type="range" min="0" max="100" value="0" aria-label="Compare today and agent-era workflow">
+    </div>
+    <div class="side">
+      <div class="card ink"><span class="num">Handed over</span><ul class="files"><li>smoke-tester <span>agent</span></li><li>maritime-deploy/SKILL.md <span>skill</span></li><li>launch-review.md <span>playbook</span></li><li>anti-patterns.md <span>injection guardrails</span></li><li>model-routing.md <span>small model for chat</span></li><li>project-state-schema.md <span>deploy record</span></li></ul></div>
+      <div class="card"><span class="num">Owners after redesign</span><div class="owners"><span><b>3</b><span class="own a">AI Agent</span></span><span><b>2</b><span class="own y">Hybrid</span></span><span><b>1</b><span class="own h">Human</span></span><span><b>1</b><span class="own t">Digital Twin</span></span></div></div>
+      <div class="card"><span class="label est" style="align-self:flex-start">Illustrative estimate</span><div class="deltas"><div class="delta"><b>~1 week → ~1 day</b><span>repo-to-public-agent time</span></div><div class="delta"><b>~60 → ~10 min</b><span>pre-deploy testing, as review time</span></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide uc" id="s6" aria-label="Use case: B2B SaaS GTM">
+  <div class="kicker"><b>06</b> Use case B · 20-person B2B SaaS GTM team <span class="label est">Illustrative estimates, not results</span></div>
+  <div class="head">
+    <div><h2>Every inbound lead triaged and <em>researched before a rep opens it.</em></h2><p class="muted hide-m">A lead-triage agent and an account-research harness that live in the team's Slack and CRM.</p></div>
+    <div class="ba-tabs" data-for="bas6"><span class="hint hide-m">Drag the divider</span><button data-x="100">Today</button><button data-x="0">Agent era</button></div>
+  </div>
+  <div class="body">
+    <div class="ba" id="bas6" style="--x:0%">
+      <div class="layer before"><div class="lh"><span>Today</span><span>Owner</span></div><ol>
+        <li><span class="i">01</span><span class="t">Form fill lands in the CRM and a shared inbox<small>Picked up when someone notices</small></span><span class="own n">No owner</span></li>
+        <li><span class="i">02</span><span class="t">SDR eyeballs fit against the ICP<small>Judgment varies by rep</small></span><span class="own h">Human</span></li>
+        <li><span class="i">03</span><span class="t">SDR researches the company on the web and LinkedIn<small>20 to 30 minutes per account</small></span><span class="own h">Human</span></li>
+        <li><span class="i">04</span><span class="t">Lead routed in Slack by whoever is online<small>No record of why</small></span><span class="own h">Human</span></li>
+        <li><span class="i">05</span><span class="t">Generic first-touch email<small>Template plus first name</small></span><span class="own h">Human</span></li>
+        <li><span class="i">06</span><span class="t">AE discovery call<small>AE redoes the research</small></span><span class="own h">Human</span></li>
+      </ol></div>
+      <div class="layer after"><div class="lh"><span>Agent era</span><span>Owner</span></div><ol>
+        <li><span class="i">01</span><span class="t">Triage agent scores the lead against the ICP on arrival<small>Score and reasons posted in Slack</small></span><span class="own a">AI Agent</span></li>
+        <li><span class="i">02</span><span class="t">Account-research agent writes a cited brief<small>News, hiring, tech stack, likely pain</small></span><span class="own a">AI Agent</span></li>
+        <li><span class="i">03</span><span class="t">Rules suggest routing; SDR accepts in one click<small>Reason logged to the CRM</small></span><span class="own y">Hybrid</span></li>
+        <li><span class="i">04</span><span class="t">First touch drafted from the brief; SDR edits and sends<small>The rep keeps the voice</small></span><span class="own y">Hybrid</span></li>
+        <li><span class="i">05</span><span class="t">New messaging tested on a twin of the ICP buyer<small>Before real prospects see it</small></span><span class="own t">Digital Twin</span></li>
+        <li><span class="i">06</span><span class="t">AE discovery call with the brief already in the CRM<small>Time goes to the conversation</small></span><span class="own h">Human</span></li>
+      </ol></div>
+      <div class="handle"></div>
+      <input type="range" min="0" max="100" value="0" aria-label="Compare today and agent-era workflow">
+    </div>
+    <div class="side">
+      <div class="card ink"><span class="num">Handed over</span><ul class="files"><li>lead-triage.md <span>playbook</span></li><li>account-researcher <span>agent</span></li><li>icp-scoring/SKILL.md <span>skill</span></li><li>CLAUDE.md <span>routing and Slack rules</span></li><li>model-routing.md <span>fast model scores, research model briefs</span></li><li>anti-patterns.md <span>no unverified claims in emails</span></li></ul></div>
+      <div class="card"><span class="num">Owners after redesign</span><div class="owners"><span><b>2</b><span class="own a">AI Agent</span></span><span><b>2</b><span class="own y">Hybrid</span></span><span><b>1</b><span class="own h">Human</span></span><span><b>1</b><span class="own t">Digital Twin</span></span></div></div>
+      <div class="card"><span class="label est" style="align-self:flex-start">Illustrative estimate</span><div class="deltas"><div class="delta"><b>hours → minutes</b><span>form fill to triaged lead</span></div><div class="delta"><b>~25 → ~5 min</b><span>research per account, as review time</span></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide uc" id="s7" aria-label="Use case: vendor due diligence">
+  <div class="kicker"><b>07</b> Use case C · Ops and finance team <span class="label est">Illustrative estimates, not results</span></div>
+  <div class="head">
+    <div><h2>Vendor due diligence with a <em>Red Team built in.</em></h2><p class="muted hide-m">A due-diligence agent assembles the file. An adversarial panel attacks it before anyone signs.</p></div>
+    <div class="ba-tabs" data-for="bas7"><span class="hint hide-m">Drag the divider</span><button data-x="100">Today</button><button data-x="0">Agent era</button></div>
+  </div>
+  <div class="body">
+    <div class="ba" id="bas7" style="--x:0%">
+      <div class="layer before"><div class="lh"><span>Today</span><span>Owner</span></div><ol>
+        <li><span class="i">01</span><span class="t">Request arrives by email<small>Missing info, back and forth</small></span><span class="own h">Human</span></li>
+        <li><span class="i">02</span><span class="t">Procurement sends a questionnaire and chases documents<small>Weeks of follow-up</small></span><span class="own h">Human</span></li>
+        <li><span class="i">03</span><span class="t">Analyst reads financials, news and sanctions lists<small>Coverage depends on the analyst</small></span><span class="own h">Human</span></li>
+        <li><span class="i">04</span><span class="t">Risk memo written in Word<small>Different format every time</small></span><span class="own h">Human</span></li>
+        <li><span class="i">05</span><span class="t">Approval meeting<small>Risks argued from memory</small></span><span class="own h">Human</span></li>
+        <li><span class="i">06</span><span class="t">Vendor not reviewed again until renewal<small>Drift goes unnoticed</small></span><span class="own n">No owner</span></li>
+      </ol></div>
+      <div class="layer after"><div class="lh"><span>Agent era</span><span>Owner</span></div><ol>
+        <li><span class="i">01</span><span class="t">Intake agent collects documents against a checklist<small>Chases gaps on its own</small></span><span class="own a">AI Agent</span></li>
+        <li><span class="i">02</span><span class="t">Due Diligence panel researches with citations<small>Financial, legal, reputational, operational</small></span><span class="own a">AI Agent</span></li>
+        <li><span class="i">03</span><span class="t">Red Team panel attacks the vendor case<small>Hostile regulator, short-seller, pre-mortem lead</small></span><span class="own a">AI Agent</span></li>
+        <li><span class="i">04</span><span class="t">Analyst verifies each flagged item<small>Standard memo, every claim sourced</small></span><span class="own y">Hybrid</span></li>
+        <li><span class="i">05</span><span class="t">Approver decides from ranked risks and mitigations<small>Decision logged to the vendor file</small></span><span class="own h">Human</span></li>
+        <li><span class="i">06</span><span class="t">Vendor risk twin re-checked each quarter<small>Alerts when news or filings change</small></span><span class="own t">Digital Twin</span></li>
+      </ol></div>
+      <div class="handle"></div>
+      <input type="range" min="0" max="100" value="0" aria-label="Compare today and agent-era workflow">
+    </div>
+    <div class="side">
+      <div class="card ink"><span class="num">Handed over</span><ul class="files"><li>vendor-dd.md <span>playbook</span></li><li>dd-intake <span>agent</span></li><li>red-team-checklist/SKILL.md <span>skill</span></li><li>risk-memo/SKILL.md <span>memo format</span></li><li>project-state-schema.md <span>vendor file</span></li><li>qhx-loop.md <span>learn from each review</span></li></ul></div>
+      <div class="card"><span class="num">Owners after redesign</span><div class="owners"><span><b>3</b><span class="own a">AI Agent</span></span><span><b>1</b><span class="own y">Hybrid</span></span><span><b>1</b><span class="own h">Human</span></span><span><b>1</b><span class="own t">Digital Twin</span></span></div></div>
+      <div class="card"><span class="label est" style="align-self:flex-start">Illustrative estimate</span><div class="deltas"><div class="delta"><b>~3 wks → ~1 wk</b><span>request to approval decision</span></div><div class="delta"><b>every claim</b><span>in the memo linked to a source</span></div></div></div>
+    </div>
+  </div>
+</section>
+<section class="slide" id="s8" aria-label="How it works">
+  <div class="kicker"><b>08</b> How it works · the stack</div>
+  <h2>Three working pieces, <em>delivered through chat.</em></h2>
+  <div class="body">
+    <div class="card cobalt"><span class="repo">github.com/vivmuk/Expert-Panel</span><h3>Expert-Panel: the thinking</h3>
+      <p class="muted">Panel Architect designs up to 100 expert personas per problem, grounded in live web and X search with citations. Every engagement keeps its revision history.</p>
+      <div class="modes"><span>Deep Dive</span><span>Red Team</span><span>Quick Pulse</span><span>Board Meeting</span><span>Work Chart</span><span>Scenario Planning</span><span>Due Diligence</span><span>AI Opportunity Scan</span><span>Digital Twin Blueprint</span></div>
+    </div>
+    <div class="card globe"><canvas id="globe" aria-hidden="true"></canvas>
+      <div class="cap"><b>Up to 100 personas per panel.</b><span>Cobalt points are one staffed panel. Drag to spin.</span></div>
+    </div>
+    <div class="card ink"><span class="repo">github.com/vivmuk/harness-engineering</span><h3>Harness generator: the build</h3>
+      <p class="muted">Turns a described workflow into a harness recipe, a Mermaid architecture diagram and a downloadable zip of agent files.</p>
+    </div>
+    <div class="card"><span class="repo">github.com/vivmuk/viv-skills</span><h3>Skills library: the parts bin</h3>
+      <p class="muted">~192 agent skills in SKILL.md format (design, productivity, research, red-teaming) that can be dropped into client kits.</p>
+    </div>
+    <div class="card wash"><span class="num">Runs where clients work</span><h3>Telegram or Slack in, files out</h3>
+      <p class="muted">Clients talk to <span data-company></span> in a chat app. Hosted on Maritime / Railway. Cost controls: estimate before each run, confirm over $2, auto-stop at 3× the estimate.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="scomp" aria-label="How each component powers AI Partner">
+  <div class="kicker"><b>09</b> How each component powers <span data-company></span> <span class="label">Hover or tap a component</span></div>
+  <h2>Every component, <em>and exactly how we use it.</em></h2>
+  <div class="body">
+    <div class="card archc"><svg class="arch" viewBox="0 0 800 470" role="img" aria-label="Architecture: client, hosts, AI Partner app, Venice AI inference, memory, and the build lane">
+ <defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#0033CC"/></marker></defs>
+ <g class="lanes"><text x="110" y="62">Hosts and channels</text><text x="330" y="62">Engagement</text><text x="590" y="62">Inference</text><line x1="12" y1="372" x2="788" y2="372"/><text x="12" y="395">Build and operate</text><text x="320" y="395" class="lnote">deploys to the hosts</text></g>
+ <g class="eg">
+  <path class="fl" d="M58,212 C84,212 84,96 110,96"/><path class="fl" d="M58,212 C84,212 84,156 110,156"/><path class="fl" d="M58,212 C84,212 84,216 110,216"/><path class="fl nxl" d="M58,212 C84,212 84,288 110,288"/>
+  <path class="fl" d="M270,96 C300,96 300,170 330,170" marker-end="url(#ah)"/><path class="fl" d="M270,156 C300,156 300,190 330,190" marker-end="url(#ah)"/><path class="fl" d="M270,216 C300,216 300,210 330,210" marker-end="url(#ah)"/><path class="fl nxl" d="M270,288 C300,288 300,240 330,240" marker-end="url(#ah)"/>
+  <path class="fl" d="M550,150 L590,150" marker-end="url(#ah)"/><path class="fl rv" d="M590,250 L550,250" marker-end="url(#ah)"/>
+  <path class="fl nxl" d="M405,300 L405,316"/>
+  <path class="fl up" d="M290,434 L264,434" marker-end="url(#ah)"/>
+  <path class="fl up" d="M185,412 C185,392 300,392 300,360 L300,118 C300,104 290,98 274,97" marker-end="url(#ah)"/>
+  <path class="fl up" d="M555,412 C555,370 532,340 532,304" marker-end="url(#ah)"/>
+ </g>
+ <g class="client"><circle cx="40" cy="212" r="16"/><circle class="halo" cx="40" cy="212" r="16"/><text x="40" y="250" text-anchor="middle">Client</text><text x="40" y="264" text-anchor="middle">team</text></g>
+ <g class="nd live " data-n="0" tabindex="0" role="button" aria-label="Maritime: Live · primary demo"><rect x="110" y="74" width="160" height="44" rx="10"/><circle class="pt" cx="124" cy="90" r="4.5"/><text x="136" y="94" class="tn">Maritime</text><text x="136" y="110" class="ts">primary · mtm.sh</text></g>
+ <g class="nd live " data-n="1" tabindex="0" role="button" aria-label="Vercel: Live · alternate"><rect x="110" y="134" width="160" height="44" rx="10"/><circle class="pt" cx="124" cy="150" r="4.5"/><text x="136" y="154" class="tn">Vercel</text><text x="136" y="170" class="ts">alternate · web app</text></g>
+ <g class="nd live " data-n="2" tabindex="0" role="button" aria-label="Railway: Live · backup"><rect x="110" y="194" width="160" height="44" rx="10"/><circle class="pt" cx="124" cy="210" r="4.5"/><text x="136" y="214" class="tn">Railway</text><text x="136" y="230" class="ts">backup</text></g>
+ <g class="nd next nx " data-n="3" tabindex="0" role="button" aria-label="Keiki: Next · $25 credits"><rect x="110" y="266" width="160" height="44" rx="10"/><circle class="pt" cx="124" cy="282" r="4.5"/><text x="136" y="286" class="tn">Keiki</text><text x="136" y="302" class="ts">next · iMessage, Slack</text></g>
+ <g class="nd live core" data-n="4" tabindex="0" role="button" aria-label="AI Partner app: Live">
+  <rect x="330" y="80" width="220" height="220" rx="14"/>
+  <text x="348" y="108" class="tn">AI Partner · Expert-Panel</text>
+  <g class="steps2">
+   <rect x="348" y="124" width="184" height="32" rx="7"/><text x="362" y="145">01  Intake in /chat</text>
+   <rect x="348" y="164" width="184" height="32" rx="7"/><text x="362" y="185">02  Expert panel</text>
+   <rect x="348" y="204" width="184" height="32" rx="7"/><text x="362" y="225">03  Work Chart</text>
+   <rect x="348" y="244" width="184" height="32" rx="7"/><text x="362" y="265">04  Harness kit</text>
+  </g>
+  <g class="stars"><circle cx="500" cy="180" r="2.6"/><circle cx="512" cy="172" r="2.6"/><circle cx="520" cy="186" r="2.6"/><circle cx="508" cy="192" r="2.6"/><circle cx="496" cy="170" r="2.6"/></g>
+ </g>
+ <g class="nd live venice" data-n="5" tabindex="0" role="button" aria-label="Venice AI: Live">
+  <rect x="590" y="80" width="198" height="220" rx="14"/>
+  <circle class="pt" cx="606" cy="104" r="4.5"/><text x="618" y="108" class="tn">Venice AI</text><text x="618" y="124" class="ts">all inference</text>
+  <rect class="chip" x="604" y="140" width="170" height="40" rx="7"/><text x="614" y="157" class="cm">DeepSeek V4.1 Flash</text><text x="614" y="172" class="cs">expert panel</text>
+  <rect class="chip" x="604" y="188" width="170" height="40" rx="7"/><text x="614" y="205" class="cm">Exa search</text><text x="614" y="220" class="cs">market research</text>
+  <rect class="chip" x="604" y="236" width="170" height="52" rx="7"/><text x="614" y="253" class="cm">stt-xai-v1 · mercury-3</text><text x="614" y="267" class="cm">· tts-xai-v1</text><text x="614" y="281" class="cs">voice guide</text>
+ </g>
+ <g class="nd next nx " data-n="6" tabindex="0" role="button" aria-label="Supermemory: Next · free account"><rect x="330" y="318" width="150" height="40" rx="10"/><circle class="pt" cx="344" cy="338.0" r="4.5"/><text x="356" y="342.5" class="tn">Supermemory</text></g>
+ <g class="nd live " data-n="7" tabindex="0" role="button" aria-label="GitHub: Live · code"><rect x="110" y="412" width="150" height="44" rx="10"/><circle class="pt" cx="124" cy="428" r="4.5"/><text x="136" y="432" class="tn">GitHub</text><text x="136" y="448" class="ts">code</text></g>
+ <g class="nd live " data-n="8" tabindex="0" role="button" aria-label="Cursor cloud agents: Live · build"><rect x="290" y="412" width="180" height="44" rx="10"/><circle class="pt" cx="304" cy="428" r="4.5"/><text x="316" y="432" class="tn">Cursor cloud agents</text><text x="316" y="448" class="ts">build</text></g>
+ <g class="nd live " data-n="9" tabindex="0" role="button" aria-label="Grok Bot: Live · operate"><rect x="490" y="412" width="130" height="44" rx="10"/><circle class="pt" cx="504" cy="428" r="4.5"/><text x="516" y="432" class="tn">Grok Bot</text><text x="516" y="448" class="ts">operate</text></g>
+ <g class="nd next nx " data-n="10" tabindex="0" role="button" aria-label="PumpGTM: Next · if top 25"><rect x="640" y="412" width="148" height="44" rx="10"/><circle class="pt" cx="654" cy="428" r="4.5"/><text x="666" y="432" class="tn">PumpGTM</text><text x="666" y="448" class="ts">next · own GTM</text></g>
+</svg></div>
+    <aside class="card ink cinsp" aria-live="polite">
+      <span class="num" id="cst"></span>
+      <h3 id="cname"></h3>
+      <span class="lbl">What it is</span><p class="muted" id="cwhat"></p>
+      <span class="lbl">How <span data-company></span> uses it</span><p id="chow"></p>
+      <div class="ckey"><span><i class="rdot on"></i>Live today</span><span><i class="rdot off"></i>Next, not in use yet</span></div>
+    </aside>
+  </div>
+  <script type="application/json" id="comp-data">[{"n": "Maritime", "sc": "live", "st": "Live \u00b7 primary demo", "what": "Agent hosting. FIRST 1000 perk: the Scale plan, two months free.", "how": "Hosts the public AI Partner agent, our primary demo, at 74da9def-954d-4df0-9234-04a7301c4740.mtm.sh. One agent box that keeps its files and wakes on demand."}, {"n": "Vercel", "sc": "live", "st": "Live \u00b7 alternate", "what": "Web hosting. Our own account, not a program perk.", "how": "Runs the AI Partner web app at ai-partner-hq.vercel.app: /chat, the demo engagements and /connect."}, {"n": "Railway", "sc": "live", "st": "Live \u00b7 backup", "what": "App hosting. Our own account, not a program perk.", "how": "Runs the backup deployment at ai-partner.up.railway.app, so the demo stays reachable if another host is down."}, {"n": "Keiki", "sc": "next", "st": "Next \u00b7 $25 credits", "what": "Customer-facing agents on iMessage, WhatsApp, Slack and email, built by Orchid. FIRST 1000 perk: $25 in LLM credits for users.", "how": "Our AI Partner org is set up with the $25 in credits. Next: a client-facing agent so a client can reach their panel by text. No Keiki agent is live yet."}, {"n": "AI Partner app", "sc": "live", "st": "Live", "what": "Expert-Panel, the app clients talk to: intake, expert panel, Work Chart and harness kit in one chat thread.", "how": "Every engagement runs here. Code at github.com/vivmuk/Expert-Panel. The first engagement is free, with no key needed in /chat."}, {"n": "Venice AI", "sc": "live", "st": "Live \u00b7 all inference", "what": "Private LLM inference API. Our own account, not a program perk.", "how": "Every model call: DeepSeek V4.1 Flash for each expert on the panel, Exa search through Venice for market research, and stt-xai-v1, mercury-3 and tts-xai-v1 for the voice guide."}, {"n": "Supermemory", "sc": "next", "st": "Next \u00b7 free account", "what": "Memory API for agents. FIRST 1000 code: SMFIRST1000.", "how": "Our AI Partner org is open on a free account. Next: remember each client across sessions, so a returning client does not re-brief the panel."}, {"n": "GitHub", "sc": "live", "st": "Live \u00b7 code", "what": "Source control.", "how": "Holds the app (github.com/vivmuk/Expert-Panel), the harness generator and the skills library. Agent kits are plain files a client can keep in their own repo."}, {"n": "Cursor cloud agents", "sc": "live", "st": "Live \u00b7 build", "what": "Coding agents that run in the cloud.", "how": "Write and change the app, the harness generator and this deck."}, {"n": "Grok Bot", "sc": "live", "st": "Live \u00b7 operate", "what": "An AI agent with its own computer.", "how": "Works alongside the Cursor agents to build and operate AI Partner: deployments, live checks across the three hosts and demo runs."}, {"n": "PumpGTM", "sc": "next", "st": "Next \u00b7 if top 25", "what": "Go-to-market agent. FIRST 1000 perk: one month for the top 25 teams after selection on Nov 4.", "how": "Not in use. If selected, our own go-to-market: find the team leads who own a workflow and reach them by LinkedIn, email and X."}]</script>
+</section>
+
+<section class="slide" id="sres" aria-label="FIRST 1000 program resources: what we used and how">
+  <div class="kicker"><b>10</b> FIRST 1000 program resources · what we used and how <span class="label">Status as of Nov 2, 2026</span></div>
+  <h2>What the program gave us, <em>and what we did with it.</em></h2>
+  <div class="cmp res" role="table" aria-label="Program resources">
+    <div class="row hd" role="row"><span role="columnheader">Resource</span><span role="columnheader">What the program offered</span><span role="columnheader">Status</span><span role="columnheader" class="usc">How <span data-company></span> uses it</span></div>
+    <div class="row" role="row"><b role="rowheader">Maritime</b><span role="cell" class="offr"><span>Scale plan, <b>two months free</b> (worth $1,000 per person), with a code at Stripe checkout.</span></span><span role="cell" class="stc"><i class="rdot on" aria-hidden="true"></i>In use</span><span role="cell" class="usc"><span>Hosts the public AI Partner agent, our <b>primary demo</b>, on the Scale plan.</span></span></div><div class="row" role="row"><b role="rowheader">Keiki <small>by Orchid</small></b><span role="cell" class="offr"><span>Access to build with Keiki, plus <b>$25 in LLM credits</b> for your users. Invite code FIRST1000.</span></span><span role="cell" class="stc"><i class="rdot half" aria-hidden="true"></i>Account · next</span><span role="cell" class="usc"><span>AI Partner org set up with the $25 in credits. Next: a client-facing agent on iMessage, WhatsApp or Slack.</span></span></div><div class="row" role="row"><b role="rowheader">Supermemory</b><span role="cell" class="offr"><span>Program code SMFIRST1000.</span></span><span role="cell" class="stc"><i class="rdot half" aria-hidden="true"></i>Account · next</span><span role="cell" class="usc"><span>AI Partner org on a free account. Next: client memory across sessions.</span></span></div><div class="row" role="row"><b role="rowheader">PumpGTM</b><span role="cell" class="offr"><span><b>One month</b> for the top 25 teams after selection on Nov 4, to reach the first 1,000 users.</span></span><span role="cell" class="stc"><i class="rdot off" aria-hidden="true"></i>If selected</span><span role="cell" class="usc"><span>Our own go-to-market, not the client product: reach the team leads who own a workflow.</span></span></div><div class="row" role="row"><b role="rowheader">Office hours</b><span role="cell" class="offr"><span>Nov 2–3 with Ary and Maria (Maritime), Nizzy (Orchid), Dhravya (Supermemory), Namanyay (PumpGTM) and Darshan.</span></span><span role="cell" class="stc"><i class="rdot on" aria-hidden="true"></i>Booked</span><span role="cell" class="usc"><span>Sessions with Darshan on Nov 2, Ary (Maritime) requested: demo feedback and hosting client agents on Maritime.</span></span></div><div class="row" role="row"><b role="rowheader">Community</b><span role="cell" class="offr"><span>Competition Slack and Discord. Teammates added on request.</span></span><span role="cell" class="stc"><i class="rdot off" aria-hidden="true"></i>Next</span><span role="cell" class="usc"><span>Share the build log and what the agents got right and wrong on each demo engagement.</span></span></div>
+  </div>
+  <div class="resfoot">
+    <p class="ownst"><span class="num">Our own stack, outside the program</span> <b>Venice AI</b> all inference · <b>Vercel</b> web app · <b>Railway</b> backup · <b>Cursor</b> cloud agents and <b>Grok Bot</b> build and operate · <b>GitHub</b> code</p>
+    <p class="key"><span><i class="rdot on"></i>In use</span><span><i class="rdot half"></i>Account open, not in production</span><span><i class="rdot off"></i>Not used yet</span></p>
+  </div>
+  <p class="src2">Source: FIRST 1000 emails from Darshan Golchha, Oct 29 and Nov 1, and platform onboarding emails, Nov 2. Nothing is listed as in use unless it is running.</p>
+</section>
+
+
+<section class="slide" id="s9" aria-label="What the client walks away with">
+  <div class="kicker"><b>11</b> What the client walks away with</div>
+  <h2>Files they own, <em>not a login they rent.</em></h2>
+  <div class="body">
+    <div class="card ink"><span class="num">The agent kit · from the harness generator</span>
+<div class="tree">agent-kit.zip
+├─ <span class="d">CLAUDE.md</span>               <span class="c">rules</span>
+├─ .claude/
+│  ├─ commands/<span class="d">workflow.md</span>    <span class="c">playbook</span>
+│  ├─ agents/<span class="d">README.md</span>      <span class="c">specialists</span>
+│  └─ skills/*/<span class="d">SKILL.md</span>     <span class="c">skills</span>
+├─ <span class="d">model-routing.md</span>
+├─ <span class="d">project-state-schema.md</span>
+├─ <span class="d">execution-layer.md</span>
+├─ <span class="d">anti-patterns.md</span>
+├─ <span class="d">qhx-loop.md</span>             <span class="c">improve</span>
+└─ <span class="d">diagram.mmd</span>             <span class="c">map</span></div>
+    </div>
+    <div class="card"><span class="num">The thinking · from Expert-Panel</span>
+      <ul class="plain">
+        <li><b>Panel report with citations</b><span>Consensus and dissent map, Now / Next / Later.</span></li>
+        <li><b>Work Chart</b><span>Today vs agent era: owner per step, time, cost and FTE deltas, plus "Beyond the Chart" ideas.</span></li>
+        <li><b>Red Team risk ranking</b><span>What kills the plan, with mitigations.</span></li>
+        <li><b>Revision history</b><span>Every change the client asked for, saved.</span></li>
+      </ul>
+    </div>
+    <div class="card wash"><span class="num">The running system</span>
+      <ul class="plain">
+        <li><b>Agents installed in existing tools</b><span>Slack, Telegram, the CRM, the shared drive.</span></li>
+        <li><b>Install and handover notes</b><span>So the client's own team can maintain it.</span></li>
+        <li><b>Optional agent ops</b><span>We tune skills, routing and guardrails as the work changes.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s10" aria-label="Business model">
+  <div class="kicker"><b>12</b> Business model <span class="label asp">Aspirational · plans proposed, untested</span></div>
+  <h2>Fixed-price sprint to build. <em>Retainer to run.</em></h2>
+  <div class="body">
+    <div class="card"><span class="num">Entry</span><h3>Connect your agent. First engagement free.</h3>
+      <p class="muted">A Deep Dive or Quick Pulse on the client's real problem, delivered in chat, before any contract. Expert-Panel estimates the model cost before it runs, so the giveaway has a known ceiling.</p>
+      <span class="label" style="align-self:flex-start;margin-top:auto">Proposed</span>
+    </div>
+    <div class="card cobalt"><span class="num">Agent Sprint · per workflow</span>
+      <div class="price">Fixed scope <small>per workflow · proposed</small></div>
+      <p class="muted">One workflow taken from problem statement to installed agents. Fixed scope so a team lead can approve it without a procurement cycle.</p>
+      <ul class="ticks">
+        <li>Panel report, Red Team and Work Chart</li>
+        <li>Agent kit generated and tailored</li>
+        <li>Installed in the team's tools</li>
+        <li>Two weeks, one workflow</li>
+      </ul>
+    </div>
+    <div class="card ink"><span class="num">Agent Ops retainer</span>
+      <div class="price">Monthly <small>plan · proposed</small></div>
+      <p class="muted">Agents drift as tools, models and the work change. The retainer keeps the kit current and pays for the next workflow's scoping.</p>
+      <ul class="ticks">
+        <li>Monitor runs and model costs</li>
+        <li>Update skills, playbooks and routing</li>
+        <li>Quarterly Red Team on live agents</li>
+        <li>Next workflow scoped in the same chat</li>
+      </ul>
+    </div>
+    <div class="card open"><span class="label">What we'd test in the program</span><ul>
+      <li>Who signs: the team lead who owns the workflow, or IT and procurement.</li>
+      <li>Whether one fixed price holds for regulated teams such as banking and insurance.</li>
+      <li>Model cost per installed agent per month, from Expert-Panel's per-call cost ledger.</li></ul></div>
+  </div>
+</section>
+
+<section class="slide" id="s11" aria-label="Why us, why now">
+  <div class="kicker"><b>13</b> Why us · why now</div>
+  <h2>The tooling is built. <em>It needs its first clients.</em></h2>
+  <div class="body">
+    <div class="card stat"><b>9</b><span class="muted">engagement modes registered in Expert-Panel</span></div>
+    <div class="card stat cobalt"><b>100</b><span class="muted">expert personas max per panel, with citations</span></div>
+    <div class="card stat"><b>~192</b><span class="muted">agent skills in viv-skills, SKILL.md format</span></div>
+    <div class="card stat ink"><b>10+</b><span class="muted">files in each generated agent kit</span></div>
+    <div class="card who"><span class="num">Why us</span><h3>Vivek Mukhatyar built the tools himself.</h3>
+      <p class="muted">Expert-Panel, harness-engineering and viv-skills are public at github.com/vivmuk. This deck's style comes from vivDesign, his catalog of 764 design components. AI Partner's own agent runs on Maritime, which is why the first job starts there.</p></div>
+    <div class="card now wash"><span class="num">Why now</span><h3>Agents now have a file format for "how we work here."</h3>
+      <p class="muted">CLAUDE.md files, SKILL.md skills and playbooks turned agent behavior into files a team can read and edit. Engineering teams picked them up first. Most operating teams have never had one written for them.</p></div>
+  </div>
+</section>
+
+<section class="slide" id="s12" aria-label="Ask and try it">
+  <div class="kicker"><b>14</b> The ask</div>
+  <div class="kin" id="kin" role="button" tabindex="0" title="Click to change the word">TRY IT</div>
+  <h2>Pick <span data-company></span> for the top 25, <em>and give us one real workflow to run.</em></h2>
+  <div class="body">
+    <div class="card cobalt"><span class="num">Try it</span><h3>Demo</h3><p>URL: <a href="https://74da9def-954d-4df0-9234-04a7301c4740.mtm.sh/chat">74da9def-954d-4df0-9234-04a7301c4740.mtm.sh</a> (Maritime) · alternates <a href="https://ai-partner-hq.vercel.app/chat">ai-partner-hq.vercel.app</a>, <a href="https://ai-partner.up.railway.app/chat">ai-partner.up.railway.app</a></p><p>Access: open /chat. First engagement free, no key needed. Contact: <a href="https://ai-partner-hq.vercel.app/connect">ai-partner-hq.vercel.app/connect</a></p></div>
+    <div class="card"><span class="num">What we'd do in the program</span><p class="muted">Run the first three client jobs end to end in chat, starting with the Maritime demo workflow, and publish what the agents got right and wrong.</p></div>
+    <div class="card"><span class="num">Code</span><p class="mono" style="font-size:12.5px;line-height:1.6">github.com/vivmuk/Expert-Panel<br>github.com/vivmuk/harness-engineering<br>github.com/vivmuk/viv-skills</p>
+      <p class="credit">Style: Constellation Paper. Components re-implemented from vivDesign: Text to Particles, Magnetic Dots, Before / After Slider, Dot Globe, Kinetic Type Lab.</p></div>
+  </div>
+</section>
+
 </main>
-<nav class="nav" aria-label="Slides">
-  <button class="round" type="button" id="prev" aria-label="Previous slide">‹</button>
+
+<nav class="nav" aria-label="Slide navigation">
+  <button class="navbtn" id="prev" aria-label="Previous slide">←</button>
   <div class="dots" id="dots"></div>
-  <span class="counter" id="counter">1 / 10</span>
-  <button class="round" type="button" id="next" aria-label="Next slide">›</button>
+  <span class="counter" id="counter">01 / 14</span>
+  <button class="navbtn" id="next" aria-label="Next slide">→</button>
 </nav>
 <script>
-(function () {
-  var TASKS = [
-    ["Data gathering and market research", 10, "Deep research does the analyst pull, with citations.", "Choosing the question stays with a person."],
-    ["Benchmarking and comps", 10, "Most of the comparison is public or already in the client's files.", "Deciding which comparison matters stays human."],
-    ["Financial modeling", 9, "A model can draft the scenarios. A person checks the assumptions.", "Checking the assumptions stays human."],
-    ["Deck and exhibit production", 9, "Slides are cheap to produce. The handover we sell is the agent, not the deck.", "Nothing essential has to stay in the slide."],
-    ["Synthesis and recommendations", 9, "The panel can rank the moves. The organization still has to accept one.", "Picking the move the organization will accept stays human."],
-    ["Expert interviews", 5, "An agent can draft the guide and the notes.", "The relationship and the call stay human."],
-    ["Org design and change", 4, "A model can draw the target chart.", "Leading the change stays human."],
-    ["Program management", 3, "An agent can track status.", "Authority over the program stays human."],
-    ["Political cover and decision validation", 2, "We do not offer this.", "All of it stays human."]
-  ];
-  var STEPS = [
-    ["20", "Experts", "The full panel generates 20 experts. They are generated for the job. They are not real people and not a quote."],
-    ["02", "Debate", "The experts answer, then answer each other, in rounds."],
-    ["03", "Top 5", "A judge model reads the debate and returns five moves, with confidence, impact, and effort."],
-    ["04", "Picker", "You pick components from the catalog of 31 artifacts. Strategy keeps 5. Harness Build can take the rest."],
-    ["05", "Build plan", "The plan is one harness, the skill pack, and the artifacts the picker selected."]
-  ];
-  var CATALOG = [
-    ["Research", 5], ["Benchmarks", 2], ["Models", 2], ["Exhibits", 1],
-    ["Synthesis", 3], ["Interviews", 3], ["Org design", 4], ["Program", 10], ["Decision", 1]
-  ];
-  var LOGOS = [
-    ["/img/marks/cursor.svg", "Cursor", "/connect#cursor-setup", "Cursor cube, from the Cursor brand guidelines"],
-    ["/img/marks/claude-code.png", "Claude Code", "/connect#claude-code", "Claude Code mark, from the Claude Code docs"],
-    ["/img/marks/claude.svg", "Claude", "/connect#claude-app", "Claude mark, from claude.com"],
-    ["/img/marks/openai-blossom.svg", "ChatGPT", "/connect#chatgpt", "OpenAI blossom, from the OpenAI brand guidelines"],
-    ["/img/marks/openai-wordmark.svg", "OpenAI", "/connect#openai-sdk", "OpenAI wordmark, from the OpenAI brand guidelines"],
-    ["/img/marks/anthropic.svg", "Anthropic", "/connect#anthropic-sdk", "Anthropic mark, from anthropic.com"]
-  ];
-  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
-  var index = 0;
+/* ===== One-line name swap: change this and every {{COMPANY}} slot updates. ===== */
+const COMPANY = 'AI Partner';
+/* ============================================================================== */
+document.querySelectorAll('[data-company]').forEach(el => el.textContent = COMPANY);
+document.title = COMPANY + ' · The First 1,000';
+document.documentElement.style.setProperty('--company', JSON.stringify(COMPANY));
 
-  var tasks = document.getElementById("tasks");
-  TASKS.forEach(function (task, i) {
-    var button = document.createElement("button");
-    button.type = "button";
-    button.className = "task" + (task[1] < 9 ? " low" : "");
-    button.innerHTML = '<span class="name"></span><span class="meter"><i></i></span><span></span>';
-    button.querySelector(".name").textContent = task[0];
-    button.querySelector("i").style.width = (task[1] * 10) + "%";
-    button.lastElementChild.textContent = String(task[1]);
-    button.addEventListener("click", function () { selectTask(i); });
-    tasks.appendChild(button);
-  });
-  function selectTask(i) {
-    Array.prototype.forEach.call(tasks.children, function (node, n) { node.classList.toggle("on", n === i); });
-    var task = TASKS[i];
-    document.getElementById("task-detail").innerHTML = "<p class='tag'>Author's assessment " + task[1] + " / 10</p><h3></h3><p></p><p class='muted'></p>";
-    var box = document.getElementById("task-detail");
-    box.querySelector("h3").textContent = task[0];
-    box.querySelectorAll("p")[1].textContent = task[2];
-    box.querySelector(".muted").textContent = task[3];
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const slides = [...document.querySelectorAll('.slide')];
+const N = slides.length;
+let cur = -1;
+const hooks = {};
+
+/* ---------- navigation: keys, buttons, progress dots, swipe, #hash ---------- */
+const dotsEl = document.getElementById('dots');
+slides.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.setAttribute('aria-label', 'Slide ' + (i + 1) + ': ' + (s.getAttribute('aria-label') || ''));
+  b.onclick = () => go(i);
+  dotsEl.appendChild(b);
+});
+function go(i) {
+  i = Math.max(0, Math.min(N - 1, i));
+  if (i === cur) return;
+  if (cur >= 0) hooks[slides[cur].id]?.leave?.();
+  slides.forEach((s, k) => { s.classList.toggle('active', k === i); s.classList.toggle('prev', k < i); s.setAttribute('aria-hidden', k !== i); s.inert = k !== i; });
+  [...dotsEl.children].forEach((d, k) => { d.classList.toggle('on', k === i); d.classList.toggle('seen', k < i); });
+  document.getElementById('progress').style.width = ((i + 1) / N * 100) + '%';
+  document.getElementById('counter').textContent = String(i + 1).padStart(2, '0') + ' / ' + N;
+  cur = i;
+  slides[i].scrollTop = 0;
+  hooks[slides[i].id]?.enter?.();
+  if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+}
+window.go = go;
+document.getElementById('prev').onclick = () => go(cur - 1);
+document.getElementById('next').onclick = () => go(cur + 1);
+addEventListener('keydown', e => {
+  if (e.target.matches('input[type=range]') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+  const k = e.key;
+  if (['ArrowRight', 'PageDown', ' '].includes(k)) { e.preventDefault(); go(cur + 1); }
+  else if (['ArrowLeft', 'PageUp'].includes(k)) { e.preventDefault(); go(cur - 1); }
+  else if (k === 'Home') go(0); else if (k === 'End') go(N - 1);
+});
+addEventListener('hashchange', () => { const n = parseInt(location.hash.slice(1)); if (n) go(n - 1); });
+let sx = null, sy = 0, st = 0;
+addEventListener('touchstart', e => {
+  if (e.target.closest('.ba, canvas, .chat .log, .kin')) { sx = null; return; }
+  sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now();
+}, { passive: true });
+addEventListener('touchend', e => {
+  if (sx === null) return;
+  const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5 && Date.now() - st < 800) go(cur + (dx < 0 ? 1 : -1));
+  sx = null;
+}, { passive: true });
+
+/* ---------- helpers ---------- */
+function makeCanvas(cv) {
+  const ctx = cv.getContext('2d'), o = { cv, ctx, w: 1, h: 1 };
+  o.fit = () => {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+    o.w = Math.max(1, r.width); o.h = Math.max(1, r.height);
+    cv.width = Math.round(o.w * dpr); cv.height = Math.round(o.h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  return o;
+}
+function loop(fn) {
+  let id = 0, on = false;
+  const tick = t => { if (!on) return; fn(t); id = requestAnimationFrame(tick); };
+  return { start() { if (!on) { on = true; id = requestAnimationFrame(tick); } }, stop() { on = false; cancelAnimationFrame(id); } };
+}
+function pointer(el) {
+  const p = { x: -9999, y: -9999, active: false };
+  el.addEventListener('pointermove', e => { const r = el.getBoundingClientRect(); p.x = e.clientX - r.left; p.y = e.clientY - r.top; p.active = true; });
+  el.addEventListener('pointerleave', () => { p.active = false; p.x = p.y = -9999; });
+  return p;
+}
+const FONT = getComputedStyle(document.body).fontFamily;
+
+/* =====================================================================
+   vivDesign · TEXT TO PARTICLES  (#/interactive/text-particles)
+   Text rendered offscreen at display size and scanned for opaque pixels;
+   each sample is a particle easing to its target. The pointer repels
+   nearby particles; click scatters them and they reassemble.
+   ===================================================================== */
+(() => {
+  const C = makeCanvas(document.getElementById('tp')), ctx = C.ctx, P = pointer(C.cv);
+  let parts = [];
+  function build() {
+    C.fit();
+    const off = document.createElement('canvas'); off.width = Math.ceil(C.w); off.height = Math.ceil(C.h);
+    const o = off.getContext('2d');
+    let fs = C.h * 0.8; o.font = `900 ${fs}px ${FONT}`;
+    const tw = o.measureText(COMPANY).width; if (tw > C.w * 0.97) fs *= C.w * 0.97 / tw;
+    o.font = `900 ${fs}px ${FONT}`; o.textBaseline = 'middle'; o.fillStyle = '#000';
+    o.fillText(COMPANY, 2, C.h / 2);
+    const d = o.getImageData(0, 0, off.width, off.height).data;
+    const step = Math.max(3, Math.round(Math.sqrt(C.w * C.h / 9500)));
+    const old = parts; parts = [];
+    for (let y = 0; y < off.height; y += step) for (let x = 0; x < off.width; x += step) {
+      if (d[(y * off.width + x) * 4 + 3] > 128) {
+        const q = old[parts.length];
+        parts.push({ tx: x, ty: y, x: q ? q.x : Math.random() * C.w, y: q ? q.y : Math.random() * C.h, vx: 0, vy: 0, s: step * 0.5 + Math.random() * step * 0.3, c: Math.random() < 0.06 });
+      }
+    }
+    if (reduce) parts.forEach(p => { p.x = p.tx; p.y = p.ty; });
   }
-  selectTask(0);
-
-  var steps = document.getElementById("steps");
-  STEPS.forEach(function (step, i) {
-    var button = document.createElement("button");
-    button.type = "button";
-    button.className = "step";
-    button.innerHTML = "<b></b><span></span>";
-    button.querySelector("b").textContent = step[0];
-    button.querySelector("span").textContent = step[1];
-    button.addEventListener("click", function () { selectStep(i); });
-    steps.appendChild(button);
+  const scatter = () => parts.forEach(p => { const a = Math.random() * 6.283, v = 8 + Math.random() * 24; p.vx = Math.cos(a) * v; p.vy = Math.sin(a) * v; });
+  C.cv.addEventListener('click', scatter);
+  const L = loop(() => {
+    ctx.clearRect(0, 0, C.w, C.h);
+    const R = Math.max(60, C.h * 0.25);
+    for (const p of parts) {
+      const dx = p.x - P.x, dy = p.y - P.y, d2 = dx * dx + dy * dy;
+      if (d2 < R * R) { const d = Math.sqrt(d2) || 1, f = (R - d) / R * 5; p.vx += dx / d * f; p.vy += dy / d * f; }
+      p.vx = (p.vx + (p.tx - p.x) * 0.05) * 0.83; p.vy = (p.vy + (p.ty - p.y) * 0.05) * 0.83;
+      p.x += p.vx; p.y += p.vy;
+      ctx.fillStyle = p.c ? '#FF2E93' : '#0033CC';
+      ctx.fillRect(p.x, p.y, p.s, p.s);
+    }
   });
-  function selectStep(i) {
-    Array.prototype.forEach.call(steps.children, function (node, n) { node.classList.toggle("on", n === i); });
-    document.getElementById("stage").textContent = STEPS[i][2];
+  let built = false;
+  hooks.s1 = { enter() { if (!built) { build(); built = true; } L.start(); }, leave() { L.stop(); } };
+  addEventListener('resize', () => { if (slides[cur]?.id === 's1') build(); else built = false; });
+})();
+
+/* =====================================================================
+   vivDesign · MAGNETIC DOTS  (#/interactive/magnetic-dots)
+   Every dot stores a home and a displaced position. Inside a radius a force
+   pulls it toward the pointer; outside, a damped spring returns it home.
+   Displaced dots draw a line back to their anchor. Idle: a ghost pointer.
+   ===================================================================== */
+(() => {
+  const C = makeCanvas(document.getElementById('md')), ctx = C.ctx, P = pointer(document.getElementById('s2'));
+  let dots = [];
+  function build() { C.fit(); dots = []; const g = C.w < 600 ? 22 : 30; for (let y = g / 2; y < C.h; y += g) for (let x = g / 2; x < C.w; x += g) dots.push({ hx: x, hy: y, x, y, vx: 0, vy: 0 }); }
+  const L = loop(t => {
+    ctx.clearRect(0, 0, C.w, C.h);
+    let px = P.x, py = P.y;
+    if (!P.active) { px = C.w * (0.62 + 0.28 * Math.sin(t / 2300)); py = C.h * (0.3 + 0.16 * Math.sin(t / 1400)); }
+    const R = Math.min(220, C.w * 0.24);
+    for (const d of dots) {
+      const dx = px - d.x, dy = py - d.y, dist = Math.hypot(dx, dy) || 1;
+      if (dist < R) { const f = (1 - dist / R) * 0.9; d.vx += dx / dist * f; d.vy += dy / dist * f; }
+      d.vx = (d.vx + (d.hx - d.x) * 0.06) * 0.82; d.vy = (d.vy + (d.hy - d.y) * 0.06) * 0.82; d.x += d.vx; d.y += d.vy;
+      const off = Math.hypot(d.x - d.hx, d.y - d.hy);
+      if (off > 1.5) { ctx.strokeStyle = 'rgba(0,51,204,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(d.hx, d.hy); ctx.lineTo(d.x, d.y); ctx.stroke(); }
+      ctx.fillStyle = off > 3 ? '#0033CC' : 'rgba(15,15,15,.16)';
+      ctx.beginPath(); ctx.arc(d.x, d.y, 1.3 + Math.min(off, 18) / 9, 0, 6.283); ctx.fill();
+    }
+  });
+  hooks.s2 = { enter() { build(); L.start(); }, leave() { L.stop(); } };
+  addEventListener('resize', () => { if (slides[cur]?.id === 's2') build(); });
+})();
+
+/* ---------- Slide 4: the first job plays out in chat ---------- */
+(() => {
+  const msgs = [...document.querySelectorAll('#chatlog .msg')], steps = [...document.querySelectorAll('#steps li')], log = document.getElementById('chatlog');
+  let timers = [];
+  function show(n) {
+    msgs.forEach((m, i) => m.classList.toggle('in', i < n));
+    const last = n ? +msgs[n - 1].dataset.step : 0;
+    steps.forEach(s => s.classList.toggle('on', +s.dataset.step <= last));
+    log.scrollTo({ top: log.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
   }
-  selectStep(0);
+  function play() {
+    timers.forEach(clearTimeout); timers = [];
+    if (reduce) return show(msgs.length);
+    show(0);
+    msgs.forEach((m, i) => timers.push(setTimeout(() => show(i + 1), 400 + i * 550)));
+  }
+  document.getElementById('replay').onclick = play;
+  hooks.s4 = { enter: play, leave() { timers.forEach(clearTimeout); show(msgs.length); } };
+})();
 
-  var catalog = document.getElementById("catalog");
-  CATALOG.forEach(function (item) {
-    var chip = document.createElement("span");
-    chip.textContent = item[0] + " " + item[1];
-    catalog.appendChild(chip);
+/* =====================================================================
+   vivDesign · BEFORE / AFTER SLIDER  (#/interactive/before-after)
+   Two full-bleed versions of the same composition; the top (agent-era)
+   layer is clipped by inset(0 0 0 X%). A transparent range input spans the
+   frame, so drag, touch and arrow keys all work. On entry the divider
+   sweeps once from Today to Agent era.
+   ===================================================================== */
+document.querySelectorAll('.ba').forEach(ba => {
+  const input = ba.querySelector('input'), tabs = document.querySelector(`.ba-tabs[data-for="${ba.id}"]`);
+  let anim = 0;
+  const set = x => { ba.style.setProperty('--x', x + '%'); input.value = x; tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.x === 0 ? x < 50 : x >= 50)); };
+  const tween = (from, to, ms, delay = 0) => {
+    cancelAnimationFrame(anim);
+    if (reduce) return set(to);
+    const t0 = performance.now() + delay;
+    const f = t => { const k = Math.min(1, Math.max(0, (t - t0) / ms)), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; set(from + (to - from) * e); if (k < 1) anim = requestAnimationFrame(f); };
+    anim = requestAnimationFrame(f);
+  };
+  input.addEventListener('input', () => { cancelAnimationFrame(anim); set(+input.value); });
+  tabs.querySelectorAll('button').forEach(b => b.onclick = () => tween(+input.value, +b.dataset.x, 600));
+  set(0);
+  hooks[ba.closest('.slide').id] = { enter() { set(100); tween(100, 0, 1500, 700); }, leave() { cancelAnimationFrame(anim); set(0); } };
+});
+
+/* =====================================================================
+   vivDesign · DOT GLOBE  (#/interactive/dot-globe)
+   2,200 points on a sphere via the golden-angle spiral, rotated by yaw and
+   pitch, projected orthographically and shaded by depth. Drag spins it
+   with inertia. 100 points are lit cobalt and linked: one staffed panel.
+   ===================================================================== */
+(() => {
+  const C = makeCanvas(document.getElementById('globe')), ctx = C.ctx;
+  const NPT = 2200, pts = [], ga = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < NPT; i++) { const y = 1 - (i / (NPT - 1)) * 2, r = Math.sqrt(1 - y * y), th = ga * i; pts.push([Math.cos(th) * r, y, Math.sin(th) * r]); }
+  const lit = new Set(); let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  while (lit.size < 100) lit.add(Math.floor(rnd() * NPT));
+  const litIdx = [...lit];
+  let yaw = 0.6, pitch = -0.35, vy = 0.004, vp = 0, drag = null;
+  C.cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; C.cv.setPointerCapture(e.pointerId); C.cv.style.cursor = 'grabbing'; });
+  C.cv.addEventListener('pointermove', e => { if (!drag) return; vy = (e.clientX - drag.x) * 0.006; vp = (e.clientY - drag.y) * 0.006; drag = { x: e.clientX, y: e.clientY }; });
+  const end = () => { drag = null; C.cv.style.cursor = 'grab'; };
+  C.cv.addEventListener('pointerup', end); C.cv.addEventListener('pointercancel', end);
+  const L = loop(() => {
+    yaw += vy; pitch = Math.max(-1.2, Math.min(1.2, pitch + vp));
+    if (!drag) { vy += (0.004 - vy) * 0.02; vp *= 0.92; }
+    ctx.clearRect(0, 0, C.w, C.h);
+    const R = Math.min(C.w * 0.44, C.h * 0.36), cx = C.w / 2, cy = C.h * 0.43;
+    const cyw = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const proj = p => { const x = p[0] * cyw - p[2] * syw, z0 = p[0] * syw + p[2] * cyw, y = p[1] * cp - z0 * sp, z = p[1] * sp + z0 * cp; return [cx + x * R, cy + y * R, z]; };
+    for (let i = 0; i < NPT; i++) {
+      if (lit.has(i)) continue;
+      const [x, y, z] = proj(pts[i]);
+      ctx.fillStyle = `rgba(15,15,15,${z > 0 ? 0.1 + z * 0.45 : 0.05})`;
+      const s = z > 0 ? 1.7 : 1.1; ctx.fillRect(x - s / 2, y - s / 2, s, s);
+    }
+    const P2 = litIdx.map(i => proj(pts[i])), lim = R * 0.34;
+    ctx.lineWidth = 0.8;
+    for (let a = 0; a < P2.length; a++) { if (P2[a][2] < 0) continue; for (let b = a + 1; b < P2.length; b++) { if (P2[b][2] < 0) continue; const d = Math.hypot(P2[a][0] - P2[b][0], P2[a][1] - P2[b][1]); if (d < lim) { ctx.strokeStyle = `rgba(0,51,204,${0.3 * (1 - d / lim)})`; ctx.beginPath(); ctx.moveTo(P2[a][0], P2[a][1]); ctx.lineTo(P2[b][0], P2[b][1]); ctx.stroke(); } } }
+    for (const [x, y, z] of P2) { ctx.fillStyle = z > 0 ? '#0033CC' : 'rgba(0,51,204,.22)'; ctx.beginPath(); ctx.arc(x, y, z > 0 ? 2.2 + z * 1.8 : 1.4, 0, 6.283); ctx.fill(); }
   });
+  hooks.s8 = { enter() { C.fit(); L.start(); }, leave() { L.stop(); } };
+  addEventListener('resize', () => { if (slides[cur]?.id === 's8') C.fit(); });
+})();
 
-  var logos = document.getElementById("logos");
-  LOGOS.forEach(function (logo) {
-    var link = document.createElement("a");
-    link.href = logo[2];
-    var img = document.createElement("img");
-    img.src = logo[0];
-    img.alt = logo[3];
-    img.height = 32;
-    var cap = document.createElement("span");
-    cap.className = "cap";
-    cap.textContent = logo[1];
-    link.appendChild(img);
-    link.appendChild(cap);
-    logos.appendChild(link);
-  });
-  var muse = document.createElement("span");
-  muse.className = "mark";
-  muse.innerHTML = '<img src="/img/marks/muse.svg" alt="Muse mark" height="32"><span class="cap">Muse</span>';
-  logos.appendChild(muse);
-  var pending = document.createElement("span");
-  pending.className = "pending";
-  pending.innerHTML = "<b>Grok Bot</b><span class='cap'>Placeholder</span>";
-  logos.appendChild(pending);
-
-  var origin = location.origin;
-  document.getElementById("deck-mcp").textContent = ["MCP URL", origin + "/mcp", "", "Authorization: Bearer YOUR_KEY"].join("\n");
-  document.getElementById("deck-api").textContent = [
-    "from openai import OpenAI",
-    "client = OpenAI(base_url=" + JSON.stringify(origin + "/v1") + ", api_key=\"YOUR_KEY\")",
-    "client.chat.completions.create(model=\"ai-partner\", messages=[{\"role\": \"user\", \"content\": \"Your problem\"}])"
-  ].join("\n");
-
-  document.querySelectorAll("[data-copy]").forEach(function (button) {
-    button.addEventListener("click", function () {
-      var text = document.getElementById(button.getAttribute("data-copy")).textContent;
-      if (navigator.clipboard) navigator.clipboard.writeText(text);
-      button.textContent = "Copied";
+/* =====================================================================
+   vivDesign · KINETIC TYPE LAB  (#/interactive/kinetic-type)
+   Each letter is its own span. A sine wave moves it vertically while
+   pointer proximity adds rotation, scale and lift. Click cycles the word.
+   ===================================================================== */
+(() => {
+  const el = document.getElementById('kin'), words = ['TRY IT', 'RUN IT', 'OWN IT'];
+  let wi = 0, spans = [];
+  const P = { x: -9999, y: -9999 };
+  addEventListener('pointermove', e => { P.x = e.clientX; P.y = e.clientY; });
+  function set(w) { el.textContent = ''; el.setAttribute('aria-label', w); spans = [...w].map(ch => { const s = document.createElement('span'); s.textContent = ch === ' ' ? '\u00a0' : ch; s.setAttribute('aria-hidden', 'true'); el.appendChild(s); return s; }); }
+  const next = () => { wi = (wi + 1) % words.length; set(words[wi]); };
+  el.addEventListener('click', next); el.addEventListener('keydown', e => { if (e.key === 'Enter') next(); });
+  set(words[0]);
+  const L = loop(t => {
+    spans.forEach((s, i) => {
+      const r = s.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const k = Math.max(0, 1 - Math.hypot(P.x - cx, P.y - cy) / 260);
+      s.style.transform = `translateY(${Math.sin(t / 420 + i * 0.7) * 6 - k * 18}px) rotate(${k * (P.x < cx ? -12 : 12)}deg) scale(${1 + k * 0.18})`;
+      s.style.color = k > 0.35 ? '#FF2E93' : '';
     });
   });
-
-  var dots = document.getElementById("dots");
-  slides.forEach(function (_, n) {
-    var button = document.createElement("button");
-    button.type = "button";
-    button.setAttribute("aria-label", "Slide " + (n + 1));
-    button.addEventListener("click", function () { show(n); });
-    dots.appendChild(button);
-  });
-
-  function show(n) {
-    index = (n + slides.length) % slides.length;
-    slides.forEach(function (slide, n) { slide.classList.toggle("active", n === index); });
-    Array.prototype.forEach.call(dots.children, function (dot, n) { dot.classList.toggle("on", n === index); });
-    document.getElementById("progress").style.width = ((index + 1) / slides.length * 100) + "%";
-    document.getElementById("counter").textContent = (index + 1) + " / " + slides.length;
-    document.getElementById("topic").textContent = slides[index].getAttribute("data-topic");
-    if (location.hash !== "#" + (index + 1)) history.replaceState(null, "", "#" + (index + 1));
-  }
-  document.getElementById("prev").addEventListener("click", function () { show(index - 1); });
-  document.getElementById("next").addEventListener("click", function () { show(index + 1); });
-  document.addEventListener("keydown", function (event) {
-    var tag = (event.target.tagName || "").toLowerCase();
-    if (tag === "input" || tag === "textarea") return;
-    if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") { event.preventDefault(); show(index + 1); }
-    if (event.key === "ArrowLeft" || event.key === "PageUp") { event.preventDefault(); show(index - 1); }
-    if (event.key === "Home") show(0);
-    if (event.key === "End") show(slides.length - 1);
-  });
-  var start = parseInt((location.hash || "").slice(1), 10);
-  show(start >= 1 && start <= slides.length ? start - 1 : 0);
-  window.addEventListener("hashchange", function () {
-    var next = parseInt((location.hash || "").slice(1), 10);
-    if (next >= 1 && next <= slides.length && next - 1 !== index) show(next - 1);
-  });
+  hooks.s12 = { enter() { if (!reduce) L.start(); }, leave() { L.stop(); } };
 })();
-</script>
-<script src="/voice.js"></script>
-</body>
-</html>
+
+/* ---------- ADDED: slide 09 component map inspector ---------- */
+(() => {
+  const el = document.getElementById('comp-data'); if (!el) return;
+  const D = JSON.parse(el.textContent), nodes = [...document.querySelectorAll('#scomp .nd')];
+  const $ = id => document.getElementById(id);
+  function show(i) {
+    const d = D[i]; nodes.forEach(n => n.classList.toggle('sel', +n.dataset.n === i));
+    $('cname').textContent = d.n; $('cst').textContent = d.st; $('cwhat').textContent = d.what; $('chow').textContent = d.how;
+  }
+  nodes.forEach(n => { const i = +n.dataset.n; n.addEventListener('mouseenter', () => show(i)); n.addEventListener('focus', () => show(i)); n.addEventListener('click', () => show(i));
+    n.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); show(i); } }); });
+  show(0);
+  hooks.scomp = { enter() { show(0); } };
+})();
+
+/* ---------- boot ---------- */
+{ const n = parseInt(location.hash.slice(1)); go(n >= 1 && n <= N ? n - 1 : 0); }
+</script></body></html>
