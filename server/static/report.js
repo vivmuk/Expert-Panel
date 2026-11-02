@@ -6,137 +6,89 @@
       entries.forEach(function (entry) {
         if (!entry.isIntersecting) return;
         links.forEach(function (link) {
-          link.classList.toggle("on", link.getAttribute("href") === "#" + entry.target.id);
+          var on = link.getAttribute("href") === "#" + entry.target.id;
+          link.classList.toggle("on", on);
+          if (on && toc.scrollWidth > toc.clientWidth) toc.scrollTo({ left: link.offsetLeft - 16, behavior: "smooth" });
         });
       });
-    }, { rootMargin: "-20% 0px -70% 0px" });
+    }, { rootMargin: "-25% 0px -65% 0px" });
     links.forEach(function (link) {
       var node = document.querySelector(link.getAttribute("href"));
       if (node) observer.observe(node);
     });
   }
 
-  document.querySelectorAll(".expert h3 button").forEach(function (button) {
-    button.addEventListener("click", function () {
-      button.closest(".expert").classList.toggle("open");
+  var q = document.getElementById("expert-q");
+  if (q) {
+    var cards = document.querySelectorAll("[data-expert]");
+    var count = document.getElementById("expert-count");
+    var none = document.getElementById("expert-empty");
+    q.addEventListener("input", function () {
+      var term = q.value.trim().toLowerCase();
+      var shown = 0;
+      cards.forEach(function (card) {
+        var hit = !term || card.getAttribute("data-expert").indexOf(term) >= 0;
+        card.hidden = !hit;
+        if (hit) shown += 1;
+      });
+      count.textContent = term ? shown + " of " + cards.length + " experts" : cards.length + " experts";
+      if (none) none.hidden = shown > 0;
+    });
+  }
+
+  var tabs = document.querySelectorAll("[data-round-tab]");
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      var round = tab.getAttribute("data-round-tab");
+      tabs.forEach(function (t) {
+        t.classList.toggle("on", t === tab);
+        t.setAttribute("aria-pressed", t === tab ? "true" : "false");
+      });
+      document.querySelectorAll("#timeline [data-round]").forEach(function (row) {
+        row.hidden = round !== "all" && row.getAttribute("data-round") !== round;
+      });
+      measure();
     });
   });
-  var filters = document.getElementById("expert-filters");
-  if (filters) {
-    var roles = {};
-    document.querySelectorAll(".expert").forEach(function (card) { roles[card.getAttribute("data-role")] = true; });
-    Object.keys(roles).forEach(function (role) {
-      var button = document.createElement("button");
-      button.type = "button";
-      button.textContent = role;
-      button.setAttribute("data-role", role);
-      filters.appendChild(button);
-    });
-    filters.addEventListener("click", function (event) {
-      var button = event.target.closest("button");
-      if (!button) return;
-      var role = button.getAttribute("data-role");
-      document.querySelectorAll(".expert").forEach(function (card) {
-        card.hidden = role !== "all" && card.getAttribute("data-role") !== role;
-      });
+
+  function measure() {
+    document.querySelectorAll("#timeline li:not([hidden])").forEach(function (row) {
+      var text = row.querySelector(".statement");
+      var more = row.querySelector(".read-more");
+      if (!text || !more || row.classList.contains("open")) return;
+      more.hidden = text.scrollHeight <= text.clientHeight + 2;
     });
   }
-
-  var rounds = {};
-  document.querySelectorAll("[data-round]").forEach(function (node) { rounds[node.getAttribute("data-round")] = true; });
-  var roundBar = document.getElementById("rounds");
-  if (roundBar) {
-    Object.keys(rounds).forEach(function (round) {
-      var button = document.createElement("button");
-      button.type = "button";
-      button.textContent = "Round " + round;
-      button.addEventListener("click", function () {
-        document.querySelectorAll("[data-round]").forEach(function (node) {
-          node.hidden = node.getAttribute("data-round") !== round;
-        });
-      });
-      roundBar.appendChild(button);
-    });
-  }
-
-  document.querySelectorAll("[data-sort]").forEach(function (button) {
+  document.querySelectorAll("#timeline .read-more").forEach(function (button) {
     button.addEventListener("click", function () {
-      var key = "data-" + button.getAttribute("data-sort");
-      var list = document.getElementById("recs");
+      var row = button.closest("li");
+      var open = row.classList.toggle("open");
+      button.textContent = open ? "Show less" : "Read all";
+    });
+  });
+  measure();
+  window.addEventListener("resize", function () { window.requestAnimationFrame(measure); });
+
+  var RANK = { high: 3, medium: 2, low: 1 };
+  function level(card, key) { return RANK[(card.getAttribute("data-" + key) || "").toLowerCase()] || 0; }
+  var list = document.getElementById("recs");
+  var sorts = document.querySelectorAll("[data-sort]");
+  sorts.forEach(function (button) {
+    button.addEventListener("click", function () {
       if (!list) return;
+      var key = button.getAttribute("data-sort");
       var cards = Array.prototype.slice.call(list.children);
-      cards.sort(function (a, b) { return (b.getAttribute(key) || "").localeCompare(a.getAttribute(key) || ""); });
+      cards.sort(function (a, b) {
+        var rank = Number(a.getAttribute("data-rank")) - Number(b.getAttribute("data-rank"));
+        if (key === "rank") return rank;
+        var diff = key === "effort" ? level(a, key) - level(b, key) : level(b, key) - level(a, key);
+        return diff || rank;
+      });
       cards.forEach(function (card) { list.appendChild(card); });
+      sorts.forEach(function (b) {
+        b.classList.toggle("on", b === button);
+        b.setAttribute("aria-pressed", b === button ? "true" : "false");
+      });
     });
-  });
-  var toggle = document.getElementById("toggle-sides");
-  if (toggle) {
-    toggle.addEventListener("click", function () {
-      document.querySelectorAll(".sides").forEach(function (node) { node.hidden = !node.hidden; });
-    });
-  }
-
-  var tip = document.getElementById("market-tip");
-  document.querySelectorAll("#market-map .chip").forEach(function (chip) {
-    function show() {
-      if (!tip) return;
-      tip.hidden = false;
-      tip.textContent = chip.getAttribute("data-note") || chip.textContent;
-      var url = chip.getAttribute("data-url");
-      if (url) tip.innerHTML = tip.textContent + ' <a href="' + url + '">Source</a>';
-    }
-    chip.addEventListener("mouseenter", show);
-    chip.addEventListener("focus", show);
-    chip.addEventListener("click", function () {
-      var url = chip.getAttribute("data-url");
-      if (url) window.open(url, "_blank", "noopener");
-    });
-  });
-
-  var diagram = document.getElementById("diagram");
-  var scale = 1;
-  function zoom(next) {
-    scale = Math.max(0.8, Math.min(next, 2));
-    if (diagram) diagram.style.transform = "scale(" + scale + ")";
-  }
-  var zoomIn = document.getElementById("zoom-in");
-  var zoomOut = document.getElementById("zoom-out");
-  if (zoomIn) zoomIn.addEventListener("click", function () { zoom(scale + 0.1); });
-  if (zoomOut) zoomOut.addEventListener("click", function () { zoom(scale - 0.1); });
-
-  document.querySelectorAll("#pack-tabs button").forEach(function (button) {
-    button.addEventListener("click", function () {
-      var tab = button.getAttribute("data-tab");
-      document.getElementById("pack-tree").hidden = tab !== "tree";
-      document.getElementById("pack-skills").hidden = tab !== "skills";
-    });
-  });
-  var tree = document.getElementById("pack-tree");
-  if (tree) {
-    var copy = document.createElement("button");
-    copy.type = "button";
-    copy.textContent = "Copy";
-    copy.addEventListener("click", function () {
-      if (navigator.clipboard) navigator.clipboard.writeText(tree.textContent);
-      copy.textContent = "Copied";
-      setTimeout(function () { copy.textContent = "Copy"; }, 1500);
-    });
-    tree.before(copy);
-  }
-
-  var modal = document.getElementById("modal");
-  var close = document.getElementById("modal-close");
-  document.querySelectorAll(".artifact").forEach(function (button) {
-    button.addEventListener("click", function () {
-      document.getElementById("modal-title").textContent = button.getAttribute("data-title");
-      document.getElementById("modal-body").textContent = button.getAttribute("data-body");
-      modal.hidden = false;
-      close.focus();
-    });
-  });
-  function hide() { if (modal) modal.hidden = true; }
-  if (close) close.addEventListener("click", hide);
-  document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") hide();
   });
 })();

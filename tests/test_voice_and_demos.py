@@ -126,8 +126,9 @@ def test_demo_page_renders_the_disclaimer(monkeypatch):
     assert summary.index("maritime-cover.webp") < summary.index("<h1>")
     assert market.index("Market analysis") < market.index("maritime-market.webp")
     assert debate.index("Debate") < debate.index("maritime-panel.webp")
-    assert top5.index("Top 5") < top5.index("maritime-panel.webp")
+    assert "Top 5" in top5 and 'id="recs"' in top5
     assert skills.index("Harness and skill pack") < skills.index("maritime-build.webp")
+    assert 'href="/demos/maritime/deck"' in summary and "Open the client deck" in summary
     for slug in ("keiki", "orchid"):
         other = client.get(f"/demos/{slug}").get_data(as_text=True)
         for kind in ("cover", "market", "panel", "build"):
@@ -159,3 +160,53 @@ def test_text_plan_uses_only_the_whitelist(monkeypatch):
     assert body["action"]["action"] == "open_demo"
     assert body["action"]["slug"] == "keiki"
     assert body["captions"] == "Opening Keiki."
+
+
+def _client(monkeypatch):
+    monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("VERCEL", "1")
+    from server import create_app
+
+    return create_app().test_client()
+
+
+def test_client_decks_and_every_kit_link_they_use_serve(monkeypatch):
+    import re
+    from pathlib import Path
+
+    client = _client(monkeypatch)
+    for slug in ("maritime", "keiki", "orchid"):
+        deck = client.get(f"/demos/{slug}/deck")
+        assert deck.status_code == 200
+        assert deck.mimetype == "text/html"
+        html = deck.get_data(as_text=True)
+        assert html == Path(f"server/static/demos/{slug}/deck.html").read_text(encoding="utf-8")
+        assert client.get(f"/demos/{slug}/deck/").status_code == 200
+        links = set(re.findall(r'href="https://[^/"]+(/demos/[^"]+)"', html))
+        assert f"/demos/{slug}/kit.zip" in links
+        assert len(links) >= 7
+        for path in links:
+            res = client.get(path)
+            assert res.status_code == 200, path
+            if path.endswith(".json"):
+                assert res.mimetype == "application/json"
+        assert client.get(f"/demos/{slug}/kit.zip").mimetype == "application/zip"
+    assert client.get("/demos/nope/deck").status_code == 404
+    assert client.get("/demos/maritime/kit/../../maritime.json").status_code == 404
+
+
+def test_inner_page_art_has_alt_text_sizes_and_lazy_loading(monkeypatch):
+    import re
+
+    client = _client(monkeypatch)
+    for path in ("/what-you-get", "/catalog", "/demos", "/demos/maritime", "/demos/keiki", "/demos/orchid"):
+        html = client.get(path).get_data(as_text=True)
+        art = [tag for tag in re.findall(r"<img [^>]+>", html) if re.search(r'src="/(img/(catalog|what-you-get|brand/hero)|demos/img)/', tag)]
+        assert art, path
+        for tag in art:
+            assert re.search(r'alt="[^"]{20,}"', tag), tag
+            assert 'width="' in tag and 'height="' in tag, tag
+            assert 'loading="lazy"' in tag or 'fetchpriority="high"' in tag, tag
+    home = client.get("/chat").get_data(as_text=True)
+    assert "hero.webp" not in home
+    assert not re.search(r'src="/(img/(catalog|what-you-get)|demos/img)/', home)
