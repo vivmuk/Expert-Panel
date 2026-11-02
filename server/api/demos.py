@@ -37,7 +37,7 @@ def index():
         )
     body = f"""
 <h1>Three public engagements.</h1>
-<p class="lede">{escape(DISCLAIMER)}</p>
+<p class="lede">AI-generated demo engagements from public information. Not commissioned by the companies.</p>
 <div class="demo-grid">{"".join(cards)}</div>
 """
     return Response(_shell("Demos · AI Partner", "/demos", body), mimetype="text/html")
@@ -54,6 +54,16 @@ def detail(slug):
     if not demo:
         abort(404)
     return Response(_page(demo), mimetype="text/html")
+
+
+@bp.get("/demos/<slug>/kit/<path:name>")
+def kit_file(slug, name):
+    if slug not in ("maritime", "keiki", "orchid"):
+        abort(404)
+    base = os.path.join(ROOT, slug, "kit")
+    if not os.path.isfile(os.path.join(base, name)):
+        abort(404)
+    return send_from_directory(base, name, mimetype="text/markdown; charset=utf-8")
 
 
 @bp.get("/demos/<slug>/kit.zip")
@@ -170,6 +180,11 @@ def _report(demo):
   <div class="toolbar" id="rounds"></div>
   <div class="timeline" id="timeline">{_debate(demo.get("debate") or [])}</div>
 </section>
+<section id="synthesis">
+  <h2>Synthesis</h2>
+  {_DIVIDER}
+  {_synthesis(demo.get("synthesis"))}
+</section>
 <section id="top5">
   <h2>Top 5</h2>
   {_DIVIDER}
@@ -200,6 +215,7 @@ def _report(demo):
   <div class="toolbar" id="pack-tabs"><button type="button" class="on" data-tab="tree">Files</button><button type="button" data-tab="skills">Skills</button></div>
   <pre class="tree" id="pack-tree">{_tree(demo)}</pre>
   <div id="pack-skills">{_skills(demo.get("skills") or [])}</div>
+  {_kit_links(demo)}
   <p><a href="/demos/{escape(demo["slug"])}/kit.zip">Download the kit zip</a></p>
 </section>
 <section id="artifacts">
@@ -271,7 +287,9 @@ def _experts(items):
             + escape(role)
             + '</p><p class="more">'
             + escape(item.get("recommendation") or "")
-            + "</p></article>"
+            + "</p>"
+            + _expert_detail(item)
+            + "</article>"
         )
     return '<div class="experts" id="expert-list">' + "".join(cards) + "</div>"
 
@@ -309,7 +327,7 @@ def _top5(items):
             + "</h3><p>"
             + escape(item.get("detail") or "")
             + cite
-            + '</p><p class="sides">Backers: '
+            + "</p>" + _rec_detail(item) + '<p class="sides">Backers: '
             + escape(backers)
             + "</p><p class=\"sides\">Dissent: "
             + escape(dissent)
@@ -345,9 +363,14 @@ def _chart(chart):
 
 
 def _tree(demo):
-    lines = ["kit/", "  problem.md", "  market.md", "  top5.json", "  skills/"]
-    for name in demo.get("skills") or []:
-        lines.append("    " + name)
+    lines = ["kit/", "  problem.md", "  market.md", "  top5.json", "  synthesis.json"]
+    paths = ((demo.get("kit_files") or {}).get("paths")) or []
+    if paths:
+        lines += ["  " + p[4:] for p in paths]
+    else:
+        lines.append("  skills/")
+        for name in demo.get("skills") or []:
+            lines.append("    " + name)
     lines.append("  artifacts/")
     for item in demo.get("artifacts") or []:
         lines.append("    " + str(item.get("id") or "note") + ".html")
@@ -371,3 +394,61 @@ def _artifacts(items):
             f'<button type="button" class="artifact" data-title="{escape(title)}" data-body="{escape(body)}">{escape(title)}</button>'
         )
     return '<div class="toolbar">' + "".join(buttons) + "</div>"
+
+
+def _ul(items):
+    items = [x for x in (items or []) if x]
+    return "<ul>" + "".join(f"<li>{escape(str(x))}</li>" for x in items) + "</ul>" if items else ""
+
+
+def _expert_detail(item):
+    parts = []
+    if item.get("risks"):
+        parts.append(f"<p><strong>Risks.</strong> {escape(item['risks'])}</p>")
+    if item.get("opportunities"):
+        parts.append(f"<p><strong>Opportunities.</strong> {escape(item['opportunities'])}</p>")
+    for row in item.get("insights") or []:
+        parts.append(
+            f"<h4>{escape(row.get('insight') or '')} <small>· {escape(row.get('confidence_level') or '')} confidence</small></h4>"
+            f"<p>{escape(row.get('supporting_reasoning') or '')}</p>"
+            + ("<p><strong>How to do it</strong></p>" + _ul(row.get("implementation_ideas")) if row.get("implementation_ideas") else "")
+            + ("<p><strong>Risks</strong></p>" + _ul(row.get("identified_risks")) if row.get("identified_risks") else "")
+            + ("<p><strong>Opportunities</strong></p>" + _ul(row.get("identified_opportunities")) if row.get("identified_opportunities") else "")
+        )
+    return f'<details><summary>Full analysis</summary>{"".join(parts)}</details>' if parts else ""
+
+
+def _rec_detail(item):
+    out = f'<p class="kicker">Confidence {escape(str(item.get("confidence") or "—"))} · Impact {escape(str(item.get("impact") or "—"))} · Effort {escape(str(item.get("effort") or "—"))}</p>'
+    if item.get("rationale"):
+        out += f"<p><strong>Why.</strong> {escape(item['rationale'])}</p>"
+    for label, key in (("Risks", "risks"), ("Metrics to track", "metrics"), ("Next steps", "next_steps")):
+        if item.get(key):
+            out += f"<p><strong>{label}</strong></p>" + _ul(item[key])
+    return out
+
+
+def _synthesis(item):
+    if not item:
+        return '<p class="inference">Inference: the synthesis is not in this file yet.</p>'
+    steps = "".join(
+        f"<li><strong>{escape(s.get('priority') or '')}</strong> · {escape(s.get('step_description') or '')} <em>{escape(s.get('suggested_rationale') or '')}</em></li>"
+        for s in item.get("actionable_next_steps") or []
+    )
+    return (
+        f"<p>{escape(item.get('cohesive_summary') or '')}</p>"
+        f"<h3>Key themes</h3>{_ul(item.get('key_themes'))}"
+        f"<h3>Blind spots</h3>{_ul(item.get('potential_blind_spots'))}"
+        f"<h3>Next steps</h3><ol>{steps}</ol>"
+    )
+
+
+def _kit_links(demo):
+    paths = ((demo.get("kit_files") or {}).get("paths")) or []
+    if not paths:
+        return ""
+    slug = escape(demo["slug"])
+    links = "".join(
+        f'<li><a href="/demos/{slug}/{escape(p)}" download>{escape(p[4:])}</a></li>' for p in paths
+    )
+    return f'<h3>Kit files (AI-generated)</h3><ul class="kit-files">{links}</ul>'

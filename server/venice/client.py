@@ -171,7 +171,8 @@ class VeniceClient:
                     "content": f"Return valid JSON only. Parse error: {exc}",
                 }
             ]
-            return attempt(vp, max_completion_tokens, repair)
+            # Empty or cut-off output usually means reasoning used the budget: retry without thinking.
+            return attempt({**vp, "disable_thinking": True}, max(max_completion_tokens * 2, 4000), repair)
 
     def chat_search(
         self,

@@ -26,6 +26,8 @@ def empty_demo(slug, problem):
         "chart": None,
         "skills": [],
         "artifacts": [],
+        "synthesis": None,
+        "kit_files": {"skills": [], "harness": None},
         "kit": f"/demos/{slug}/kit.zip",
     }
 

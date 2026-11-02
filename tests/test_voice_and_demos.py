@@ -74,6 +74,8 @@ def test_pipeline_drops_citations_that_search_did_not_return():
                     {"step": "Decide", "task": "A person decides.", "owner": "Human"},
                 ],
             }
+        if name in ("ChatDemoSynthesis", "ChatDemoSkills", "ChatDemoHarness"):
+            return {}
         raise AssertionError(name)
 
     demo = run_demo("maritime", "Host a public web agent.", complete, search)

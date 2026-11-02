@@ -1,6 +1,7 @@
 import logging
 import re
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -775,13 +776,18 @@ def _research(state, complete, search):
     if not state["facts"]:
         state["facts"] = [_str(state["problem"], 240)]
     state["queries"] = _queries(data if isinstance(data, dict) else {}, state)
-    sources = []
-    for query in state["queries"][:6]:
+
+    def lookup(query):
         try:
-            hits = search(query, limit=4) or []
+            return query, search(query, limit=4) or []
         except Exception:
             logger.info("exa search failed")
-            hits = []
+            return query, []
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(pool.map(lookup, state["queries"][:6]))
+    sources = []
+    for query, hits in results:
         for hit in hits:
             if not isinstance(hit, dict) or not hit.get("url"):
                 continue
