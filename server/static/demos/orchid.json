@@ -1,0 +1,26 @@
+{
+  "slug": "orchid",
+  "company": "Orchid",
+  "disclaimer": "Demo engagement generated from public information. Not commissioned by the company.",
+  "generated": false,
+  "problem": "An email product wants an agent to take a thread. Decide how Orchid (orchid.ai), formerly Zero and Mail0, should hand a thread to an agent without dropping the conversation.",
+  "market": {
+    "summary": "Public pages include orchid.ai, its FAQ, an iMessage post, and the earlier Zero site at 0.email, including a Y Combinator launch. No market-size figure is taken from these pages.",
+    "citations": [
+      {"title": "orchid.ai", "url": "https://orchid.ai/", "note": "Public homepage."},
+      {"title": "orchid.ai FAQ", "url": "https://orchid.ai/faq", "note": "Public FAQ."},
+      {"title": "Orchid on iMessage", "url": "https://orchid.ai/blog/orchid-ai-assistant-imessage", "note": "Public blog post."},
+      {"title": "0.email", "url": "https://0.email/", "note": "Earlier public site."},
+      {"title": "Zero", "url": "https://0.email/about", "note": "Earlier public about page."},
+      {"title": "Launch YC: Zero – AI Native Email", "url": "https://www.ycombinator.com/launches/NTI-zero-ai-native-email", "note": "Public launch page."}
+    ]
+  },
+  "experts": [],
+  "debate": [],
+  "top5": [],
+  "maturity": null,
+  "chart": null,
+  "skills": [],
+  "artifacts": [],
+  "kit": "/demos/orchid/kit.zip"
+}

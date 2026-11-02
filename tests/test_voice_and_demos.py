@@ -1,0 +1,124 @@
+from server.demo_pipeline import run_demo
+from server.demo_schema import valid_demo
+from server.voice_actions import validate_action
+
+
+def test_voice_whitelist_accepts_a_page_and_rejects_code():
+    assert validate_action({"action": "navigate", "page": "/demos", "say": "Opening demos."})["page"] == "/demos"
+    assert validate_action({"action": "open_demo", "slug": "orchid", "say": "Opening Orchid."})["slug"] == "orchid"
+    assert validate_action({"action": "navigate", "page": "javascript:alert(1)", "say": "No."}) is None
+    assert validate_action({"action": "eval", "say": "No."}) is None
+
+
+def test_stored_demos_match_the_schema():
+    import json
+    from pathlib import Path
+
+    folder = Path("server/static/demos")
+    for slug in ("maritime", "keiki", "orchid"):
+        data = json.loads((folder / f"{slug}.json").read_text())
+        assert valid_demo(data)
+        assert data["slug"] == slug
+        assert "Not commissioned" in data["disclaimer"]
+        assert data["market"]["citations"]
+        assert all(item["url"].startswith("http") for item in data["market"]["citations"])
+
+
+def test_pipeline_drops_citations_that_search_did_not_return():
+    allowed = "https://maritime.sh/docs/web-apps"
+
+    def search(query, limit=4):
+        return [{"title": "Public web agents", "url": allowed, "content": "Docs.", "date": ""}]
+
+    def complete(name, messages, schema, max_tokens):
+        if name == "ChatDemoQueries":
+            return {"queries": ["Maritime public web agents"]}
+        if name == "ChatDemoMarket":
+            return {
+                "summary": "The docs describe public web agents.",
+                "citations": [
+                    {"title": "Docs", "url": allowed, "note": "Docs."},
+                    {"title": "Invented", "url": "https://evil.example/nope", "note": "no"},
+                ],
+            }
+        if name == "ChatDemoExperts":
+            return {"experts": [{"name": "Ada", "role": "Operator", "background": "Runs agents.", "lens": "Hosting"}]}
+        if name == "ChatDemoFeedback":
+            return {"risks": "Cold start.", "opportunities": "A public URL.", "recommendation": "Ship a health check."}
+        if name == "ChatDemoDebate":
+            return {"statement": "Start with the health check.", "responding_to": "Ada"}
+        if name == "ChatDemoJudge":
+            return {"recommendations": [{
+                "title": "Ship the health check",
+                "detail": "The docs show a public web agent.",
+                "citation_url": "https://evil.example/nope",
+                "backers": ["Ada"],
+                "dissenters": [],
+                "confidence": "medium",
+            }]}
+        if name == "ChatDemoMaturity":
+            return {"score": 2, "reason": "A pilot."}
+        if name == "ChatDemoChart":
+            return {
+                "summary": "Agents host the app.",
+                "current": [
+                    {"step": "Deploy", "task": "A person deploys.", "owner": "Human"},
+                    {"step": "Watch", "task": "A person watches logs.", "owner": "Human"},
+                    {"step": "Decide", "task": "A person decides.", "owner": "Human"},
+                ],
+                "future": [
+                    {"step": "Deploy", "task": "An agent deploys.", "owner": "AI Agent"},
+                    {"step": "Watch", "task": "An agent watches logs.", "owner": "Hybrid"},
+                    {"step": "Decide", "task": "A person decides.", "owner": "Human"},
+                ],
+            }
+        raise AssertionError(name)
+
+    demo = run_demo("maritime", "Host a public web agent.", complete, search)
+    urls = [item["url"] for item in demo["market"]["citations"]]
+    assert urls == [allowed]
+    assert demo["top5"][0]["citation_url"] == ""
+    assert demo["experts"][0]["badge"] == "AI-generated expert"
+    assert len(demo["debate"]) == 2
+    assert valid_demo(demo)
+
+
+def test_demo_page_renders_the_disclaimer(monkeypatch):
+    monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("VERCEL", "1")
+    from server import create_app
+
+    client = create_app().test_client()
+    page = client.get("/demos/maritime")
+    assert page.status_code == 200
+    text = page.get_data(as_text=True)
+    assert "Not commissioned by the company." in text
+    assert "https://maritime.sh/docs/web-apps" in text
+    assert "Cal.com" not in text
+    index = client.get("/demos")
+    assert b"Keiki" in index.data and b"Orchid" in index.data
+    chat = client.get("/chat")
+    assert b"/voice.js" in chat.data
+    assert b'id="guide-talk"' in client.get("/voice.js").data
+
+
+def test_text_plan_uses_only_the_whitelist(monkeypatch):
+    monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("VERCEL", "1")
+
+    class Fake:
+        def structured(self, *args, **kwargs):
+            return {"action": "open_demo", "slug": "keiki", "say": "Opening Keiki."}
+
+    monkeypatch.setattr("server.api.voice.VeniceClient", Fake)
+    monkeypatch.setattr("server.api.voice._speak", lambda text: b"")
+    from server import create_app
+
+    client = create_app().test_client()
+    res = client.post("/api/voice/plan", json={"text": "show keiki"})
+    assert res.status_code == 200
+    body = res.get_json()
+    assert body["heard"] == "show keiki"
+    assert body["action"]["action"] == "open_demo"
+    assert body["action"]["slug"] == "keiki"
+    assert body["captions"] == "Opening Keiki."

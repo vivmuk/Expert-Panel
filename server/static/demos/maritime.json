@@ -1,0 +1,25 @@
+{
+  "slug": "maritime",
+  "company": "Maritime",
+  "disclaimer": "Demo engagement generated from public information. Not commissioned by the company.",
+  "generated": false,
+  "problem": "A software team already has a repository and wants a public web agent. Decide how Maritime should host that agent, what the team operates themselves, and which artifacts they need before they deploy.",
+  "market": {
+    "summary": "Public pages describe Maritime as a host for AI agents, including public web agents, a quickstart, a CLI, and framework choice. No market-size figure is taken from these pages.",
+    "citations": [
+      {"title": "Maritime | Deploy AI Agents for $1/month", "url": "https://maritime.sh/", "note": "Public homepage."},
+      {"title": "Docs: Public web agents | Maritime", "url": "https://maritime.sh/docs/web-apps", "note": "Public docs page."},
+      {"title": "Docs: Quickstart | Maritime", "url": "https://maritime.sh/docs/quickstart", "note": "Public docs page."},
+      {"title": "CLI Reference", "url": "https://maritime.sh/docs/cli", "note": "Public docs page."},
+      {"title": "Docs: Choose a framework | Maritime", "url": "https://maritime.sh/docs/frameworks", "note": "Public docs page."}
+    ]
+  },
+  "experts": [],
+  "debate": [],
+  "top5": [],
+  "maturity": null,
+  "chart": null,
+  "skills": [],
+  "artifacts": [],
+  "kit": "/demos/maritime/kit.zip"
+}

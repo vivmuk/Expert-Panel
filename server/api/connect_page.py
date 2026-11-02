@@ -22,6 +22,7 @@ PAGE = """<!DOCTYPE html>
   <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="36" height="36"> AI Partner</a>
   <nav class="links">
     <a href="/chat">Chat</a>
+    <a href="/demos">Demos</a>
     <a href="/deck">Deck</a>
     <a href="/catalog">Catalog</a>
     <a href="/connect" aria-current="page">Connect</a>
@@ -95,6 +96,7 @@ document.querySelectorAll("[data-copy]").forEach(function (button) {
   });
 });
 </script>
+<script src="/voice.js"></script>
 </body>
 </html>
 """

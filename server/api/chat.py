@@ -133,6 +133,16 @@ def brand_img(name):
     return send_from_directory(os.path.join(_STATIC, "img"), name)
 
 
+@bp.get("/voice.js")
+def voice_js():
+    return send_from_directory(_STATIC, "voice.js")
+
+
+@bp.get("/voice/<path:name>")
+def voice_file(name):
+    return send_from_directory(os.path.join(_STATIC, "voice"), name)
+
+
 @bp.get("/connect")
 def connect_page():
     origin = os.environ.get("PUBLIC_BASE_URL", "").strip() or request.host_url

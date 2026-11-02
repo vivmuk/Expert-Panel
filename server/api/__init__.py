@@ -3,12 +3,16 @@ def register_blueprints(app):
     from .branding import bp as branding_bp
     from .chat import bp as chat_bp
     from .deck import bp as deck_bp
+    from .demos import bp as demos_bp
+    from .voice import bp as voice_bp
     from .engagements import bp as engagements_bp
     from .meta import bp as meta_bp
     from .runs import bp as runs_bp
     from .static_serve import bp as static_bp
 
     app.register_blueprint(chat_bp)
+    app.register_blueprint(demos_bp)
+    app.register_blueprint(voice_bp)
     app.register_blueprint(agents_bp)
     app.register_blueprint(deck_bp)
     app.register_blueprint(meta_bp, url_prefix="/api")

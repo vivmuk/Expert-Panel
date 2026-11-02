@@ -1,0 +1,25 @@
+{
+  "slug": "keiki",
+  "company": "Keiki",
+  "disclaimer": "Demo engagement generated from public information. Not commissioned by the company.",
+  "generated": false,
+  "problem": "A product team wants a customer-facing agent. Decide which channels Keiki should answer first, and which artifacts the team needs to launch that agent.",
+  "market": {
+    "summary": "Public pages on onkeiki.com describe Keiki, its developers offering, cloud-served agents, and an introduction post. No market-size figure is taken from these pages.",
+    "citations": [
+      {"title": "Keiki", "url": "https://onkeiki.com/", "note": "Public homepage."},
+      {"title": "Software is becoming someone.", "url": "https://onkeiki.com/about", "note": "Public about page."},
+      {"title": "Your product, by text.", "url": "https://onkeiki.com/developers", "note": "Public developers page."},
+      {"title": "Cloud-served agents — Keiki Docs", "url": "https://onkeiki.com/docs/cloud-agents", "note": "Public docs page."},
+      {"title": "Introducing Keiki — Keiki Blog", "url": "https://onkeiki.com/blog/introducing-keiki", "note": "Public blog post."}
+    ]
+  },
+  "experts": [],
+  "debate": [],
+  "top5": [],
+  "maturity": null,
+  "chart": null,
+  "skills": [],
+  "artifacts": [],
+  "kit": "/demos/keiki/kit.zip"
+}

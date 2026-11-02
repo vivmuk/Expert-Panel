@@ -6,6 +6,7 @@ from ..catalog import STRATEGY_ARTIFACTS, groups
 NAV = """
 <nav class="links">
   <a href="/chat">Chat</a>
+  <a href="/demos">Demos</a>
   <a href="/deck">Deck</a>
   <a href="/catalog">Catalog</a>
   <a href="/connect">Connect</a>
@@ -37,6 +38,7 @@ def _shell(title, current, body):
 <main class="wrap wide">
 {body}
 </main>
+<script src="/voice.js"></script>
 </body>
 </html>
 """

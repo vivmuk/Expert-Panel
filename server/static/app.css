@@ -219,6 +219,11 @@ input[type="search"] { width: 100%; font: inherit; border: 1px solid rgba(15,15,
   .landing-hero img { position: relative; order: 2; height: auto; object-fit: contain; object-position: center; }
   .landing-copy { position: static; order: 1; width: auto; padding: 8px 4px 0; }
 }
+#guide { position: fixed; right: 16px; bottom: 16px; z-index: 5; }
+#guide-talk { border: 0; padding: 0; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(15,15,15,.16); cursor: pointer; }
+#guide-talk img { display: block; border-radius: 16px; }
+#guide-panel { width: min(280px, 80vw); margin-bottom: 8px; background: #fff; border-radius: 14px; padding: 12px; box-shadow: 0 8px 24px rgba(15,15,15,.12); }
+#guide-talk[aria-pressed="true"] { outline: 3px solid #0033cc; }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto; transition: none; }
 }

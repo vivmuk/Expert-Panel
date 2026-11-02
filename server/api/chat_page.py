@@ -19,6 +19,7 @@ PAGE = r"""<!DOCTYPE html>
   <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet." width="36" height="36"> AI Partner</a>
   <nav class="links">
     <a href="/chat" aria-current="page">Chat</a>
+    <a href="/demos">Demos</a>
     <a href="/deck">Deck</a>
     <a href="/catalog">Catalog</a>
     <a href="/connect">Connect</a>
@@ -491,6 +492,7 @@ setInterval(function () {
 }, 4000);
 paint();
 </script>
+<script src="/voice.js"></script>
 </body>
 </html>
 """
