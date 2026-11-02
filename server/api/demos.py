@@ -92,8 +92,8 @@ def kit_file(slug, name):
     base = os.path.join(ROOT, slug, "kit")
     if not os.path.isfile(os.path.join(base, name)):
         abort(404)
-    kind = "application/json" if name.endswith(".json") else "text/markdown"
-    return send_from_directory(base, name, mimetype=f"{kind}; charset=utf-8")
+    kind = "application/json; charset=utf-8" if name.endswith(".json") else "text/markdown"
+    return send_from_directory(base, name, mimetype=kind)
 
 
 @bp.get("/demos/<slug>/deck")
