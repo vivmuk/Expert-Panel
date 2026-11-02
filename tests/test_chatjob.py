@@ -339,14 +339,47 @@ def test_vercel_skips_sqlite_and_blocks_engagements(monkeypatch, tmp_path):
     assert not target.exists()
 
 
-def test_root_without_vercel_is_not_the_chat(monkeypatch, tmp_path):
+def test_root_redirects_to_chat_by_default(monkeypatch, tmp_path):
     monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("APP_HOME_REDIRECT", raising=False)
+    monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setattr(Config, "DATA_DIR", str(tmp_path))
+    from server import create_app
+
+    res = create_app().test_client().get("/")
+    assert res.status_code == 302
+    assert "/chat" in res.headers["Location"]
+
+
+def test_root_keeps_the_existing_app_when_redirect_is_off(monkeypatch, tmp_path):
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setenv("APP_HOME_REDIRECT", "0")
     monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
     monkeypatch.setattr(Config, "DATA_DIR", str(tmp_path))
     from server import create_app
 
     res = create_app().test_client().get("/")
     assert res.status_code != 302
+
+
+def test_maritime_post_chat_returns_a_response(client, monkeypatch):
+    def complete(name, messages, schema, max_tokens):
+        assert name == "ChatReply"
+        assert max_tokens <= 800
+        assert "maritime" in messages[-1]["content"]
+        assert "Germany" in messages[-1]["content"]
+        return {"response": "Start with the German reimbursement codes."}
+
+    monkeypatch.setattr("server.api.chat.complete_with_venice", complete)
+    res = client.post(
+        "/chat",
+        json={"message": "Market entry into Germany", "source": "maritime"},
+    )
+    assert res.status_code == 200
+    assert res.get_json() == {"response": "Start with the German reimbursement codes."}
+    page = client.get("/chat")
+    assert page.status_code == 200
+    assert b"AI Partner" in page.data
 
 
 def test_railway_still_creates_sqlite(monkeypatch, tmp_path):

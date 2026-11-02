@@ -62,7 +62,9 @@ VENICE_API_KEY=your-key VERCEL=1 .venv/bin/flask --app api.index:app run --port 
 
 Open http://localhost:5000/chat
 
-`VERCEL=1` skips SQLite, which is how the hosted demo runs. Leave it unset when you want the engagement database from the next section.
+`/` redirects to `/chat` unless `APP_HOME_REDIRECT=0`. `VERCEL=1` skips SQLite. Leave it unset when you want the engagement database from the next section.
+
+Maritime builds the root `Dockerfile` and runs `python start.py`. Set `PORT` in the platform. Do not set it in the image. The Railway image is `Dockerfile.railway`.
 
 Use a fresh Venice key. An old key is still in this repo's git history. Revoke that key in the Venice dashboard.
 

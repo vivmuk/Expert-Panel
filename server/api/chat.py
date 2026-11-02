@@ -66,9 +66,55 @@ def _bad(message):
     return jsonify({"error": {"code": "bad_request", "message": message}}), 400
 
 
+REPLY_SCHEMA = {
+    "type": "object",
+    "properties": {"response": {"type": "string"}},
+    "required": ["response"],
+    "additionalProperties": False,
+}
+
+
 @bp.get("/chat")
 def chat_page():
     return Response(render_page(WELCOME), mimetype="text/html")
+
+
+@bp.post("/chat")
+def post_root_chat():
+    raw = _body()
+    if raw is None:
+        return _bad("Send a JSON object.")
+    if "state" in raw or "uploads" in raw:
+        return post_chat()
+    message = raw.get("message")
+    if not isinstance(message, str) or not message.strip():
+        return _bad("message is required")
+    source = raw.get("source") if isinstance(raw.get("source"), str) else ""
+    user = message.strip()[:8000]
+    if source:
+        user = f"Channel: {source}\n\n{user}"
+    try:
+        data = complete_with_venice(
+            "ChatReply",
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are AI Partner. Answer in one short paragraph and name one next step."
+                    ),
+                },
+                {"role": "user", "content": user},
+            ],
+            REPLY_SCHEMA,
+            500,
+        )
+    except Exception:
+        logger.exception("stateless chat failed")
+        return jsonify({"response": "The model call failed. Send the message again."}), 502
+    text = str((data or {}).get("response") or "").strip() if isinstance(data, dict) else ""
+    if not text:
+        return jsonify({"response": "The model returned an empty answer. Send the message again."}), 502
+    return jsonify({"response": text})
 
 
 @bp.post("/api/chat")
