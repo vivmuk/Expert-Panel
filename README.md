@@ -77,7 +77,7 @@ In the project settings, use these values.
 - Install command stays the default. Vercel installs `requirements.txt`.
 - Python version stays the default, 3.12.
 
-The Flask app is `app` in `api/index.py`. `pyproject.toml` points Vercel at `api.index:app`. `vercel.json` sets the function limit to 60 seconds.
+The Flask app is `app` in `api/index.py`. The Vercel service `app` uses the entry `api.index:app` and a 60 second limit. A catch-all rewrite sends every public path to that service. The Vite app in `web/` is not a Vercel service. The chat page is served by Flask.
 
 Set these environment variables on the project. Do not commit them.
 
