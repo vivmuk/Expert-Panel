@@ -83,6 +83,16 @@ def test_pipeline_drops_citations_that_search_did_not_return():
     assert valid_demo(demo)
 
 
+def test_artifact_html_carries_the_demo_footer():
+    from server.artifact_doc import as_html, as_markdown
+
+    html = as_html("Charter", "## Purpose\n\nRun the count.", demo=True)
+    assert "Playfair Display" in html
+    assert "Demo engagement — generated from public information." in html
+    assert "<h2>Purpose</h2>" in html
+    assert "Demo engagement — generated from public information." in as_markdown("Charter", "Body", demo=True)
+
+
 def test_demo_page_renders_the_disclaimer(monkeypatch):
     monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
     monkeypatch.setenv("VERCEL", "1")
@@ -93,6 +103,8 @@ def test_demo_page_renders_the_disclaimer(monkeypatch):
     assert page.status_code == 200
     text = page.get_data(as_text=True)
     assert "Not commissioned by the company." in text
+    assert "Executive summary" in text
+    assert 'id="market"' in text
     assert "https://maritime.sh/docs/web-apps" in text
     assert "Cal.com" not in text
     index = client.get("/demos")

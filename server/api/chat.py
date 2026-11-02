@@ -138,6 +138,16 @@ def voice_js():
     return send_from_directory(_STATIC, "voice.js")
 
 
+@bp.get("/report.css")
+def report_css():
+    return send_from_directory(_STATIC, "report.css")
+
+
+@bp.get("/report.js")
+def report_js():
+    return send_from_directory(_STATIC, "report.js")
+
+
 @bp.get("/voice/<path:name>")
 def voice_file(name):
     return send_from_directory(os.path.join(_STATIC, "voice"), name)

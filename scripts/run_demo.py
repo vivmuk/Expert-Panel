@@ -11,6 +11,7 @@ from io import BytesIO
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+from server.artifact_doc import as_html, as_markdown
 from server.demo_pipeline import run_demo
 from server.demo_schema import SLUGS
 from server.exa_search import exa_search
@@ -61,7 +62,9 @@ def _write_zip(path, demo):
             slug = "".join(ch if ch.isalnum() else "-" for ch in skill.lower()).strip("-") or "skill"
             archive.writestr(f"skills/{slug}/SKILL.md", f"# {skill}\n")
         for item in demo["artifacts"]:
-            archive.writestr(f"artifacts/{item['id']}.md", f"# {item['title']}\n")
+            body = item.get("body") or item.get("title") or item["id"]
+            archive.writestr(f"artifacts/{item['id']}.md", as_markdown(item.get("title") or item["id"], body, demo=True))
+            archive.writestr(f"artifacts/{item['id']}.html", as_html(item.get("title") or item["id"], body, demo=True))
     with open(path, "wb") as handle:
         handle.write(buf.getvalue())
 

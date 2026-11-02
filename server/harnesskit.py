@@ -39,9 +39,12 @@ def kit_files(state):
         for step in agent_steps:
             slug = _slug(step["step"], used)
             files[f"skills/{slug}/SKILL.md"] = _skill(step, state)
+    from .artifact_doc import as_html, as_markdown
+
     for artifact_id, text in (state.get("artifacts") or {}).items():
         if isinstance(artifact_id, str) and isinstance(text, str) and text.strip():
-            files[f"artifacts/{artifact_id}.md"] = text
+            files[f"artifacts/{artifact_id}.md"] = as_markdown(artifact_id, text, demo=True)
+            files[f"artifacts/{artifact_id}.html"] = as_html(artifact_id, text, demo=True)
     return files
 
 
