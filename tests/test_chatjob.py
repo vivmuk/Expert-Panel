@@ -64,6 +64,23 @@ def fake_model(calls):
         if name == "ChatChart":
             assert "Enter Germany with a local partner." in messages[-1]["content"]
             return CHART
+        if name == "ChatResearch":
+            return {
+                "facts": ["The client named Germany."],
+                "queries": ["German reimbursement", "Medtech competitors", "EU MDR"],
+            }
+        if name == "ChatBrief":
+            return {"summary": "File the code before hiring.", "citations": []}
+        if name == "ChatSkills":
+            return {
+                "skills": [
+                    {
+                        "name": "source-sweep",
+                        "description": "Use this skill when the sources are messy.",
+                        "tools": ["web_search"],
+                    }
+                ]
+            }
         raise AssertionError(name)
 
     return complete
@@ -124,7 +141,7 @@ def test_red_team_runs_only_when_asked_then_chart_finishes():
     assert "Reimbursement codes lag the launch." in attacked["reply"]
     finished = handle_turn(attacked["state"], "", complete)
     assert finished["next"] is None
-    assert finished["state"]["phase"] == "done"
+    assert finished["state"]["phase"] == "ask_size"
     assert calls == ["ChatPanel", "ChatRedTeam", "ChatChart"]
     assert "Source sweep" in finished["reply"]
     assert "Owner AI Agent" in finished["reply"]
@@ -141,13 +158,13 @@ def test_budget_stops_the_model():
         "team": "3 managers",
         "tools": "Excel",
         "maturity": 2,
-        "calls": 4,
+        "calls": 8,
     }
     result = handle_turn(state, "", fake_model(calls))
     assert calls == []
     assert result["error"]["code"] == "budget"
     assert result["state"]["phase"] == "panel"
-    assert "4 model calls" in result["reply"]
+    assert "8 model calls" in result["reply"]
 
 
 def test_prior_context_is_in_the_panel_brief():
@@ -256,11 +273,12 @@ def test_http_job_report_and_kit(client, monkeypatch):
 
     second = client.post("/api/chat", json={"message": "", "state": body["state"]})
     assert second.status_code == 200
-    done = second.get_json()
-    assert done["state"]["phase"] == "done"
-    assert done["next"] is None
-    assert "https://demo.example/api/chat/kit" in done["reply"]
+    chart = second.get_json()
+    assert chart["state"]["phase"] == "ask_size"
+    assert chart["next"] is None
+    assert "CLAUDE.md" in chart["reply"]
     assert client.application.test_client_calls == ["ChatPanel", "ChatChart"]
+    done = chart
 
     kit = client.post("/api/chat/kit", json={"state": done["state"]})
     assert kit.status_code == 200

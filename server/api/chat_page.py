@@ -81,11 +81,14 @@ PAGE = """<!DOCTYPE html>
     <button type="button" id="cont" class="secondary" hidden>Continue</button>
     <button type="button" id="report" class="secondary" hidden>Download report</button>
     <button type="button" id="kit" class="secondary" hidden>Download harness kit</button>
+    <button type="button" id="pack" class="secondary" hidden>Download skill pack</button>
     <button type="button" id="fresh" class="secondary">New chat</button>
   </div>
   <form id="form">
     <label class="sub" for="box">Message</label>
     <textarea id="box" rows="3" placeholder="Market entry for a medtech device into Germany"></textarea>
+    <label class="sub" for="file">Optional templates or notes, txt, md, pdf, or docx</label>
+    <input id="file" type="file" multiple accept=".txt,.md,.markdown,.pdf,.docx,text/plain">
     <button type="submit">Send</button>
   </form>
 </main>
@@ -94,7 +97,10 @@ PAGE = """<!DOCTYPE html>
 const STATUS = {
   panel: "Staffing a four-person panel.",
   red_team: "Running the red team.",
-  blueprint: "Drawing the work chart."
+  blueprint: "Drawing the work chart.",
+  research: "Searching public sources.",
+  synthesize: "Writing the research brief.",
+  skills: "Writing the skill pack."
 };
 const log = document.getElementById("log");
 const status = document.getElementById("status");
@@ -103,6 +109,8 @@ const box = document.getElementById("box");
 const cont = document.getElementById("cont");
 const reportBtn = document.getElementById("report");
 const kitBtn = document.getElementById("kit");
+const packBtn = document.getElementById("pack");
+let pendingUploads = [];
 let state = null;
 let messages = [];
 let running = false;
@@ -117,11 +125,12 @@ function add(role, text) {
 
 function paint() {
   const phase = state && state.phase;
-  const working = phase === "panel" || phase === "red_team" || phase === "blueprint";
+  const working = phase === "panel" || phase === "red_team" || phase === "blueprint" || phase === "research" || phase === "synthesize" || phase === "skills";
   cont.hidden = !working;
   const done = phase === "done";
   reportBtn.hidden = !done;
   kitBtn.hidden = !done;
+  packBtn.hidden = !done;
 }
 
 function save() {
@@ -139,9 +148,10 @@ async function post(message) {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: message, state: state || {} })
+    body: JSON.stringify({ message: message, state: state || {}, uploads: pendingUploads })
   });
   const data = await res.json();
+  pendingUploads = [];
   if (data.state) state = data.state;
   if (data.reply) add("assistant", data.reply);
   save();
@@ -156,7 +166,7 @@ async function run(message) {
   try {
     let next = await post(message);
     let guard = 0;
-    while (next && guard < 4) {
+    while (next && guard < 6) {
       guard += 1;
       status.textContent = STATUS[next] || "Working.";
       next = await post("");
@@ -172,14 +182,47 @@ async function run(message) {
   }
 }
 
+function readUploads() {
+  const input = document.getElementById("file");
+  const files = Array.from(input.files || []).slice(0, 4);
+  return Promise.all(files.map(function (file) {
+    return new Promise(function (resolve) {
+      if (file.size > 500000) {
+        resolve(null);
+        return;
+      }
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const reader = new FileReader();
+      reader.onload = function () {
+        if (ext === "txt" || ext === "md" || ext === "markdown") {
+          resolve({ name: file.name, text: String(reader.result || "") });
+          return;
+        }
+        const bytes = new Uint8Array(reader.result);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        resolve({ name: file.name, base64: btoa(binary) });
+      };
+      if (ext === "txt" || ext === "md" || ext === "markdown") reader.readAsText(file);
+      else reader.readAsArrayBuffer(file);
+    });
+  })).then(function (items) {
+    input.value = "";
+    return items.filter(Boolean);
+  });
+}
+
 form.addEventListener("submit", function (ev) {
   ev.preventDefault();
   const text = box.value.trim();
   if (!text || running) return;
   add("user", text);
   box.value = "";
-  save();
-  run(text);
+  readUploads().then(function (uploads) {
+    pendingUploads = uploads;
+    save();
+    run(text);
+  });
 });
 
 cont.addEventListener("click", function () { run(""); });
@@ -209,6 +252,7 @@ async function download(path, filename) {
 
 reportBtn.addEventListener("click", function () { download("/api/chat/report", "report.md"); });
 kitBtn.addEventListener("click", function () { download("/api/chat/kit", "harness-kit.zip"); });
+packBtn.addEventListener("click", function () { download("/api/chat/skill-pack", "skill-pack.zip"); });
 
 document.getElementById("fresh").addEventListener("click", function () {
   localStorage.removeItem("ai-partner-chat");

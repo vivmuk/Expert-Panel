@@ -6,7 +6,10 @@ from flask import Blueprint, Response, jsonify, request
 
 from ..chatjob import WELCOME, handle_turn, load_state, render_report
 from ..chatmemory import recall, remember
+from ..exa_search import exa_search
 from ..harnesskit import build_kit_zip
+from ..skillpack import build_pack_zip
+from ..uploads import take_uploads
 from .chat_page import render_page
 
 logger = logging.getLogger(__name__)
@@ -79,6 +82,8 @@ def post_chat():
     if len(message) > 8000:
         return _bad("Message is too long.")
     state = load_state(raw.get("state"))
+    if raw.get("uploads"):
+        state["uploads"] = take_uploads(raw.get("uploads"), state.get("uploads") or [])
     if not allow_in_this_process(state["chat_id"]):
         reply = "This chat is sending messages too fast. Wait a few minutes and try again."
         return jsonify(
@@ -90,7 +95,7 @@ def post_chat():
             }
         ), 429
     try:
-        result = handle_turn(state, message, complete_with_venice, recall, remember)
+        result = handle_turn(state, message, complete_with_venice, recall, remember, exa_search)
     except Exception:
         logger.exception("chat turn failed at phase %s", state.get("phase"))
         reply = "The model call failed. Your earlier answers are still here. Send the message again."
@@ -120,6 +125,23 @@ def chat_kit():
         blob,
         mimetype="application/zip",
         headers={"Content-Disposition": "attachment; filename=harness-kit.zip"},
+    )
+
+
+@bp.post("/api/chat/skill-pack")
+def chat_skill_pack():
+    raw = _body()
+    if raw is None:
+        return _bad("Send a JSON object.")
+    state = load_state(raw.get("state"))
+    try:
+        blob = build_pack_zip(state)
+    except ValueError:
+        return jsonify({"error": {"code": "not_ready", "message": "The skill pack is not ready yet."}}), 400
+    return Response(
+        blob,
+        mimetype="application/zip",
+        headers={"Content-Disposition": "attachment; filename=skill-pack.zip"},
     )
 
 

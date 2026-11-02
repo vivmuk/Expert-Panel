@@ -4,6 +4,7 @@ import zipfile
 
 from .chatjob import MATURITY, MATURITY_MEANING
 from .config import Config
+from .skillpack import pack_files
 
 
 def build_kit_zip(state):
@@ -25,13 +26,16 @@ def kit_files(state):
         agent_steps = [
             {"step": "Draft the agent steps", "task": chart["summary"], "owner": "Hybrid"}
         ]
-    used = set()
     files = {
         "CLAUDE.md": _claude(state),
         "playbook.md": _playbook(state),
-        "model-routing.md": _routing(),
+        "model-routing.md": _routing(state),
         "project-state-schema.md": _schema(state),
     }
+    if state.get("pack") and state.get("brief") and state.get("size"):
+        files.update(pack_files(state))
+        return files
+    used = set()
     for step in agent_steps:
         slug = _slug(step["step"], used)
         files[f"skills/{slug}/SKILL.md"] = _skill(step, state)
@@ -68,6 +72,7 @@ def _claude(state):
             "",
             "Read project-state-schema.md before you write state.",
             "Follow playbook.md in order.",
+            "When skills/skills.json is present, call the skill whose description matches the step.",
             "A step owned by a Human stays with a person.",
             "A step owned by Hybrid stops for approval before anything leaves the team.",
             "Do not invent figures, quotes, or approvals the client did not give you.",
@@ -92,20 +97,23 @@ def _playbook(state):
     return "\n".join(lines)
 
 
-def _routing():
+def _routing(state):
     expert = Config.MODEL_ROLE_DEFAULTS["expert"]
     architect = Config.MODEL_ROLE_DEFAULTS["architect"]
-    return "\n".join(
-        [
-            "# Model routing",
-            "",
-            f"Use {expert} for drafting, extraction, and the persona pass.",
-            f"Use {architect} when the step needs a judgment a partner would sign.",
-            "Keep each call short. This demo caps one answer at 1600 tokens.",
-            "Do not send client material to a model that is not in this file.",
-            "",
-        ]
-    )
+    lines = [
+        "# Model routing",
+        "",
+        f"Use {expert} for drafting, extraction, and the persona pass.",
+        f"Use {architect} when the step needs a judgment a partner would sign.",
+        "Keep each call short. This demo caps one answer at 1600 tokens.",
+        "Do not send client material to a model that is not in this file.",
+    ]
+    if state.get("pack"):
+        lines.append(
+            f"The skill pack tier is {state.get('size')}. Read skills/skills.json before you pick a skill."
+        )
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _schema(state):

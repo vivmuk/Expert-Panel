@@ -4,7 +4,7 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
-MAX_MODEL_CALLS = 4
+MAX_MODEL_CALLS = 8
 MAX_OUTPUT_TOKENS = 1600
 
 MATURITY = {
@@ -28,6 +28,10 @@ PHASES = (
     "panel",
     "red_team",
     "blueprint",
+    "ask_size",
+    "research",
+    "synthesize",
+    "skills",
     "done",
 )
 
@@ -51,8 +55,13 @@ ASK_MATURITY = (
     "Add the words red team if you want an adversarial pass."
 )
 
+ASK_SIZE = (
+    "Is the client small, medium, or large? "
+    "Small is one team. Medium is several teams. Large is a company-wide process."
+)
+
 BUDGET_REPLY = (
-    "This job hit the demo budget of 4 model calls. "
+    f"This job hit the demo budget of {MAX_MODEL_CALLS} model calls. "
     "Start a new chat to take another job."
 )
 
@@ -100,6 +109,14 @@ def fresh_state(chat_id):
         "chart": None,
         "calls": 0,
         "memories": "",
+        "size": "",
+        "facts": [],
+        "queries": [],
+        "sources": [],
+        "brief": None,
+        "uploads": [],
+        "skill_notes": {},
+        "pack": None,
     }
 
 
@@ -194,20 +211,41 @@ def normalize_chart(raw):
     return {"current": current, "future": future, "summary": summary}
 
 
+def _after_chart(state):
+    if state.get("pack"):
+        return "done"
+    if state.get("brief"):
+        return "skills"
+    if state.get("queries") or state.get("sources"):
+        return "synthesize"
+    if state.get("size"):
+        return "research"
+    return "ask_size"
+
+
 def _rewind(state, phase):
-    working = phase in ("panel", "red_team", "blueprint", "done")
-    if working and (not state["problem"] or state["maturity"] not in MATURITY):
-        return "ask_maturity" if state["problem"] else "ask_problem"
-    if phase in ("red_team", "blueprint", "done") and not state["panel"]:
+    later = ("ask_size", "research", "synthesize", "skills", "done")
+    if phase in ("panel", "red_team", "blueprint") + later:
+        if not state["problem"] or state["maturity"] not in MATURITY:
+            return "ask_maturity" if state["problem"] else "ask_problem"
+    if phase in ("red_team", "blueprint") + later and not state["panel"]:
         return "panel"
-    if phase in ("blueprint", "done") and state["red_team"] and not state["attacks"]:
+    if phase in ("blueprint",) + later and state["red_team"] and not state["attacks"]:
         return "red_team"
     if phase == "red_team" and not state["red_team"]:
-        return "done" if state["chart"] else "blueprint"
-    if phase == "done" and not state["chart"]:
-        return "blueprint"
+        phase = "blueprint"
     if phase == "blueprint" and state["chart"]:
-        return "done"
+        return _after_chart(state)
+    if phase in later and not state["chart"]:
+        return "blueprint"
+    if phase == "research" and not state.get("size"):
+        return "ask_size"
+    if phase == "synthesize" and not (state.get("queries") or state.get("sources")):
+        return "research" if state.get("size") else "ask_size"
+    if phase == "skills" and not state.get("brief"):
+        return "synthesize"
+    if phase == "done" and not state.get("pack"):
+        return _after_chart(state)
     return phase
 
 
@@ -238,9 +276,111 @@ def load_state(raw):
     chart = normalize_chart(raw.get("chart"))
     if chart:
         state["chart"] = chart
+    size = raw.get("size")
+    if size in ("small", "medium", "large"):
+        state["size"] = size
+    state["facts"] = _texts(raw.get("facts"), 8, 240)
+    state["queries"] = _texts(raw.get("queries"), 6, 180)
+    state["sources"] = _sources(raw.get("sources"))
+    state["brief"] = _brief_state(raw.get("brief"))
+    state["uploads"] = _uploads(raw.get("uploads"))
+    state["skill_notes"] = _skill_notes(raw.get("skill_notes"))
+    pack = raw.get("pack")
+    if isinstance(pack, dict) and pack.get("tier") in ("small", "medium", "large"):
+        state["pack"] = {"tier": pack["tier"]}
     phase = raw.get("phase")
     state["phase"] = _rewind(state, phase if phase in PHASES else "ask_problem")
     return state
+
+
+def _texts(raw, count, limit):
+    if not isinstance(raw, list):
+        return []
+    found = []
+    for item in raw[:count]:
+        text = _str(item, limit)
+        if text:
+            found.append(text)
+    return found
+
+
+def _sources(raw):
+    if not isinstance(raw, list):
+        return []
+    found = []
+    for item in raw[:24]:
+        if not isinstance(item, dict):
+            continue
+        url = _str(item.get("url"), 400)
+        if not url:
+            continue
+        found.append(
+            {
+                "title": _str(item.get("title"), 180) or url,
+                "url": url,
+                "content": _str(item.get("content"), 500),
+                "date": _str(item.get("date"), 40),
+                "query": _str(item.get("query"), 180),
+            }
+        )
+    return found
+
+
+def _brief_state(raw):
+    if not isinstance(raw, dict):
+        return None
+    summary = _str(raw.get("summary"), 1200)
+    citations = []
+    seen = set()
+    for item in (raw.get("citations") or [])[:24]:
+        if not isinstance(item, dict):
+            continue
+        url = _str(item.get("url"), 400)
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        citations.append(
+            {
+                "title": _str(item.get("title"), 180) or url,
+                "url": url,
+                "note": _str(item.get("note"), 180),
+            }
+        )
+    if not summary and not citations:
+        return None
+    return {"summary": summary or "Research brief.", "citations": citations}
+
+
+def _uploads(raw):
+    if not isinstance(raw, list):
+        return []
+    found = []
+    for item in raw[:4]:
+        if not isinstance(item, dict):
+            continue
+        name = _str(item.get("name"), 80)
+        text = _str(item.get("text"), 8000)
+        kind = item.get("kind") if item.get("kind") in ("source", "template") else "source"
+        if name and text:
+            found.append({"name": name, "text": text, "kind": kind})
+    return found
+
+
+def _skill_notes(raw):
+    if not isinstance(raw, dict):
+        return {}
+    notes = {}
+    for key, value in list(raw.items())[:10]:
+        name = _str(key, 40)
+        if not name or not isinstance(value, dict):
+            continue
+        tools = []
+        for tool in (value.get("tools") or [])[:4]:
+            text = _str(tool, 40)
+            if text:
+                tools.append(text)
+        notes[name] = {"description": _str(value.get("description"), 400), "tools": tools}
+    return notes
 
 
 def parse_maturity(text, phase):
@@ -295,6 +435,31 @@ def wants_red_team(text):
     return "red team" in lowered or "red-team" in lowered
 
 
+def parse_size(text):
+    lowered = " ".join(text.lower().split())
+    if re.search(r"\b(enterprise|global|multinational|large)\b", lowered):
+        return "large"
+    if re.search(r"\b(mid-market|mid market|mid-size|mid size|medium)\b", lowered):
+        return "medium"
+    if re.search(r"\b(startup|boutique|small)\b", lowered):
+        return "small"
+    matched = re.search(r"\b(\d{1,6})\s*[- ]?(?:person|people|employee|employees|staff)\b", lowered)
+    if not matched:
+        return None
+    count = int(matched.group(1))
+    if count <= 40:
+        return "small"
+    if count <= 500:
+        return "medium"
+    return "large"
+
+
+def _note_size(state, text):
+    found = parse_size(text)
+    if found:
+        state["size"] = found
+
+
 def _pack(reply, state, nxt, error=None):
     return {"reply": reply, "state": state, "next": nxt, "error": error}
 
@@ -323,21 +488,32 @@ def memory_text(state):
     )
 
 
-def handle_turn(raw_state, message, complete, recall=None, remember=None):
+def handle_turn(raw_state, message, complete, recall=None, remember=None, search=None):
     """Advance one job. `complete(name, messages, schema, max_tokens)` calls the model."""
+    if search is None:
+        from .exa_search import exa_search as search
+
     state = load_state(raw_state)
     message = _str(message or "", 8000)
     if state["phase"] == "done":
         if len(message) > 15:
             restarted = fresh_state(state["chat_id"])
-            return handle_turn(restarted, message, complete, recall, remember)
+            return handle_turn(restarted, message, complete, recall, remember, search)
         return _pack(DONE_REPLY, state, None)
+    if state["phase"] == "ask_size":
+        if not message:
+            return _pack(ASK_SIZE, state, None)
+        _note_size(state, message)
+        if not state["size"]:
+            return _pack(ASK_SIZE, state, None)
+        state["phase"] = "research"
+        return _run_work(state, complete, recall, remember, search)
     if state["phase"] in ("ask_problem", "ask_context", "ask_maturity"):
         reply, state = _intake(state, message)
         if state["phase"] != "panel":
             return _pack(reply, state, None)
-        return _run_work(state, complete, recall, remember)
-    return _run_work(state, complete, recall, remember)
+        return _run_work(state, complete, recall, remember, search)
+    return _run_work(state, complete, recall, remember, search)
 
 
 def _intake(state, message):
@@ -347,6 +523,7 @@ def _intake(state, message):
             return WELCOME, state
         state["problem"] = message
         state["red_team"] = wants_red_team(message)
+        _note_size(state, message)
         maturity = parse_maturity(message, phase)
         if _has_context(message):
             team, tools = split_team_tools(message)
@@ -368,6 +545,7 @@ def _intake(state, message):
         state["team"] = (team or message)[:1000]
         state["tools"] = tools[:1000]
         state["red_team"] = state["red_team"] or wants_red_team(message)
+        _note_size(state, message)
         maturity = parse_maturity(message, phase)
         if maturity:
             state["maturity"] = maturity
@@ -379,6 +557,7 @@ def _intake(state, message):
     if not message:
         return ASK_MATURITY, state
     state["red_team"] = state["red_team"] or wants_red_team(message)
+    _note_size(state, message)
     maturity = parse_maturity(message, phase)
     if not maturity:
         return ASK_MATURITY, state
@@ -387,7 +566,7 @@ def _intake(state, message):
     return "", state
 
 
-def _run_work(state, complete, recall, remember):
+def _run_work(state, complete, recall, remember, search):
     if state["calls"] >= MAX_MODEL_CALLS:
         return _pack(
             BUDGET_REPLY,
@@ -400,6 +579,12 @@ def _run_work(state, complete, recall, remember):
         return _panel(state, complete, recall, remember)
     if phase == "red_team":
         return _red_team(state, complete)
+    if phase == "research":
+        return _research(state, complete, search)
+    if phase == "synthesize":
+        return _synthesize(state, complete)
+    if phase == "skills":
+        return _skills(state, complete, remember)
     return _blueprint(state, complete, remember)
 
 
@@ -507,9 +692,181 @@ def _blueprint(state, complete, remember):
     if not chart:
         return _pack(INCOMPLETE_REPLY, state, None, {"code": "incomplete", "message": INCOMPLETE_REPLY})
     state["chart"] = chart
+    _remember(remember, state)
+    reply = chart_reply(state)
+    nxt = _after_chart(state)
+    state["phase"] = nxt
+    if nxt == "ask_size":
+        return _pack(reply + "\n\n" + ASK_SIZE, state, None)
+    return _pack(reply, state, nxt)
+
+
+def _research(state, complete, search):
+    upload_text = "\n".join(
+        f"{item['name']} ({item['kind']}): {item['text'][:1500]}" for item in state.get("uploads") or []
+    )
+    system = (
+        "Extract facts the client actually stated, including any uploaded text. "
+        "Then write 3 to 6 web search queries covering the industry, the function, "
+        "competitors, benchmarks, and regulations. Do not invent numbers."
+    )
+    user = _brief(state)
+    if upload_text:
+        user += "\n\nUploaded material:\n" + upload_text[:6000]
+    data = complete(
+        "ChatResearch",
+        [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        RESEARCH_SCHEMA,
+        900,
+    )
+    state["calls"] += 1
+    state["facts"] = _texts((data or {}).get("facts") if isinstance(data, dict) else [], 8, 240)
+    if not state["facts"]:
+        state["facts"] = [_str(state["problem"], 240)]
+    state["queries"] = _queries(data if isinstance(data, dict) else {}, state)
+    sources = []
+    for query in state["queries"][:6]:
+        try:
+            hits = search(query, limit=4) or []
+        except Exception:
+            logger.info("exa search failed")
+            hits = []
+        for hit in hits:
+            if not isinstance(hit, dict) or not hit.get("url"):
+                continue
+            sources.append(
+                {
+                    "title": _str(hit.get("title"), 180) or hit["url"],
+                    "url": _str(hit.get("url"), 400),
+                    "content": _str(hit.get("content"), 500),
+                    "date": _str(hit.get("date"), 40),
+                    "query": query,
+                }
+            )
+    state["sources"] = sources[:24]
+    state["phase"] = "synthesize"
+    lines = [f"Research. {len(state['queries'])} queries. {len(state['sources'])} sources."]
+    for source in state["sources"][:8]:
+        lines.append(f"{source['title']}. {source['url']}")
+    return _pack("\n\n".join(lines), state, "synthesize")
+
+
+def _queries(data, state):
+    found = []
+    for item in (data.get("queries") or []):
+        text = _str(item, 180)
+        if text and text not in found:
+            found.append(text)
+    line = state.get("service_line") or "the engagement"
+    for filler in (
+        f"{line} industry benchmarks",
+        f"{line} competitors",
+        f"{line} regulations",
+        f"{line} operating benchmarks",
+    ):
+        if len(found) >= 3:
+            break
+        if filler not in found:
+            found.append(filler)
+    return found[:6]
+
+
+def _synthesize(state, complete):
+    blocks = []
+    for source in state.get("sources") or []:
+        blocks.append(f"{source['title']} {source['url']} {source['content']}")
+    system = (
+        "Write a short research brief from these sources. "
+        "Keep every source URL in the citations. Do not add a URL that was not provided."
+    )
+    user = _brief(state) + "\n\nSources:\n" + ("\n".join(blocks) or "No external sources were returned.")
+    data = complete(
+        "ChatBrief",
+        [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        BRIEF_SCHEMA,
+        1200,
+    )
+    state["calls"] += 1
+    state["brief"] = _merge_citations(data if isinstance(data, dict) else {}, state.get("sources") or [])
+    state["phase"] = "skills"
+    lines = [state["brief"]["summary"], ""]
+    for item in state["brief"]["citations"]:
+        lines.append(f"{item['title']}. {item['url']}")
+    return _pack("\n".join(lines).strip(), state, "skills")
+
+
+def _merge_citations(data, sources):
+    summary = _str(data.get("summary"), 1200) or "The sources below are the public record for this job."
+    citations = []
+    seen = set()
+    for source in sources:
+        url = source.get("url")
+        if url and url not in seen:
+            seen.add(url)
+            citations.append(
+                {
+                    "title": source.get("title") or url,
+                    "url": url,
+                    "note": _str(source.get("content"), 180),
+                }
+            )
+    for item in data.get("citations") or []:
+        if not isinstance(item, dict):
+            continue
+        url = _str(item.get("url"), 400)
+        if url and url not in seen:
+            seen.add(url)
+            citations.append(
+                {
+                    "title": _str(item.get("title"), 180) or url,
+                    "url": url,
+                    "note": _str(item.get("note"), 180),
+                }
+            )
+    return {"summary": summary, "citations": citations}
+
+
+def _skills(state, complete, remember):
+    from .skillpack import agent_steps, plan_slots
+
+    slots = plan_slots(state["size"], agent_steps(state["chart"]))
+    names = []
+    for slot in slots:
+        if slot["level"] == "orchestrator":
+            names.append("run-the-engagement")
+        else:
+            names.append(slot["step"]["step"])
+    system = (
+        "Write one skill description per name. "
+        "Each description must say when to use the skill. "
+        "Use only the names you are given."
+    )
+    user = "Names: " + ", ".join(names) + "\n\n" + (state.get("brief") or {}).get("summary", "")
+    data = complete(
+        "ChatSkills",
+        [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        SKILLS_SCHEMA,
+        MAX_OUTPUT_TOKENS,
+    )
+    state["calls"] += 1
+    notes = {}
+    if isinstance(data, dict):
+        for item in (data.get("skills") or [])[:10]:
+            if not isinstance(item, dict):
+                continue
+            name = _str(item.get("name"), 80)
+            if not name:
+                continue
+            tools = [_str(tool, 40) for tool in (item.get("tools") or [])[:4]]
+            notes[name] = {"description": _str(item.get("description"), 400), "tools": [t for t in tools if t]}
+            slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40]
+            if slug:
+                notes[slug] = notes[name]
+    state["skill_notes"] = notes
+    state["pack"] = {"tier": state["size"]}
     state["phase"] = "done"
     _remember(remember, state)
-    return _pack(final_text(state), state, None)
+    return _pack(closing_text(state), state, None)
 
 
 def _chart_block(title, steps):
@@ -519,34 +876,50 @@ def _chart_block(title, steps):
     return "\n".join(lines)
 
 
-def final_text(state):
-    import os
-
+def chart_reply(state):
     chart = state["chart"]
     future = chart["future"]
     handed = [step for step in future if step["owner"] != "Human"]
     label = MATURITY[state["maturity"]]
+    return "\n\n".join(
+        [
+            f"Job. {state['service_line']}.",
+            f"Maturity {state['maturity']} is {label}.",
+            state["panel"]["consensus"],
+            chart["summary"],
+            _chart_block("Today.", chart["current"]),
+            _chart_block("Agent era.", future),
+            (
+                f"Work chart. {len(chart['current'])} steps today. "
+                f"{len(future)} steps in the agent era. "
+                f"{len(handed)} of those are AI Agent or Hybrid."
+            ),
+            (
+                "The harness kit will contain CLAUDE.md, playbook.md, model-routing.md, "
+                "project-state-schema.md, and a skill pack of at most 10 skills."
+            ),
+            "Next is public research, then the skill pack.",
+        ]
+    )
+
+
+def closing_text(state):
+    import os
+
+    from .skillpack import MAX_SKILLS, agent_steps, plan_slots
+
+    count = len(plan_slots(state["size"], agent_steps(state["chart"])))
     lines = [
-        f"Job. {state['service_line']}.",
-        f"Maturity {state['maturity']} is {label}.",
-        state["panel"]["consensus"],
-        chart["summary"],
-        _chart_block("Today.", chart["current"]),
-        _chart_block("Agent era.", future),
-        (
-            f"Work chart. {len(chart['current'])} steps today. "
-            f"{len(future)} steps in the agent era. "
-            f"{len(handed)} of those are AI Agent or Hybrid."
-        ),
-        (
-            "The harness kit contains CLAUDE.md, playbook.md, model-routing.md, "
-            "project-state-schema.md, and one SKILL.md for each agent step."
-        ),
-        "Download the report at /api/chat/report and the kit at /api/chat/kit. POST this job state.",
+        f"Skill pack. Tier {state['size']}. {count} skills. The cap is {MAX_SKILLS}.",
+        "The pack sits in skills/ inside the harness kit and is also its own zip.",
+        "CLAUDE.md and model-routing.md point at skills/skills.json.",
+        "Download the report at /api/chat/report, the kit at /api/chat/kit, and the skill pack at /api/chat/skill-pack. POST this job state.",
     ]
     base = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
     if base:
-        lines.append(f"On this host those paths are {base}/api/chat/report and {base}/api/chat/kit.")
+        lines.append(
+            f"On this host those paths are {base}/api/chat/report, {base}/api/chat/kit, and {base}/api/chat/skill-pack."
+        )
     return "\n\n".join(lines)
 
 
@@ -663,4 +1036,39 @@ _STEP_LIST = {"type": "array", "items": _STEP, "minItems": 3, "maxItems": 6}
 CHART_SCHEMA = _schema(
     {"current": _STEP_LIST, "future": _STEP_LIST, "summary": {"type": "string"}},
     ["current", "future", "summary"],
+)
+
+RESEARCH_SCHEMA = _schema(
+    {
+        "facts": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 6},
+        "queries": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 6},
+    },
+    ["facts", "queries"],
+)
+
+_CITATION = _schema(
+    {"title": {"type": "string"}, "url": {"type": "string"}, "note": {"type": "string"}},
+    ["title", "url", "note"],
+)
+
+BRIEF_SCHEMA = _schema(
+    {
+        "summary": {"type": "string"},
+        "citations": {"type": "array", "items": _CITATION, "maxItems": 12},
+    },
+    ["summary", "citations"],
+)
+
+_SKILL_NOTE = _schema(
+    {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "tools": {"type": "array", "items": {"type": "string"}},
+    },
+    ["name", "description", "tools"],
+)
+
+SKILLS_SCHEMA = _schema(
+    {"skills": {"type": "array", "items": _SKILL_NOTE, "minItems": 1, "maxItems": 10}},
+    ["skills"],
 )
