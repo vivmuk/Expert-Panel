@@ -138,6 +138,11 @@ def voice_js():
     return send_from_directory(_STATIC, "voice.js")
 
 
+@bp.get("/onboard.js")
+def onboard_js():
+    return send_from_directory(_STATIC, "onboard.js")
+
+
 @bp.get("/report.css")
 def report_css():
     return send_from_directory(_STATIC, "report.css")

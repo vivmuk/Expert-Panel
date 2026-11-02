@@ -50,6 +50,7 @@ PAGE = r"""<!DOCTYPE html>
       <div class="chips" id="chips"></div>
     </div>
   </section>
+  <div id="onboard-slot"></div>
   <div id="steps" class="steps" hidden></div>
   <div id="log" class="log"></div>
   <div id="output" class="output" hidden></div>
@@ -492,6 +493,7 @@ setInterval(function () {
 }, 4000);
 paint();
 </script>
+<script src="/onboard.js"></script>
 <script src="/voice.js"></script>
 </body>
 </html>

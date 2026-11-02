@@ -7,10 +7,12 @@ def register_blueprints(app):
     from .voice import bp as voice_bp
     from .engagements import bp as engagements_bp
     from .meta import bp as meta_bp
+    from .onboard import bp as onboard_bp
     from .runs import bp as runs_bp
     from .static_serve import bp as static_bp
 
     app.register_blueprint(chat_bp)
+    app.register_blueprint(onboard_bp)
     app.register_blueprint(demos_bp)
     app.register_blueprint(voice_bp)
     app.register_blueprint(agents_bp)

@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import os
+import secrets
 import time
 
 PLANS = ("starter", "strategy", "harness")
@@ -34,13 +35,13 @@ def signing_secret():
 
 
 def mint_key(email, plan, now=None, ttl=KEY_TTL_SECONDS, kid=None):
-    secrets = signing_secrets()
-    if not secrets:
+    secret_map = signing_secrets()
+    if not secret_map:
         raise RuntimeError("sign-ups paused")
     if plan not in PLANS:
         raise ValueError("unknown plan")
-    kid = kid or ("v1" if "v1" in secrets else next(iter(secrets)))
-    secret = secrets.get(kid)
+    kid = kid or ("v1" if "v1" in secret_map else next(iter(secret_map)))
+    secret = secret_map.get(kid)
     if not secret:
         raise ValueError("unknown key id")
     issued = int(time.time() if now is None else now)
@@ -48,6 +49,7 @@ def mint_key(email, plan, now=None, ttl=KEY_TTL_SECONDS, kid=None):
         "email": email,
         "exp": issued + int(ttl),
         "iat": issued,
+        "jti": secrets.token_hex(8),
         "kid": kid,
         "plan": plan,
     }

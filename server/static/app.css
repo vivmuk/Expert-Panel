@@ -224,6 +224,14 @@ input[type="search"] { width: 100%; font: inherit; border: 1px solid rgba(15,15,
 .works-with img { height: 32px; width: auto; display: block; }
 .works-with .pending { border: 1px dashed #525258; background: transparent; color: #525258; }
 .works-with .cap, .works-with .foot, p.foot { font-size: 12px; color: #525258; }
+.onboard { position: relative; display: inline-flex; align-items: center; gap: 8px; margin: 14px 0; border: 1.5px solid #142033; border-radius: 999px; background: #f7f4ee; color: #142033; padding: 4px 8px 4px 6px; }
+.onboard-main { display: inline-flex; align-items: center; gap: 10px; border: 0; background: transparent; color: inherit; font: 600 15px/1 "Source Sans 3", "Helvetica Neue", sans-serif; cursor: pointer; padding: 4px 6px; }
+.onboard-logos { display: flex; align-items: center; }
+.onboard-logos img { width: 28px; height: 28px; border-radius: 50%; object-fit: contain; background: #fff; border: 2px solid #f7f4ee; margin-left: -8px; padding: 3px; box-sizing: border-box; }
+.onboard-logos img:first-child { margin-left: 0; }
+.onboard-copy { display: block; }
+.onboard-x { border: 0; background: transparent; color: #142033; font-size: 20px; line-height: 1; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; }
+.onboard-toast { position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%); margin: 0; background: #142033; color: #f7f4ee; border-radius: 999px; padding: 4px 10px; font-size: 13px; }
 #guide { position: fixed; right: 16px; bottom: 16px; z-index: 5; }
 #guide-talk { border: 0; padding: 0; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(15,15,15,.16); cursor: pointer; }
 #guide-talk img { display: block; border-radius: 16px; }

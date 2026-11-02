@@ -16,7 +16,7 @@ NAV = """
 """
 
 
-def _shell(title, current, body):
+def _shell(title, current, body, onboard=False):
     nav = NAV.replace(f'href="{current}"', f'href="{current}" aria-current="page"', 1)
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -38,6 +38,7 @@ def _shell(title, current, body):
 <main class="wrap wide">
 {body}
 </main>
+{('<script src="/onboard.js"></script>' if onboard else '')}
 <script src="/voice.js"></script>
 </body>
 </html>
@@ -89,6 +90,7 @@ def render_pricing():
 <p class="kicker">Pricing</p>
 <img class="accent" src="/img/brand/character.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="280" height="210">
 <h1>Beta pricing. Billing is not live yet; no card required.</h1>
+<div id="onboard-slot"></div>
 <div class="plans">
   <article class="plan">
     <h2>Starter</h2>
@@ -108,4 +110,4 @@ def render_pricing():
 </div>
 <p><a href="/catalog">See every artifact in the catalog.</a></p>
 """
-    return _shell("Pricing · AI Partner", "/pricing", body)
+    return _shell("Pricing · AI Partner", "/pricing", body, onboard=True)

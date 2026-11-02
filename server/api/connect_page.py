@@ -35,6 +35,7 @@ PAGE = """<!DOCTYPE html>
   <img class="accent" src="/img/brand/character.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="280" height="210">
   <h1>Use AI Partner inside the agents you already use.</h1>
   <p class="lede">The web chat stays open. These endpoints need a bearer token from <span class="mono">AI_PARTNER_API_KEYS</span>. If that variable is empty, they answer 401.</p>
+  <div id="onboard-slot"></div>
   <p class="kicker">Works with</p>
   <div class="works-with">
     <a href="#cursor-setup"><img src="/img/marks/cursor.svg" alt="Cursor cube, from the Cursor brand guidelines" height="32"><span class="cap">Cursor</span></a>
@@ -114,6 +115,7 @@ document.querySelectorAll("[data-copy]").forEach(function (button) {
   });
 });
 </script>
+<script src="/onboard.js"></script>
 <script src="/voice.js"></script>
 </body>
 </html>
