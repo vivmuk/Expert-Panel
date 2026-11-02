@@ -5,11 +5,13 @@ Usage: python scripts/drive_chat.py https://ai-partner-hq.vercel.app [--size sma
 Exits 0 when the job reaches the Top 5 (and, with --size, the finished skill pack).
 """
 import argparse
+import io
 import json
 import sys
 import time
 import urllib.error
 import urllib.request
+import zipfile
 
 PROBLEM = (
     "Decide how Maritime should host a public web agent for a team that already has a repo. "
@@ -77,7 +79,29 @@ def main():
         return 1
     if args.size and state.get("phase") != "done":
         return 1
+    if args.size:
+        for route in ("skill-pack", "kit"):
+            names = download_zip(args.base, route, state)
+            skills = [name for name in names if name.endswith("SKILL.md")]
+            print(f"/api/chat/{route}: {len(names)} files, {len(skills)} SKILL.md")
+            if not names or (route == "skill-pack" and not skills):
+                return 1
     return 0
+
+
+def download_zip(base, route, state):
+    request = urllib.request.Request(
+        base.rstrip("/") + f"/api/chat/{route}",
+        data=json.dumps({"state": state}).encode(),
+        headers={"Content-Type": "application/json", "User-Agent": "ai-partner-drive-chat"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            blob = response.read()
+    except urllib.error.HTTPError as exc:
+        print(f"/api/chat/{route}: HTTP {exc.code}")
+        return []
+    return zipfile.ZipFile(io.BytesIO(blob)).namelist()
 
 
 if __name__ == "__main__":
