@@ -7,7 +7,7 @@ SKILLS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "ski
 
 _PLAYBOOK = """# Set up AI Partner for your AI coding agent
 
-Use this playbook to prepare the current agent to run a management-consulting engagement. AI Partner is the harness: research, a panel, a judge's Top 5, a work chart, and the files the team runs. Install the key, the skills, and the MCP connection once.
+Use this playbook to prepare the current agent to run a strategy engagement with the user's team. AI Partner is the harness that replaces the consulting engagement: research, a panel of 20 AI experts, a judge's Top 5, a work chart, and the files the team runs. The team directs the agents and owns every decision. Install the key, the skills, and the MCP connection once.
 
 ## How to run
 
@@ -17,13 +17,12 @@ If a step is blocked, write down why and continue with the remaining steps.
 
 ## 1. Get a free API key
 
-The Starter plan is a free beta. It includes 1 Strategy engagement. Billing is not live, and no card is required.
+Your first engagement is free. No card is required.
 
-One Strategy engagement returns:
+One engagement returns:
 
-- a research brief
-- a market analysis that keeps its citations
-- an expert panel and the judge's Top 5
+- a research brief that keeps its citations
+- a 20-expert panel, a two-round debate, and the judge's Top 5
 - a maturity score
 - a work chart
 - 1 harness and 3 skills
@@ -33,7 +32,7 @@ Open https://HOST/signup for the user, then pause while they finish. Or call thi
 ```sh
 curl -sS -X POST "https://HOST/api/signup" \\
   -H "content-type: application/json" \\
-  -d '{"email":"USER_EMAIL","plan":"starter"}'
+  -d '{"email":"USER_EMAIL"}'
 ```
 
 The response contains `key` once. It looks like `ap_...`. Store it in the user's environment as `AI_PARTNER_API_KEY`, or in the client's secret store. Never echo the key into the chat, the shell transcript you show the user, a commit, or a config file that is checked in. Refer to it as `$AI_PARTNER_API_KEY` after that.
@@ -197,7 +196,7 @@ Paste the URL. Do not paste the key into the chat transcript. Put it in the conn
 Point any OpenAI SDK at this base URL. The key is `AI_PARTNER_API_KEY`.
 
 - Base URL: `https://HOST/v1`
-- Models: `ai-partner` for a Strategy engagement, `ai-partner-full` for the full catalog
+- Models: `ai-partner` for one engagement with 5 catalog artifacts, `ai-partner-full` for the full catalog
 
 Send `ai_partner_state` back on the next request. The field is on the raw response.
 
@@ -243,14 +242,9 @@ MCP: <connected|blocked: reason>
 Verified: <list_artifacts succeeded|blocked: reason>; <start_job first reply|not run: reason>
 ```
 
-## Pricing
-
-Starter is the free beta: 1 Strategy engagement. Strategy is $10 for one engagement after the beta. Harness Build is contact us, at the address on https://HOST/pricing. Billing is not live.
-
-Sources:
+## Sources
 
 - https://HOST/signup
-- https://HOST/pricing
 - https://HOST/connect
 - https://HOST/openapi.json
 - https://HOST/llms.txt
@@ -267,7 +261,7 @@ def render_llms(host):
         [
             "# AI Partner",
             "",
-            "> The management-consulting harness any agent can run.",
+            "> The strategy-engagement harness any agent can run. Your team directs the agents.",
             "",
             f"- [Get started]({origin}/get-started.md): setup playbook for a coding agent.",
             f"- [OpenAPI]({origin}/openapi.json): HTTP API, including signup.",
@@ -285,13 +279,13 @@ def openapi_document(host):
         "info": {
             "title": "AI Partner",
             "version": "1.0.0",
-            "description": "Management-consulting harness. Agents start at /get-started.md.",
+            "description": "Strategy-engagement harness that replaces the consulting engagement. Agents start at /get-started.md.",
         },
         "servers": [{"url": origin}],
         "paths": {
             "/api/signup": {
                 "post": {
-                    "summary": "Issue a beta API key",
+                    "summary": "Issue a free Starter key. The first engagement is free.",
                     "requestBody": {
                         "required": True,
                         "content": {
@@ -301,7 +295,7 @@ def openapi_document(host):
                                     "required": ["email"],
                                     "properties": {
                                         "email": {"type": "string"},
-                                        "plan": {"type": "string", "enum": ["starter", "strategy", "harness"]},
+                                        "plan": {"type": "string", "enum": ["starter"]},
                                     },
                                 }
                             }

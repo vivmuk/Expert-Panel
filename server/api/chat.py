@@ -3,7 +3,7 @@ import os
 import threading
 import time
 
-from flask import Blueprint, Response, jsonify, request, send_from_directory
+from flask import Blueprint, Response, jsonify, redirect, request, send_from_directory
 
 from ..artifacts import ArtifactError, generate_artifact
 from ..catalog import groups, recommend
@@ -16,7 +16,7 @@ from ..uploads import take_uploads
 from ..venice.errors import SPEND_LIMIT_REPLY, out_of_credit
 from .chat_page import render_page
 from .connect_page import render_connect
-from .pages import render_catalog, render_pricing
+from .pages import render_catalog, render_what_you_get
 
 _STATIC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
 
@@ -139,6 +139,16 @@ def voice_js():
     return send_from_directory(_STATIC, "voice.js")
 
 
+@bp.get("/motion.js")
+def motion_js():
+    return send_from_directory(_STATIC, "motion.js")
+
+
+@bp.get("/chat.js")
+def chat_js():
+    return send_from_directory(_STATIC, "chat.js")
+
+
 @bp.get("/onboard.js")
 def onboard_js():
     return send_from_directory(_STATIC, "onboard.js")
@@ -171,14 +181,21 @@ def catalog_page():
     return Response(render_catalog(), mimetype="text/html")
 
 
+@bp.get("/what-you-get")
+def what_you_get_page():
+    return Response(render_what_you_get(), mimetype="text/html")
+
+
 @bp.get("/pricing")
 def pricing_page():
-    return Response(render_pricing(), mimetype="text/html")
+    return redirect("/connect", code=301)
 
 
 @bp.get("/chat")
 def chat_page():
-    return Response(render_page(WELCOME), mimetype="text/html")
+    from .access import request_origin
+
+    return Response(render_page(WELCOME, request_origin()), mimetype="text/html")
 
 
 @bp.post("/chat")

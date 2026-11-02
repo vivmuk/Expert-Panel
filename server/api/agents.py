@@ -25,7 +25,7 @@ PROTOCOL = "2025-03-26"
 TOOLS = [
     {
         "name": "start_job",
-        "description": "Start a consulting job from the client's first message. Returns the reply and the job state to send on the next call.",
+        "description": "Start a strategy engagement from the team's first message. Returns the reply and the job state to send on the next call.",
         "inputSchema": {
             "type": "object",
             "properties": {"message": {"type": "string"}},
@@ -35,7 +35,7 @@ TOOLS = [
     },
     {
         "name": "chat_turn",
-        "description": "Continue a consulting job. Pass the state returned by the previous call.",
+        "description": "Continue a strategy engagement. Pass the state returned by the previous call.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -68,7 +68,7 @@ TOOLS = [
     },
     {
         "name": "list_artifacts",
-        "description": "List every consulting artifact type, grouped by the thesis task map.",
+        "description": "List every engagement artifact type, grouped by the thesis task map.",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {

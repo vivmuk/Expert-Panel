@@ -1,6 +1,7 @@
 # AI Partner
 
-An all-in-one replacement for a management-consulting engagement, powered by the
+An all-in-one replacement for a management-consulting engagement: your company team
+directs AI Partner agents instead of hiring consultants. Powered by the
 [Venice AI](https://venice.ai) API. Describe a problem; AI Partner assembles a
 bespoke panel of up to **100 expert personas**, grounds them in **live web and X
 search with citations**, and returns a synthesized report — or an agent-era
@@ -48,7 +49,7 @@ run exceeding 3× its estimate.
 
 ## Try the demo
 
-The demo is a chat at `/chat`. You name a consulting job in any service line. The page asks who is on the team, which tools they use, and where they sit on a four-point AI maturity scale. It then runs a four-person panel, an optional red team, and a work chart. Each model call is its own request, so a Vercel function can finish inside its time limit. The browser keeps the job and sends it back on the next turn. When the job is done, the page downloads a report and a harness kit zip.
+The demo is a chat at `/chat`, which is also the front page. Your team names a problem in any function. The page asks who is on the team, which tools they use, and where they sit on a four-point AI maturity scale. It then runs research with parallel Exa searches, a cited brief, 20 AI-generated experts in four waves of five, two debate rounds, the judge's Top 5, an optional red team, and a work chart. Each model call is its own request, so a Vercel function can finish inside its time limit. The browser keeps the job and sends it back on the next turn. When the job is done, the page downloads a report and a harness kit zip.
 
 The kit is one harness: `CLAUDE.md`, `playbook.md`, `model-routing.md`, `project-state-schema.md`, and a skill pack. Small and medium engagements cap the pack at 3 skills. A large team caps it at 10, with one orchestrator. After the work chart the chat asks whether the client is small, medium, or large, unless you already said so. It then searches with Venice Exa, writes a brief that keeps the source URLs, and builds the pack. Download skill pack is a second zip. The same files are under `skills/` in the harness kit, and `CLAUDE.md` points at `skills/skills.json`.
 

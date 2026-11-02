@@ -57,14 +57,15 @@ def test_signup_issues_a_key_and_reissue_hides_the_old_one(monkeypatch):
     assert again != key
     assert key not in second.get_data(as_text=True)
     assert verify_key(again)["email"] == "ada@example.com"
-    landing = client.get("/chat")
-    assert b'id="onboard-slot"' in landing.data
-    assert b"/onboard.js" in landing.data
-    script = client.get("/onboard.js").get_data(as_text=True)
-    assert "Set up AI Partner for me. Fetch " in script
-    assert "/get-started.md and follow it." in script
-    assert script.index("/img/marks/muse.svg") > script.index("/img/marks/opencode.png")
-    assert script.index("Grok Bot") > script.index("/img/marks/muse.svg")
+    landing = client.get("/chat").get_data(as_text=True)
+    assert 'id="onboard-slot"' in landing
+    assert "/onboard.js" in landing
+    assert "Connect your own agent" in landing
+    assert "/get-started.md and follow it" in landing
+    assert landing.index("/img/marks/muse.svg") > landing.index("/img/marks/opencode.png")
+    assert "Grok Bot" in landing
+    assert landing.index('class="grok-chip"') > landing.index("/img/marks/muse.svg")
+    assert "data-copy-text" in client.get("/onboard.js").get_data(as_text=True)
 
 
 def test_signup_key_can_list_artifacts_over_mcp(monkeypatch):

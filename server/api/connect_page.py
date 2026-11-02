@@ -1,140 +1,82 @@
-def render_connect(origin):
-    origin = origin.rstrip("/")
+"""Connect: setup for ChatGPT, Claude, Cursor, the SDKs, and Grok Bot."""
+import json
+from html import escape
+
+from .. import art
+from ..icons import icon
+from .pages import connect_pill, page_head, shell
+
+MARKS = (
+    ("#cursor-setup", "/img/marks/cursor.svg", "Cursor cube, from the Cursor brand guidelines", "Cursor"),
+    ("#claude-code", "/img/marks/claude-code.png", "Claude Code mark, from the Claude Code docs", "Claude Code"),
+    ("#claude-app", "/img/marks/claude.svg", "Claude mark, from claude.com", "Claude"),
+    ("#chatgpt", "/img/marks/openai-blossom.svg", "OpenAI blossom, from the OpenAI brand guidelines", "ChatGPT"),
+    ("#openai-sdk", "/img/marks/openai-wordmark.svg", "OpenAI wordmark, from the OpenAI brand guidelines", "OpenAI SDK"),
+    ("#anthropic-sdk", "/img/marks/anthropic.svg", "Anthropic mark, from anthropic.com", "Anthropic"),
+    ("#get-started", "/img/marks/muse.svg", "Muse mark", "Muse"),
+)
+
+
+def _setups(origin):
     mcp = origin + "/mcp"
     base = origin + "/v1"
-    return PAGE.replace("__ORIGIN__", origin).replace("__MCP__", mcp).replace("__BASE__", base)
+    bearer = "Authorization: Bearer YOUR_KEY"
+    line = f"Set up AI Partner for me. Fetch {origin}/get-started.md and follow it."
+    return (
+        ("get-started", None, "Any agent", f"Paste one line into any agent that can fetch a URL. It reads the playbook, gets a key, and runs the engagement.", (("get-started-line", line),), ""),
+        ("chatgpt", "/img/marks/openai-blossom.svg", "ChatGPT", "Add a custom connector and paste the MCP URL. Send the bearer token in the Authorization header.", (("gpt", f"MCP URL\n{mcp}\n\n{bearer}"),), ""),
+        ("claude-code", "/img/marks/claude-code.png", "Claude Code", "Claude Code speaks stdio. This config runs the remote server through mcp-remote.", (("claude", json.dumps({"mcpServers": {"ai-partner": {"command": "npx", "args": ["-y", "mcp-remote", mcp, "--header", bearer]}}}, indent=2)),), ""),
+        ("claude-app", "/img/marks/claude.svg", "Claude", "In the Claude app, add a custom connector and paste the MCP URL. Send the bearer token in the Authorization header.", (("claude-app-snippet", f"MCP URL\n{mcp}\n\n{bearer}"),), ""),
+        ("cursor-setup", "/img/marks/cursor.svg", "Cursor", "Put this in .cursor/mcp.json.", (("cursor", json.dumps({"mcpServers": {"ai-partner": {"url": mcp, "headers": {"Authorization": "Bearer YOUR_KEY"}}}}, indent=2)),), ""),
+        ("openai-sdk", "/img/marks/openai-wordmark.svg", "OpenAI SDK", "Point the client at the OpenAI-compatible base URL. The reply is the next turn of the same engagement. Send ai_partner_state back on the following request; the Python SDK keeps that field on the raw response.", (("openai", "\n".join([
+            "from openai import OpenAI",
+            "",
+            f"client = OpenAI(base_url={json.dumps(base)}, api_key='YOUR_KEY')",
+            "print(client.chat.completions.create(",
+            "    model='ai-partner',",
+            "    messages=[{'role': 'user', 'content': 'Decide how Maritime should host a public web agent for a team that already has a repo.'}]",
+            ").choices[0].message.content)",
+        ])),), ""),
+        ("anthropic-sdk", "/img/marks/anthropic.svg", "Anthropic", "The Messages API can attach this MCP server. The MCP handshake on /mcp is verified; this repo does not call Anthropic's cloud.", (("anthropic", json.dumps([{"type": "url", "url": mcp, "authorization_token": "YOUR_KEY"}], indent=2)),), ""),
+        ("grok-bot-setup", None, "Grok Bot", "Grok Bot is a desktop agent. It connects remote MCP servers as connectors and can follow a pasted instruction. Paste the line, or add a custom connector.", (("grok-prompt", line), ("grok-connector", f"URL\n{mcp}\nTransport: streamable HTTP\n\n{bearer}")), "Verify: ask Grok Bot to list the AI Partner tools."),
+    )
 
 
-PAGE = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Connect · AI Partner</title>
-<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
-<link rel="icon" href="/favicon-512.png" sizes="512x512" type="image/png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/app.css">
-</head>
-<body>
-<div class="bar"><span id="progress"></span></div>
-<header class="top">
-  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="36" height="36"> AI Partner</a>
-  <nav class="links">
-    <a href="/chat">Chat</a>
-    <a href="/demos">Demos</a>
-    <a href="/deck">Deck</a>
-    <a href="/catalog">Catalog</a>
-    <a href="/connect" aria-current="page">Connect</a>
-    <a href="/pricing">Pricing</a>
-    <a class="primary" href="/pricing">Get API key</a>
-  </nav>
-</header>
-<main class="wrap">
-  <p class="kicker">Connect</p>
-  <img class="accent" src="/img/brand/character.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="280" height="210">
-  <h1>Use AI Partner inside the agents you already use.</h1>
-  <p class="lede">The web chat stays open. These endpoints need a bearer token from <span class="mono">AI_PARTNER_API_KEYS</span>. If that variable is empty, they answer 401.</p>
-  <div id="onboard-slot"></div>
-  <p class="kicker">Works with</p>
-  <div class="works-with">
-    <a href="#cursor-setup"><img src="/img/marks/cursor.svg" alt="Cursor cube, from the Cursor brand guidelines" height="32"><span class="cap">Cursor</span></a>
-    <a href="#claude-code"><img src="/img/marks/claude-code.png" alt="Claude Code mark, from the Claude Code docs" height="32"><span class="cap">Claude Code</span></a>
-    <a href="#claude-app"><img src="/img/marks/claude.svg" alt="Claude mark, from claude.com" height="32"><span class="cap">Claude</span></a>
-    <a href="#chatgpt"><img src="/img/marks/openai-blossom.svg" alt="OpenAI blossom, from the OpenAI brand guidelines" height="32"><span class="cap">ChatGPT</span></a>
-    <a href="#openai-sdk"><img src="/img/marks/openai-wordmark.svg" alt="OpenAI wordmark, from the OpenAI brand guidelines" height="32"><span class="cap">OpenAI</span></a>
-    <a href="#anthropic-sdk"><img src="/img/marks/anthropic.svg" alt="Anthropic mark, from anthropic.com" height="32"><span class="cap">Anthropic</span></a>
-    <span class="mark"><img src="/img/marks/muse.svg" alt="Muse mark" height="32"><span class="cap">Muse</span></span>
-    <span class="pending" id="grok-bot"><b>Grok Bot</b><span class="cap">Placeholder</span></span>
-  </div>
-  <p class="foot">Trademarks belong to their owners. No endorsement is implied. The Grok Bot slot is a placeholder until an official logo file is available.</p>
-  <section class="card" id="chatgpt">
-    <h2>ChatGPT</h2>
-    <p>Add a custom connector and paste the MCP URL. Send the bearer token in the Authorization header.</p>
-    <pre id="gpt" data-snippet="gpt"></pre>
-    <button type="button" data-copy="gpt">Copy</button>
-  </section>
-  <section class="card" id="claude-code">
-    <h2>Claude Code</h2>
-    <p>Claude Code speaks stdio. This config runs the remote server through mcp-remote.</p>
-    <pre id="claude" data-snippet="claude"></pre>
-    <button type="button" data-copy="claude">Copy</button>
-  </section>
-  <section class="card" id="claude-app">
-    <h2>Claude</h2>
-    <p>In the Claude app, add a custom connector and paste the MCP URL. Send the bearer token in the Authorization header.</p>
-    <pre id="claude-app-snippet"></pre>
-    <button type="button" data-copy="claude-app-snippet">Copy</button>
-  </section>
-  <section class="card" id="cursor-setup">
-    <h2>Cursor</h2>
-    <p>Put this in <span class="mono">.cursor/mcp.json</span>.</p>
-    <pre id="cursor" data-snippet="cursor"></pre>
-    <button type="button" data-copy="cursor">Copy</button>
-  </section>
-  <section class="card" id="openai-sdk">
-    <h2>OpenAI SDK</h2>
-    <p>Point the client at the OpenAI-compatible base URL. The reply is the next turn of the same job. Send <span class="mono">ai_partner_state</span> back on the following request. The Python SDK keeps that field on the raw response.</p>
-    <pre id="openai" data-snippet="openai"></pre>
-    <button type="button" data-copy="openai">Copy</button>
-  </section>
-  <section class="card" id="anthropic-sdk">
-    <h2>Anthropic</h2>
-    <p>The Messages API can attach this MCP server. We verified the MCP handshake on <span class="mono">/mcp</span>. We did not call Anthropic's cloud from this repo.</p>
-    <pre id="anthropic" data-snippet="anthropic"></pre>
-    <button type="button" data-copy="anthropic">Copy</button>
-  </section>
-  <section class="card" id="grok-bot-setup">
-    <h2>Grok Bot</h2>
-    <p>Grok Bot is a desktop agent. It connects remote MCP servers as connectors and can follow a pasted instruction.</p>
-    <p>Paste this into a Grok Bot chat:</p>
-    <pre id="grok-prompt"></pre>
-    <button type="button" data-copy="grok-prompt">Copy</button>
-    <p>Or add a custom connector. The URL is streamable HTTP. The header is <span class="mono">Authorization: Bearer</span> and the AI Partner key.</p>
-    <pre id="grok-connector"></pre>
-    <button type="button" data-copy="grok-connector">Copy</button>
-    <p>Verify: ask Grok Bot to list the AI Partner tools.</p>
-  </section>
-</main>
-<footer class="site-foot">
-  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="28" height="28"> AI Partner</a>
-  <p>Beta. Billing is not live.</p>
-</footer>
-<script>
-const mcp = "__MCP__";
-const base = "__BASE__";
-const nl = String.fromCharCode(10);
-const blocks = {
-  gpt: ["MCP URL", mcp, "", "Authorization: Bearer YOUR_KEY"].join(nl),
-  claude: JSON.stringify({mcpServers: {"ai-partner": {command: "npx", args: ["-y", "mcp-remote", mcp, "--header", "Authorization: Bearer YOUR_KEY"]}}}, null, 2),
-  "claude-app-snippet": ["MCP URL", mcp, "", "Authorization: Bearer YOUR_KEY"].join(nl),
-  cursor: JSON.stringify({mcpServers: {"ai-partner": {url: mcp, headers: {Authorization: "Bearer YOUR_KEY"}}}}, null, 2),
-  openai: [
-    "from openai import OpenAI",
-    "",
-    "client = OpenAI(base_url=" + JSON.stringify(base) + ", api_key='YOUR_KEY')",
-    "print(client.chat.completions.create(",
-    "    model='ai-partner',",
-    "    messages=[{'role': 'user', 'content': 'Decide how Maritime should host a public web agent for a team that already has a repo.'}]",
-    ").choices[0].message.content)"
-  ].join(nl),
-  anthropic: JSON.stringify([{type: "url", url: mcp, authorization_token: "YOUR_KEY"}], null, 2),
-  "grok-prompt": "Set up AI Partner for me. Fetch " + mcp.replace(/\\/mcp$/, "") + "/get-started.md and follow it.",
-  "grok-connector": ["URL", mcp, "Transport: streamable HTTP", "", "Authorization: Bearer YOUR_KEY"].join(nl)
-};
-Object.keys(blocks).forEach(function (id) {
-  document.getElementById(id).textContent = blocks[id];
-});
-document.querySelectorAll("[data-copy]").forEach(function (button) {
-  button.addEventListener("click", function () {
-    const text = document.getElementById(button.getAttribute("data-copy")).textContent;
-    navigator.clipboard.writeText(text);
-    button.textContent = "Copied";
-  });
-});
-</script>
-<script src="/onboard.js"></script>
-<script src="/voice.js"></script>
-</body>
-</html>
+def _code(snippet_id, text):
+    return (
+        f'<div class="code"><pre id="{snippet_id}" data-snippet="{snippet_id}">{escape(text)}</pre>'
+        f'<button type="button" class="copy" data-copy="{snippet_id}" aria-label="Copy">{icon("copy")}<span>Copy</span></button></div>'
+    )
+
+
+def render_connect(origin):
+    origin = origin.rstrip("/")
+    tiles = "".join(
+        f'<a class="mark-tile gb spot" href="{href}"><img src="{src}" alt="{escape(alt)}" height="30" loading="lazy" decoding="async"><span class="cap">{escape(cap)}</span></a>'
+        for href, src, alt, cap in MARKS
+    ) + '<a class="mark-tile gb spot" href="#grok-bot-setup" id="grok-bot"><span class="wordmark" aria-hidden="true">Grok Bot</span><span class="cap">Grok Bot</span></a>'
+    cards = []
+    for anchor, mark, title, text, snippets, note in _setups(origin):
+        logo = f'<img src="{mark}" alt="" height="22" loading="lazy" decoding="async">' if mark else icon("plug" if anchor == "get-started" else "bot")
+        codes = "".join(_code(sid, body) for sid, body in snippets)
+        tail = f'<p class="foot-small">{escape(note)}</p>' if note else ""
+        cards.append(f'<section class="setup gb reveal" id="{anchor}"><h2>{logo}{escape(title)}</h2><p>{escape(text)}</p>{codes}{tail}</section>')
+    hero = art.img("img/brand/hero.webp", "hero-img", eager=True) if art.exists("img/brand/hero.webp") else ""
+    intro = page_head(
+        "Connect",
+        "Run AI Partner inside <em>the agent you already use</em>.",
+        "Your team keeps its own agent. AI Partner adds the engagement: research, 20 AI experts, the Top 5, and the harness kit. Your first engagement is free.",
+        connect_pill(origin)
+        + f'<div class="cta-actions"><a class="btn primary" href="/signup">{icon("key-round")}Get your free key</a><a class="btn ghost" href="/get-started.md">{icon("file-text")}Read get-started.md</a></div>',
+    )
+    body = f"""<div class="connect-hero">
+  {intro}
+  {hero}
+</div>
+<p class="kicker">Works with</p>
+<div class="marks">{tiles}</div>
+<p class="foot-small">Trademarks belong to their owners. No endorsement is implied. Grok Bot is shown as a text wordmark until an official logo file is available.</p>
+<p class="muted">The web chat stays open. The MCP server at <code>{escape(origin)}/mcp</code> and the API at <code>{escape(origin)}/v1</code> need a bearer key; without one they answer 401.</p>
+<div class="setup-grid">{"".join(cards)}</div>
 """
+    return shell("Connect · AI Partner", "/connect", body)

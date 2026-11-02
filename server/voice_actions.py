@@ -9,10 +9,9 @@ PAGES = (
     "/deck",
     "/catalog",
     "/connect",
-    "/pricing",
 )
 
-SECTIONS = ("hero", "demos", "catalog", "connect", "pricing", "artifacts", "steps")
+SECTIONS = ("hero", "demos", "catalog", "connect", "artifacts", "steps")
 SNIPPETS = ("gpt", "claude", "cursor", "openai", "openaijs", "anthropic", "curl")
 SLUGS = ("maritime", "keiki", "orchid")
 
@@ -24,7 +23,6 @@ TOUR = (
     "The deck is the thesis, from the invoice to the resident model.",
     "The catalog lists every artifact a consulting engagement can produce.",
     "Connect has the setup you paste into ChatGPT, Claude, or Cursor.",
-    "Pricing is ten dollars for a strategy engagement. Harness Build is contact us.",
 )
 
 

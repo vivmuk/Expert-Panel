@@ -146,8 +146,7 @@
       "Demos shows three public engagements: Maritime, Keiki, and Orchid.",
       "The deck is the thesis, from the invoice to the resident model.",
       "The catalog lists every artifact a consulting engagement can produce.",
-      "Connect has the setup you paste into ChatGPT, Claude, or Cursor.",
-      "Pricing is ten dollars for a strategy engagement. Harness Build is contact us."
+      "Connect has the setup you paste into ChatGPT, Claude, or Cursor."
     ];
     var index = 0;
     function next() {

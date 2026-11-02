@@ -118,10 +118,12 @@ def test_catalog_and_pricing_pages_and_mcp_tools(monkeypatch):
     assert b"Data gathering and market research" in catalog.data
     assert b"Market sizing" in catalog.data
     pricing = client.get("/pricing")
-    assert b"$10" in pricing.data
-    assert b"up to 5 catalog artifacts" in pricing.data
-    assert b"Harness Build" in pricing.data
-    assert b"/catalog" in pricing.data
+    assert pricing.status_code == 301
+    assert pricing.headers["Location"].endswith("/connect")
+    for path in ("/chat", "/catalog", "/what-you-get", "/demos", "/connect"):
+        page = client.get(path).get_data(as_text=True)
+        assert 'href="/pricing"' not in page, path
+        assert "$10" not in page, path
     listed = client.post(
         "/mcp",
         json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},

@@ -63,7 +63,7 @@ def plan():
 
 
 def _plan_and_speak(heard):
-    action = _planned(heard) or {"action": "answer", "text": "I can open Chat, Demos, the Deck, Catalog, Connect, or Pricing.", "say": "I can open Chat, Demos, the Deck, Catalog, Connect, or Pricing."}
+    action = _planned(heard) or {"action": "answer", "text": "I can open Chat, Demos, the Deck, Catalog, or Connect.", "say": "I can open Chat, Demos, the Deck, Catalog, or Connect."}
     try:
         audio = _speak(action["say"])
     except VeniceError:
@@ -79,8 +79,8 @@ def _planned(heard):
         "Clean filler words and mis-hearings, then pick exactly one action. "
         "Actions: navigate(page), scroll_to(section), fill_problem(text), set_depth(strategy|full), "
         "start_engagement, open_demo(slug maritime|keiki|orchid), copy_snippet(id), answer(text). "
-        "Pages: /chat /demos /demos/maritime /demos/keiki /demos/orchid /deck /catalog /connect /pricing. "
-        "Sections: hero demos catalog connect pricing artifacts steps. "
+        "Pages: /chat /demos /demos/maritime /demos/keiki /demos/orchid /deck /catalog /connect. "
+        "Sections: hero demos catalog connect artifacts steps. "
         "Put the spoken reply in say. Return JSON only."
     )
     try:

@@ -1,135 +1,345 @@
-"""Public catalog and pricing pages."""
+"""Shared page shell, the connect pill, the catalog and What you get pages."""
+import re
 from html import escape
 
-from ..catalog import STRATEGY_ARTIFACTS, groups
+from .. import art
+from ..catalog import groups
+from ..deliverables import DELIVERABLES
+from ..icons import icon
 
-def _ico(path):
+NAV_ITEMS = (
+    ("/chat", "message-circle", "Chat"),
+    ("/demos", "layers", "Demos"),
+    ("/what-you-get", "package", "What you get"),
+    ("/catalog", "book-open", "Catalog"),
+    ("/deck", "monitor-play", "Deck"),
+)
+
+FONTS = (
+    '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=JetBrains+Mono:wght@400..700&display=swap">'
+)
+
+HARNESS_MARKS = (
+    ("/img/marks/claude.svg", "Claude"),
+    ("/img/marks/openai-blossom.svg", "ChatGPT"),
+    ("/img/marks/cursor.svg", "Cursor"),
+    ("/img/marks/claude-code.png", "Claude Code"),
+    ("/img/marks/gemini.svg", "Gemini"),
+    ("/img/marks/copilot.svg", "GitHub Copilot"),
+    ("/img/marks/opencode.png", "OpenCode"),
+    ("/img/marks/muse.svg", "Muse"),
+)
+
+
+def head(title, extra=""):
+    return f"""<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{escape(title)}</title>
+<meta name="description" content="Your team describes a business problem. AI Partner agents research it, a panel of 20 AI experts debates it, and you get the Top 5 moves, a work chart, and the harness kit. Your first engagement is free.">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/favicon-512.png" sizes="512x512" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#FAFAF7">
+{FONTS}
+<link rel="stylesheet" href="/app.css">
+{extra}<script src="/motion.js" defer></script>"""
+
+
+def nav(current=""):
+    links = []
+    for href, name, label in NAV_ITEMS:
+        here = ' aria-current="page"' if href == current else ""
+        links.append(f'<a href="{href}"{here}>{icon(name)}<span>{label}</span></a>')
+    here = ' aria-current="page"' if current == "/connect" else ""
+    links.append(f'<a class="cta gb" href="/connect"{here}>{icon("plug")}<span>Connect</span></a>')
+    return '<nav class="links" aria-label="Main">' + "".join(links) + "</nav>"
+
+
+NAV = nav()
+
+
+def header(current=""):
     return (
-        '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">'
-        f'<path d="{path}"/></svg>'
+        '<a class="skip" href="#main">Skip to content</a>'
+        '<header class="top"><a class="brand" href="/chat" aria-label="AI Partner, home">'
+        '<img class="persona" src="/img/brand/avatar.webp" alt="" width="32" height="32">'
+        f"<span>AI Partner</span></a>{nav(current)}</header>"
     )
 
 
-_CHAT = _ico("M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z")
-_DEMOS = _ico("M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5")
-_DECK = _ico("M3 4h18v12H3zM8 20h8M12 16v4")
-_BOOK = _ico("M2 4h7a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-7a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h8z")
-_PLUG = _ico("M9 7v4M15 7v4M7 11h10v3a5 5 0 0 1-10 0zM12 19v3")
-_TAG = _ico("M20 13 11 4H4v7l9 9a2 2 0 0 0 2.8 0L20 15.8a2 2 0 0 0 0-2.8z")
-_KEY = _ico("M21 2l-2 2m-2 6a5 5 0 1 1-7-7 5 5 0 0 1 7 7zM15 8l6 6M18 11l3 3")
-
-NAV = f"""
-<nav class="links">
-  <a href="/chat">{_CHAT} Chat</a>
-  <a href="/demos">{_DEMOS} Demos</a>
-  <a href="/deck">{_DECK} Deck</a>
-  <a href="/catalog">{_BOOK} Catalog</a>
-  <a href="/connect">{_PLUG} Connect</a>
-  <a href="/pricing">{_TAG} Pricing</a>
-  <a class="primary" href="/pricing">{_KEY} Get API key</a>
-</nav>
-"""
-
 FOOT = """
 <footer class="site-foot">
-  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="28" height="28"> AI Partner</a>
-  <p>Beta. Billing is not live.</p>
+  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="24" height="24"><span>AI Partner</span></a>
+  <p class="foot-note">Your team directs the agents. Your first engagement is free.</p>
+  <nav class="foot-links" aria-label="Footer">
+    <a href="/demos">Demos</a><a href="/what-you-get">What you get</a><a href="/catalog">Catalog</a><a href="/deck">Deck</a><a href="/connect">Connect</a><a href="/get-started.md">get-started.md</a>
+  </nav>
 </footer>
 """
 
 
-def _shell(title, current, body, onboard=False):
-    nav = NAV.replace(f'href="{current}"', f'href="{current}" aria-current="page"', 1)
+def connect_pill(origin):
+    """The 'Connect your own agent' pill: harness marks, the one-line instruction, and a copy button."""
+    origin = origin.rstrip("/")
+    line = f"Fetch {origin}/get-started.md and follow it"
+    marks = "".join(
+        f'<img src="{src}" alt="" width="22" height="22" loading="lazy" decoding="async" title="{escape(name)}">'
+        for src, name in HARNESS_MARKS
+    )
+    names = ", ".join(name for _, name in HARNESS_MARKS) + ", and Grok Bot"
+    return f"""<div class="pill-row">
+  <a class="connect-pill gb spot" href="/connect">
+    <span class="pill-marks" role="img" aria-label="Works with {escape(names)}">{marks}<span class="grok-chip" aria-hidden="true">Grok</span></span>
+    <span class="pill-copy"><b>Connect your own agent</b><code>{escape(line)}</code></span>
+    {icon("arrow-right", "ico pill-go")}
+  </a>
+  <button type="button" class="copy-btn" data-copy-text="{escape(line)}." aria-label="Copy the setup line">{icon("copy")}<span class="copied" aria-live="polite"></span></button>
+</div>"""
+
+
+def dots(ghost=False, fixed=False):
+    cls = "dots dots-fixed" if fixed else "dots"
+    flag = " data-ghost" if ghost else ""
+    return f'<canvas class="{cls}" data-dots{flag} aria-hidden="true"></canvas>'
+
+
+def shell(title, current, body, extra_head="", scripts="", body_class=""):
+    cls = f' class="{body_class}"' if body_class else ""
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{escape(title)}</title>
-<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
-<link rel="icon" href="/favicon-512.png" sizes="512x512" type="image/png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/app.css">
+{head(title, extra_head)}
 </head>
-<body>
-<div class="bar"><span style="width:100%"></span></div>
-<header class="top">
-  <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="36" height="36"> AI Partner</a>
-  {nav}
-</header>
-<main class="wrap wide">
+<body{cls}>
+{header(current)}
+<main class="wrap" id="main">
 {body}
 </main>
 {FOOT}
-{('<script src="/onboard.js"></script>' if onboard else '')}
+{scripts}<script src="/onboard.js" defer></script>
 <script src="/voice.js"></script>
 </body>
 </html>
 """
 
 
+_shell = shell
+
+
+def page_head(kicker, title, lede, extra=""):
+    return f"""<section class="page-head">
+  {dots()}
+  <div class="page-head-copy">
+    <p class="kicker">{kicker}</p>
+    <h1>{title}</h1>
+    <p class="lede">{lede}</p>
+    {extra}
+  </div>
+</section>"""
+
+
+ARTIFACT_ICONS = {
+    "research-brief": "file-search",
+    "market-sizing": "chart-pie",
+    "competitive-landscape": "swords",
+    "customer-segmentation": "users-round",
+    "due-diligence": "clipboard-check",
+    "vendor-evaluation": "scale",
+    "cost-reduction": "trending-down",
+    "pricing-analysis": "badge-dollar-sign",
+    "business-case": "briefcase-business",
+    "board-one-pager": "presentation",
+    "issue-tree": "git-fork",
+    "hypothesis-tree": "network",
+    "exec-memo": "file-pen-line",
+    "interview-guide": "mic",
+    "stakeholder-map": "map",
+    "workshop": "lightbulb",
+    "current-process": "workflow",
+    "future-process": "route",
+    "operating-model": "boxes",
+    "change-plan": "refresh-cw",
+    "charter": "scroll-text",
+    "scope": "crosshair",
+    "workplan": "calendar-range",
+    "raci": "grid-3x3",
+    "risks": "triangle-alert",
+    "roadmap": "milestone",
+    "kpi-tree": "gauge",
+    "work-chart": "bot",
+    "harness-kit": "package",
+    "skill-pack": "puzzle",
+    "decision-note": "shield-check",
+}
+
+TASK_ICONS = (
+    "globe", "scale", "badge-dollar-sign", "presentation", "lightbulb",
+    "mic", "users", "calendar-range", "shield-check",
+)
+
+
+def task_slug(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def _art(folder, slug, glyph, cls):
+    path = f"img/{folder}/{slug}.webp"
+    if art.exists(path):
+        return art.img(path, cls)
+    return f'<div class="{cls} art-empty" aria-hidden="true">{icon(glyph, "ico art-glyph")}</div>'
+
+
 def render_catalog():
-    blocks = []
-    for group in groups():
+    sections = []
+    chips = []
+    total = 0
+    for number, group in enumerate(groups(), 1):
+        slug = task_slug(group["task"])
+        glyph = TASK_ICONS[(number - 1) % len(TASK_ICONS)]
         cards = []
         for item in group["artifacts"]:
-            blob = " ".join([item["title"], item["purpose"], item["group"], item["format"]]).lower()
-            sections = ", ".join(escape(name) for name in item["sections"])
+            total += 1
+            blob = " ".join([item["title"], item["purpose"], item["group"], item["format"], " ".join(item["sections"])]).lower()
+            tags = "".join(f"<li>{escape(name)}</li>" for name in item["sections"][:4])
             cards.append(
-                f"""<article class="deliver" data-artifact="{escape(blob)}">
+                f"""<article class="art-card gb spot reveal" data-artifact="{escape(blob)}">
+<span class="art-icon">{icon(ARTIFACT_ICONS.get(item["id"], "file-text"))}</span>
 <h3>{escape(item["title"])}</h3>
 <p>{escape(item["purpose"])}</p>
-<p class="kicker">{escape(item["format"])} · {sections}</p>
+<footer><span class="pill">{escape(item["format"])}</span><ul class="tags" aria-label="Sections">{tags}</ul></footer>
 </article>"""
             )
-        blocks.append(
-            f"""<section>
-<h2>{escape(group["task"])}</h2>
-<p class="kicker">Thesis draft, Oct 2026. Author's assessment {group["score"]} / 10.</p>
-<div class="deliver-grid">{"".join(cards)}</div>
+        count = len(group["artifacts"])
+        chips.append(f'<a class="chip" href="#{slug}">{escape(group["task"])} <span>{count}</span></a>')
+        score = int(group["score"])
+        sections.append(
+            f"""<section class="task" id="{slug}" data-task>
+<header class="task-head reveal">
+  {_art("catalog", slug, glyph, "task-art")}
+  <div class="task-copy">
+    <p class="kicker"><b>{number:02d}</b> {count} artifact{"s" if count != 1 else ""}</p>
+    <h2>{escape(group["task"])}</h2>
+    <p class="score"><span class="meter" role="img" aria-label="Author's assessment {score} of 10"><i style="--v:{score * 10}%"></i></span><span>Author's assessment {score} / 10 · thesis draft, Oct 2026</span></p>
+  </div>
+</header>
+<div class="art-grid">{"".join(cards)}</div>
 </section>"""
         )
-    body = f"""
-<p class="kicker">Catalog</p>
-<h1>Every artifact a strategy engagement bills for.</h1>
-<p class="lede">Nine tasks from the thesis draft, October 2026. Each card is a document this app can write from the job.</p>
-<label class="kicker" for="q">Search</label>
-<input id="q" type="search" placeholder="Search artifacts">
-{"".join(blocks)}
+    search = f"""<div class="search gb">
+    {icon("search")}
+    <label class="sr-only" for="q">Search artifacts</label>
+    <input id="q" type="search" placeholder="Search {total} artifacts, like pricing or risk" autocomplete="off" spellcheck="false">
+    <kbd aria-hidden="true">/</kbd>
+  </div>
+  <p class="search-count" id="q-count" role="status">{total} artifacts in 9 tasks</p>"""
+    body = page_head(
+        "Catalog",
+        "Every artifact a consulting engagement bills for, <em>written by agents</em>.",
+        "Nine tasks from the thesis draft, October 2026. Your team picks the artifact; AI Partner agents write it from the engagement.",
+        search,
+    ) + f"""
+<nav class="chips task-chips" aria-label="Tasks">{"".join(chips)}</nav>
+{"".join(sections)}
+<div class="empty" id="q-empty" hidden>
+  {icon("search", "ico empty-glyph")}
+  <h2>No artifact matches that.</h2>
+  <p>Try a shorter word, like <button type="button" class="linkish" data-q="risk">risk</button> or <button type="button" class="linkish" data-q="process">process</button>.</p>
+  <button type="button" class="btn ghost" id="q-clear">Clear search</button>
+</div>
+<section class="cta-band gb spot reveal">
+  <div><p class="kicker">Next</p><h2>Start an engagement and pick artifacts at the end.</h2></div>
+  <a class="btn primary" href="/chat">{icon("message-circle")}Start in chat</a>
+</section>
 <script>
-document.getElementById("q").addEventListener("input", function () {{
-  var query = this.value.toLowerCase();
-  document.querySelectorAll("[data-artifact]").forEach(function (card) {{
-    card.hidden = query && card.getAttribute("data-artifact").indexOf(query) < 0;
+(function () {{
+  var q = document.getElementById("q");
+  var count = document.getElementById("q-count");
+  var empty = document.getElementById("q-empty");
+  var total = {total};
+  function apply() {{
+    var query = q.value.trim().toLowerCase();
+    var shown = 0;
+    document.querySelectorAll("[data-artifact]").forEach(function (card) {{
+      var hit = !query || card.getAttribute("data-artifact").indexOf(query) >= 0;
+      card.hidden = !hit;
+      if (hit) shown += 1;
+    }});
+    document.querySelectorAll("[data-task]").forEach(function (section) {{
+      section.hidden = !section.querySelector("[data-artifact]:not([hidden])");
+    }});
+    empty.hidden = shown > 0;
+    count.textContent = query ? shown + " of " + total + " artifacts match" : total + " artifacts in 9 tasks";
+  }}
+  q.addEventListener("input", apply);
+  q.addEventListener("keydown", function (e) {{ if (e.key === "Escape") {{ q.value = ""; apply(); q.blur(); }} }});
+  document.getElementById("q-clear").addEventListener("click", function () {{ q.value = ""; apply(); q.focus(); }});
+  document.querySelectorAll("[data-q]").forEach(function (b) {{
+    b.addEventListener("click", function () {{ q.value = b.getAttribute("data-q"); apply(); q.focus(); }});
   }});
-}});
+  document.addEventListener("keydown", function (e) {{
+    var tag = document.activeElement && document.activeElement.tagName;
+    if (e.key === "/" && !e.metaKey && !e.ctrlKey && ["INPUT", "TEXTAREA", "SELECT"].indexOf(tag) < 0) {{
+      e.preventDefault();
+      q.focus();
+    }}
+  }});
+}})();
 </script>
 """
-    return _shell("Catalog · AI Partner", "/catalog", body)
+    return shell("Catalog · AI Partner", "/catalog", body)
 
 
-def render_pricing():
-    body = f"""
-<img class="accent" src="/img/brand/character.webp" alt="AI Partner, a multi-arm robot with a floral calavera helmet and a marigold mandala halo." width="280" height="210">
-<h1>Beta pricing. Billing is not live yet; no card required.</h1>
-<div id="onboard-slot"></div>
-<div class="plans">
-  <article class="plan">
-    <h2>Starter</h2>
-    <p class="price">Free</p>
-    <p>Free beta. 1 strategy engagement.</p>
-  </article>
-  <article class="plan featured">
-    <h2>Strategy</h2>
-    <p class="price">$10</p>
-    <p>Per engagement. Research brief, market analysis, expert panel, maturity score, Work Chart, harness and skill recommendations, 1 harness kit, 3 skills, and up to {STRATEGY_ARTIFACTS} catalog artifacts.</p>
-  </article>
-  <article class="plan ink">
-    <h2>Harness Build</h2>
-    <p class="price">Contact us</p>
-    <p>The full catalog, the 10-skill pack, and custom harnesses. <a href="mailto:vivmuk@gmail.com">vivmuk@gmail.com</a></p>
-  </article>
-</div>
-<p><a href="/catalog">See every artifact in the catalog.</a></p>
+WYG_ICONS = {
+    "research-brief": "file-search",
+    "market-analysis": "globe",
+    "expert-panel": "users",
+    "maturity-score": "gauge",
+    "work-chart": "workflow",
+    "harness-recommendations": "route",
+    "harness-kit": "package",
+    "skill-pack": "puzzle",
+    "mcp-api-access": "plug",
+}
+
+FLOW = (
+    ("Your team", "Names the problem, the team, the tools, and its AI maturity."),
+    ("Research agents", "Run parallel web searches and keep every source URL."),
+    ("20 AI experts", "Take distinct lenses and debate the job over two rounds."),
+    ("The judge", "Ranks the Top 5 moves with confidence, impact, and effort."),
+    ("Your team", "Takes the work chart, harness kit, and skill pack, and decides."),
+)
+
+
+def render_what_you_get():
+    cards = []
+    for number, item in enumerate(DELIVERABLES, 1):
+        slug = item["slug"]
+        cards.append(
+            f"""<article class="wyg-card gb spot reveal">
+  {_art("what-you-get", slug, WYG_ICONS.get(slug, "file-text"), "wyg-art")}
+  <div class="wyg-copy">
+    <p class="kicker"><b>{number:02d}</b>{icon(WYG_ICONS.get(slug, "file-text"))}</p>
+    <h2>{escape(item["title"])}</h2>
+    <p>{escape(item["text"])}</p>
+  </div>
+</article>"""
+        )
+    steps = "".join(
+        f'<li class="reveal"><span class="n">{n}</span><b>{escape(who)}</b><span>{escape(what)}</span></li>'
+        for n, (who, what) in enumerate(FLOW, 1)
+    )
+    body = page_head(
+        "What you get",
+        "Your team directs. <em>AI Partner agents</em> do the work.",
+        "One engagement replaces the consulting engagement: the research, the panel, the Top 5, and the files your team keeps running after it ends.",
+    ) + f"""
+<ol class="flow">{steps}</ol>
+<div class="wyg-grid">{"".join(cards)}</div>
+<section class="cta-band gb spot reveal">
+  <div><p class="kicker">Your first engagement is free</p><h2>Describe the problem and watch the panel work.</h2></div>
+  <div class="cta-actions"><a class="btn primary" href="/chat">{icon("message-circle")}Start in chat</a><a class="btn ghost" href="/demos">{icon("layers")}See the demos</a></div>
+</section>
 """
-    return _shell("Pricing · AI Partner", "/pricing", body, onboard=True)
+    return shell("What you get · AI Partner", "/what-you-get", body)
