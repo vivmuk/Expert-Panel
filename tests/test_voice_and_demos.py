@@ -182,6 +182,8 @@ def test_client_decks_and_every_kit_link_they_use_serve(monkeypatch):
         html = deck.get_data(as_text=True)
         assert html == Path(f"server/static/demos/{slug}/deck.html").read_text(encoding="utf-8")
         assert client.get(f"/demos/{slug}/deck/").status_code == 200
+        srcs = re.findall(r'<img[^>]+src="([^"]+)"', html)
+        assert srcs and all(s.startswith("data:image/webp;base64,") for s in srcs)
         links = set(re.findall(r'href="https://[^/"]+(/demos/[^"]+)"', html))
         assert f"/demos/{slug}/kit.zip" in links
         assert len(links) >= 7
