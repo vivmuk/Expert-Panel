@@ -1,10 +1,26 @@
 def register_blueprints(app):
+    from .agents import bp as agents_bp
     from .branding import bp as branding_bp
+    from .chat import bp as chat_bp
+    from .deck import bp as deck_bp
+    from .demos import bp as demos_bp
+    from .voice import bp as voice_bp
     from .engagements import bp as engagements_bp
+    from .keiki import bp as keiki_bp
+    from .keiki_connect import bp as keiki_connect_bp
     from .meta import bp as meta_bp
+    from .onboard import bp as onboard_bp
     from .runs import bp as runs_bp
     from .static_serve import bp as static_bp
 
+    app.register_blueprint(chat_bp)
+    app.register_blueprint(onboard_bp)
+    app.register_blueprint(demos_bp)
+    app.register_blueprint(voice_bp)
+    app.register_blueprint(agents_bp)
+    app.register_blueprint(deck_bp)
+    app.register_blueprint(keiki_bp)
+    app.register_blueprint(keiki_connect_bp)
     app.register_blueprint(meta_bp, url_prefix="/api")
     app.register_blueprint(branding_bp, url_prefix="/api")
     app.register_blueprint(engagements_bp, url_prefix="/api")

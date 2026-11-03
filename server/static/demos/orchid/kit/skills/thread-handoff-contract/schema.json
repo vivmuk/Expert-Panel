@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThreadHandoffContract",
+  "type": "object",
+  "required": ["contract_version", "thread_id", "state_version", "owner", "state", "events"],
+  "properties": {
+    "contract_version": {"type": "string", "const": "1.0.0"},
+    "thread_id": {"type": "string", "description": "Immutable stable thread identifier"},
+    "state_version": {"type": "integer", "minimum": 1, "description": "Monotonic; CAS-guarded"},
+    "owner": {"enum": ["human", "agent"]},
+    "state": {
+      "enum": ["unassigned", "offered", "agent-held", "awaiting-approval", "agent-blocked-needs-human", "returned", "failed", "revoked"]
+    },
+    "lease": {
+      "type": ["object", "null"],
+      "required": ["lease_id", "ttl_seconds", "single_writer_token"],
+      "properties": {
+        "lease_id": {"type": "string"},
+        "ttl_seconds": {"type": "integer", "minimum": 1},
+        "single_writer_token": {"type": "string"},
+        "expires_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "approval": {
+      "type": ["object", "null"],
+      "properties": {
+        "revision_hash": {"type": "string"},
+        "approved_by": {"type": "string"},
+        "approved_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["thread_id", "state_version", "actor", "action", "content_hash", "timestamp"],
+        "properties": {
+          "thread_id": {"type": "string"},
+          "state_version": {"type": "integer"},
+          "actor": {"type": "string"},
+          "action": {"type": "string"},
+          "content_hash": {"type": "string"},
+          "timestamp": {"type": "string", "format": "date-time"}
+        }
+      }
+    }
+  }
+}

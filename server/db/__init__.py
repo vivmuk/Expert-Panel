@@ -6,12 +6,24 @@ from ..config import Config
 _SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
 
 
+class PersistentStoreUnavailable(RuntimeError):
+    pass
+
+
 def _db_path():
     return os.path.join(Config.DATA_DIR, "engagements.db")
 
 
+def _require_disk():
+    if os.environ.get("VERCEL"):
+        raise PersistentStoreUnavailable(
+            "SQLite is off on Vercel. The chat demo keeps each job in the browser."
+        )
+
+
 def connect():
     """Short-lived connection with WAL + busy timeout; caller closes."""
+    _require_disk()
     conn = sqlite3.connect(_db_path(), timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -21,6 +33,7 @@ def connect():
 
 
 def init_db():
+    _require_disk()
     os.makedirs(Config.DATA_DIR, exist_ok=True)
     with open(_SCHEMA_PATH) as f:
         schema = f.read()

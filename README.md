@@ -1,6 +1,7 @@
-# ✦ AI Partner — Constellation Platform
+# AI Partner
 
-An all-in-one replacement for a management-consulting engagement, powered by the
+An all-in-one replacement for a management-consulting engagement: your company team
+directs AI Partner agents instead of hiring consultants. Powered by the
 [Venice AI](https://venice.ai) API. Describe a problem; AI Partner assembles a
 bespoke panel of up to **100 expert personas**, grounds them in **live web and X
 search with citations**, and returns a synthesized report — or an agent-era
@@ -45,6 +46,84 @@ flags (web search, X search, reasoning) with graceful fallbacks.
 Pre-run estimates (`POST /api/estimate`), a confirm dialog above $2, a live cost
 ticker during runs, per-engagement totals, and a circuit breaker that aborts any
 run exceeding 3× its estimate.
+
+## Try the demo
+
+The demo is a chat at `/chat`, which is also the front page. Your team names a problem in any function. The page asks who is on the team, which tools they use, and where they sit on a four-point AI maturity scale. It then runs research with parallel Exa searches, a cited brief, 20 AI-generated experts in four waves of five, two debate rounds, the judge's Top 5, an optional red team, and a work chart. Each model call is its own request, so a Vercel function can finish inside its time limit. The browser keeps the job and sends it back on the next turn. When the job is done, the page downloads a report and a harness kit zip.
+
+The kit is one harness: `CLAUDE.md`, `playbook.md`, `model-routing.md`, `project-state-schema.md`, and a skill pack. Small and medium engagements cap the pack at 3 skills. A large team caps it at 10, with one orchestrator. After the work chart the chat asks whether the client is small, medium, or large, unless you already said so. It then searches with Venice Exa, writes a brief that keeps the source URLs, and builds the pack. Download skill pack is a second zip. The same files are under `skills/` in the harness kit, and `CLAUDE.md` points at `skills/skills.json`.
+
+### Run the chat locally
+
+```bash
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt
+VENICE_API_KEY=your-key VERCEL=1 .venv/bin/flask --app api.index:app run --port 5000
+```
+
+Open http://localhost:5000/chat
+
+`/` redirects to `/chat` unless `APP_HOME_REDIRECT=0`. `VERCEL=1` skips SQLite. Leave it unset when you want the engagement database from the next section.
+
+The Railway app is [https://ai-partner.up.railway.app](https://ai-partner.up.railway.app). The Vercel app is [https://ai-partner-hq.vercel.app](https://ai-partner-hq.vercel.app). Both origins are on the CORS and MCP allowlists. The Maritime deployment stays [https://74da9def-954d-4df0-9234-04a7301c4740.mtm.sh](https://74da9def-954d-4df0-9234-04a7301c4740.mtm.sh).
+
+Maritime builds the root `Dockerfile` and runs `python start.py`. Set `PORT` in the platform. Do not set it in the image. The Railway image is `Dockerfile.railway`.
+
+Use a fresh Venice key. An old key is still in this repo's git history. Revoke that key in the Venice dashboard.
+
+### Deploy on Vercel
+
+In the project settings, use these values.
+
+- Framework preset is Flask if Vercel offers it. Otherwise choose Other. Do not choose Vite.
+- Root directory is the repository root.
+- Build command is empty.
+- Output directory is empty.
+- Install command stays the default. Vercel installs `requirements.txt`.
+- Python version stays the default, 3.12.
+
+The Flask app is `app` in `api/index.py`. The Vercel service `app` uses the entry `api.index:app` and a 60 second limit. A catch-all rewrite sends every public path to that service. The Vite app in `web/` is not a Vercel service. The chat page is served by Flask.
+
+Set these environment variables on the project. Do not commit them.
+
+- `VENICE_API_KEY` is required.
+- `SUPERMEMORY_API_KEY` is optional. Recall stays off when it is empty.
+- `PUBLIC_BASE_URL` is optional. Setup pages print the host from the request. Set it only when a link is built outside a request. On Railway use `https://ai-partner.up.railway.app`. On Vercel use `https://ai-partner-hq.vercel.app`.
+
+### Check a live deploy
+
+```bash
+curl -sS "https://ai-partner.up.railway.app/health"
+```
+
+The body is `{"status":"ok"}`.
+
+```bash
+curl -sS -X POST "https://ai-partner.up.railway.app/api/chat" \
+  -H "content-type: application/json" \
+  -d '{"message":"Decide how Maritime should host a public web agent for a team that already has a repo. Team: 4 engineers. Tools: git and a browser. Maturity 2.","state":{}}'
+```
+
+`next` in that JSON is `blueprint`. Save the `state` object. Post it back with an empty message to draw the work chart.
+
+```bash
+curl -sS -X POST "https://ai-partner.up.railway.app/api/chat" \
+  -H "content-type: application/json" \
+  -d @turn2.json
+```
+
+`turn2.json` is `{"message":"","state": <state from the first response>}`.
+
+Save the finished state as `done.json` with the shape `{"state": <state>}`. Download the kit.
+
+```bash
+curl -sS -X POST "https://ai-partner.up.railway.app/api/chat/kit" \
+  -H "content-type: application/json" \
+  -d @done.json \
+  -o harness-kit.zip
+```
+
+The zip includes `CLAUDE.md` and at least one `skills/<step>/SKILL.md`.
 
 ## Local development
 

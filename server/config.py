@@ -17,21 +17,24 @@ class Config:
     # Cost governance: abort a run whose actual spend exceeds this multiple of the estimate
     COST_CIRCUIT_BREAKER_MULTIPLIER = float(os.environ.get("COST_CIRCUIT_BREAKER_MULTIPLIER", "3.0"))
 
-    # Model role defaults; every role is validated against live /models capabilities
-    # at run time and falls back gracefully if an ID disappears from Venice.
+    # Text roles share one default. Set MODEL_EXPERT, MODEL_WORKCHART, MODEL_JUDGE,
+    # or the matching MODEL_* name to override a single role.
+    DEFAULT_TEXT_MODEL = "deepseek-v4-1-flash-1017-uncensored"
+
     MODEL_ROLE_DEFAULTS = {
-        "architect": os.environ.get("MODEL_ARCHITECT", "qwen3-235b-a22b-instruct-2507"),
-        "persona_writer": os.environ.get("MODEL_PERSONA_WRITER", "qwen3-next-80b"),
-        "expert": os.environ.get("MODEL_EXPERT", "qwen3-next-80b"),
-        "market_agent": os.environ.get("MODEL_MARKET_AGENT", "zai-org-glm-5-2"),
-        "synthesizer": os.environ.get("MODEL_SYNTHESIZER", "zai-org-glm-5-2"),
-        "workchart": os.environ.get("MODEL_WORKCHART", "qwen3-235b-a22b-instruct-2507"),
-        "breakthrough": os.environ.get("MODEL_BREAKTHROUGH", "qwen3-235b-a22b-thinking-2507"),
-        "pulse": os.environ.get("MODEL_PULSE", "qwen3-4b"),
+        "architect": os.environ.get("MODEL_ARCHITECT", DEFAULT_TEXT_MODEL),
+        "persona_writer": os.environ.get("MODEL_PERSONA_WRITER", DEFAULT_TEXT_MODEL),
+        "expert": os.environ.get("MODEL_EXPERT", DEFAULT_TEXT_MODEL),
+        "market_agent": os.environ.get("MODEL_MARKET_AGENT", DEFAULT_TEXT_MODEL),
+        "synthesizer": os.environ.get("MODEL_SYNTHESIZER", DEFAULT_TEXT_MODEL),
+        "workchart": os.environ.get("MODEL_WORKCHART", DEFAULT_TEXT_MODEL),
+        "breakthrough": os.environ.get("MODEL_BREAKTHROUGH", DEFAULT_TEXT_MODEL),
+        "pulse": os.environ.get("MODEL_PULSE", DEFAULT_TEXT_MODEL),
+        "judge": os.environ.get("MODEL_JUDGE", DEFAULT_TEXT_MODEL),
         "image": os.environ.get("MODEL_IMAGE", "qwen-image"),
     }
 
 
 def require_api_key():
-    if not Config.VENICE_API_KEY:
+    if not os.environ.get("VENICE_API_KEY"):
         raise RuntimeError("VENICE_API_KEY environment variable is required")

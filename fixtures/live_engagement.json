@@ -1,0 +1,983 @@
+{
+  "artifacts": {},
+  "attacks": null,
+  "brief": {
+    "citations": [
+      {
+        "note": "# Connected Medical Affairs solutions built on AWS Built on AWS, PwC\u2019s Connected Medical Affairs solutions harness AI, analytics, and automation to enhance evidence generation, del",
+        "title": "Connected Medical Affairs solutions built on AWS: PwC",
+        "url": "https://www.pwc.com/us/en/technology/alliances/amazon-web-services/reinventing-the-pharma-sector/aws-connected-med-affairs.html"
+      },
+      {
+        "note": "# Your fastest route to a reliable answer for any scientific question It\u2019s an AI-ready content foundation built on hundreds of millions of centralized documents and extensible to a",
+        "title": "AI Scientific Navigator | IQVIA",
+        "url": "https://www.iqvia.com/solutions/technologies/ai-scientific-navigator"
+      },
+      {
+        "note": "As a technology company with deep roots in the machine learning and AI space, we\u2019ve seen how AI applied correctly can transform the business process of an industry. Over the last f",
+        "title": "AI for Medical Affairs - Lexalytics Technology in Action",
+        "url": "https://www.lexalytics.com/resources/ai-medical-affairs/"
+      },
+      {
+        "note": "1. MAPS 2024 Report: Highlights AI, advanced analytics, and digital trends in Medical Affairs. 2. Survey Scope: Insights gathered from 34 representatives across 32 leading Pharma,",
+        "title": "GenAI in Medical Affairs: Use Cases",
+        "url": "https://medicalaffairs.org/solution-provider-perspective/gen-ai-use-cases/"
+      },
+      {
+        "note": "Medical Science Liaisons (MSLs) are the principal scientific interface between pharmaceutical companies and healthcare professionals (HCPs). In China the role is under structural s",
+        "title": "Adele Li, MBA, David Wang, MBA, Yixuan Zhou, MSc.",
+        "url": "https://www.ispor.org/docs/default-source/cti-meeting-21591-documents/ctrl-f7-d-88c-58f-b45-465-6b6-a96-c34-80c-2d6-f6.pdf?sfvrsn=98b9c550_0"
+      },
+      {
+        "note": "According to a 2024 Global Survey 1 on AI by the MSL Society (MSLS), including 584 responses from 58 countries, 47% of respondents believe that AI will be \u2018Impactful\u2019 while 27% con",
+        "title": "AI in Medical Affairs today A comprehensive companion for Pharma & Biotech industries",
+        "url": "https://www.mile-association.org/wp-content/uploads/2025/02/Transforming-Medical-Affairs-with-AI-A-Position-Paper-by-MILE-AVAYL-and-MSL-Society.pdf"
+      },
+      {
+        "note": "The utility of AI for what MSLs do every day is enticing: Summarization: To support staying up to date with the latest scientific data and clinical practice trends Connectivity: To",
+        "title": "Improving the Quality of Scientific Engagement With Key Experts Using AI - THE MSL",
+        "url": "https://themsljournal.com/article/improving-the-quality-of-scientific-engagement-with-kols-using-ai/"
+      },
+      {
+        "note": "- ISPOR26_Bell_MSR238_POSTER.pdf OBJECTIVES: AI-driven screening models can be trained to screen SLR citations to reduce burden and accelerate timelines. Our objective was to compa",
+        "title": "ISPOR - OLD DATA, NEW TRICKS: ACCURACY AND EFFICIENCY GAINS FOR AI-DRIVEN SLR UPDATES",
+        "url": "https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-5-3/old-data-new-tricks-accuracy-and-efficiency-gains-for-ai-driven-slr-updates"
+      },
+      {
+        "note": "1. Suzana Giffin (VP, Value & Implementation GMVC, Merck) 2. Amita Joshi (Global Head, Strategy & Execution Oncology, Johnson & Johnson) 3. Dina Merchasin (Director, Commercial IT",
+        "title": "AI Maturity in Literature Workflows: Insights from a Medical Affairs Roundtable - Medical Affairs Professional Society",
+        "url": "https://medicalaffairs.org/solution-provider-roundtable/ai-maturity-in-literature-workflows/"
+      },
+      {
+        "note": "## Key Takeaways 1. MAPS 2024 Report: Highlights AI, advanced analytics, and digital trends in Medical Affairs. 2. Survey Scope: Insights gathered from 34 representatives across 32",
+        "title": "The AI Medical Affairs Hasn't Imagined Yet: Workflows, Not Chatbots - Medical Affairs Professional Society",
+        "url": "https://medicalaffairs.org/innovate-articles/workflows-not-chatbots/"
+      },
+      {
+        "note": "Over the past two years, the potential of Generative AI (GenAI) has caused huge excitement across the life sciences industry. What began as experiments automating basic tasks like",
+        "title": "Two Years of Generative AI in Life Sciences: Lessons Learned and the Path Forward | Reports | What We Think | Indegene",
+        "url": "https://www.indegene.com/what-we-think/reports/generative-ai-life-sciences-lessons-path-forward"
+      },
+      {
+        "note": "## Key Takeaways 1. Planning: Smarter preparation through AI 2. Execution: Enhancing efficiency and onsite experience 3. However, the group raised an important caution: there is a",
+        "title": "AI in Action: Revolutionizing Scientific Congresses from Concept to Conclusion - Medical Affairs Professional Society",
+        "url": "https://medicalaffairs.org/solution-provider-perspective/ai-in-action-revolutionizing-scientific-congresses-from-concept-to-conclusion/"
+      },
+      {
+        "note": "## Key Takeaways 1. AI is transforming Medical Affairs and yet existing digital maturity models are often not specific to Medical Affairs and lack modern understanding of AI. 2. Th",
+        "title": "Enabling AI and Digital Transformation - Medical Affairs Professional Society",
+        "url": "https://medicalaffairs.org/white-papers/enabling-ai-digital-transformation/"
+      },
+      {
+        "note": "## Key Takeaways 1. Strategic Co-Leadership: Medical Affairs now co-leads enterprise strategy and end-to-end evidence generation across the product lifecycle. 2. Integrated Evidenc",
+        "title": "2026 Benchmark Report - Medical Affairs Professional Society",
+        "url": "https://medicalaffairs.org/benchmark-reports/2026-benchmark-report/"
+      },
+      {
+        "note": "## Abstract Introduction Artificial intelligence (AI) is increasingly being adopted in Medical Affairs and has the potential to transform the role of medical science liaisons (MSLs",
+        "title": "Perceptions, Utilization, and Impact of Artificial Intelligence on Medical Science Liaisons: A Global Cross-Sectional Survey of Medical Affairs Professionals",
+        "url": "https://doi.org/10.7759/cureus.107157"
+      },
+      {
+        "note": "An analysis of this year\u2019s survey data identified the following key trends: Evolution of medical affairs organizations: With the addition of a key organizational dimension, most me",
+        "title": "ZS Medical Affairs Outlook Report 2025",
+        "url": "https://www.zs.com/content/dam/global/master/pdfs/zs-medical-affairs-outlook-report-2025.pdf"
+      },
+      {
+        "note": "# Section 14.4: Compliance & AI Content A risk-based framework for governing AI-generated Medical Affairs content: communication context, unapproved-use risk, evidence grounding, h",
+        "title": "14.4 Compliance considerations for AI-generated content \u2013 Council on Pharmacy Standards",
+        "url": "https://pharmacystandards.org/caidra-examination/section-14-4-compliance-considerations-for-ai-generated-content/"
+      },
+      {
+        "note": "Communications From Firms to Health Care Providers Regarding Scientific Information on Unapproved Uses of Approved/Cleared Medical Products: Questions and Answers | FDA # Communica",
+        "title": "Communications From Firms to Health Care Providers Regarding Scientific Information on Unapproved Uses of Approved/Cleared Medical Products: Questions and Answers | FDA",
+        "url": "https://www.fda.gov/regulatory-information/search-fda-guidance-documents/communications-firms-health-care-providers-regarding-scientific-information-unapproved-uses"
+      },
+      {
+        "note": "FDA is pushing out new guidance documents at a pace rarely seen, likely caused by the upcoming change in administration. Today, we are sharing with you our thoughts on two of FDA\u2019s",
+        "title": "FDA's AI Lifecycle & Scientific Information Guidance Documents | ReedSmith",
+        "url": "https://www.reedsmith.com/our-insights/blogs/viewpoints/102jugc/fdas-ai-lifecycle-scientific-information-guidance-documents/"
+      },
+      {
+        "note": "The FDA SIUU guidance gives pharmaceutical companies a more defined framework for certain firm-initiated scientific communications about unapproved uses. Finalized in January 2025,",
+        "title": "FDA SIUU Guidance: What Pharma Teams Need to Know - Pharma Marketing Network",
+        "url": "https://www.pharma-mkting.com/articles/fda-siuu-guidance-pharma-scientific-communications/"
+      },
+      {
+        "note": "# Drive Personalized Scientific Exchange Vault CRM is an agentic CRM for life sciences that connects sales, marketing, and medical teams on a single platform with a unified custome",
+        "title": "Medical CRM | Vault CRM for Medical Affairs | Veeva",
+        "url": "https://www.veeva.com/products/vault-crm-medical/"
+      },
+      {
+        "note": "Creating Medical Insights with Agentic Voice ## Creating Medical Insights with Agentic Voice Field users and Medical Science Liaisons (MSLs) can capture important medical informati",
+        "title": "Creating Medical Insights with Agentic Voice",
+        "url": "https://vaultcrmhelp.veeva.com/doc/Content/CRM_topics/VeevaAI/VoiceAgent/VoiceAgentMedInsight.htm"
+      },
+      {
+        "note": "# Accelerate Insights from Capture to Action Veeva Link Medical Insights is applications, agents, and services to manage medical insights across the enterprise. It enables users to",
+        "title": "Veeva Link Medical Insights l Medical Insights Management l Veeva",
+        "url": "https://www.veeva.com/products/veeva-link/medical-insights/"
+      },
+      {
+        "note": "Delivering meaningful experiences to healthcare professionals (HCPs) and patients requires biopharma teams to provide cohesive, timely information across every interaction, from di",
+        "title": "Agentic Commercial\u2122 and Life Sciences CRM Innovation | Veeva",
+        "url": "https://www.veeva.com/blog/powering-agentic-commercial-latest-innovations-in-veeva-vault-crm-suite/"
+      }
+    ],
+    "summary": "Set 12-month priorities around one governed workflow, not tool sprawl. At maturity 2 (single pilot), the 12 MSLs and 3 medical information specialists should (1) formalize the existing pilot as an evidence-grounding and literature-triage workflow, with MSLs using PubMed plus an AI layer to summarize and triangulate literature before HCP conversations, and medical information using the same grounded corpus for response drafting; (2) build a risk-based human-oversight and auditability standard for AI-assisted content, mapped to FDA's January 2025 SIUU guidance, so AI-drafted answers stay inside scientific-exchange boundaries; (3) instrument the workflow in Veeva CRM, using voice-note-to-insight capture and insight tagging so field intelligence feeds a single insight backlog; (4) upskill the team on data literacy and prompt/verification discipline, since benchmark work shows the shift from content creation to analytics and the need for upskilling; and (5) define a small set of maturity metrics (time-to-answer, citation accuracy, insight-to-action rate) before expanding to a second workflow. Keep Excel for tracking and measurement only; avoid new platforms until the pilot shows measura"
+  },
+  "calls": 13,
+  "chart": {
+    "current": [
+      {
+        "owner": "Human",
+        "step": "1",
+        "task": "Collect HCP AI-literature usage signals and MSL field insights"
+      },
+      {
+        "owner": "Human",
+        "step": "2",
+        "task": "Manually search PubMed and summarize evidence for priority topics"
+      },
+      {
+        "owner": "Human",
+        "step": "3",
+        "task": "Prioritize medical affairs topics in a team review meeting"
+      },
+      {
+        "owner": "Human",
+        "step": "4",
+        "task": "Assign MSL and medical information capacity against priorities"
+      },
+      {
+        "owner": "Human",
+        "step": "5",
+        "task": "Update Veeva CRM and Excel records and maintain the insight backlog"
+      },
+      {
+        "owner": "Human",
+        "step": "6",
+        "task": "Approve the 12-month plan and train the verification checklist"
+      }
+    ],
+    "future": [
+      {
+        "owner": "Hybrid",
+        "step": "1",
+        "task": "Assemble a shared grounded corpus and consolidate AI-literature usage signals for human validation"
+      },
+      {
+        "owner": "Hybrid",
+        "step": "2",
+        "task": "Run literature triage and draft HCP responses for MSL or medical information approval"
+      },
+      {
+        "owner": "Human",
+        "step": "3",
+        "task": "Apply risk-based human oversight and the safety-review trigger with auditability checks"
+      },
+      {
+        "owner": "Hybrid",
+        "step": "4",
+        "task": "Record data lineage in Veeva CRM and Excel and keep one owned insight backlog current"
+      },
+      {
+        "owner": "Human",
+        "step": "5",
+        "task": "Lock the MSL hours baseline and enforce the purchasing gate on the existing stack"
+      },
+      {
+        "owner": "Hybrid",
+        "step": "6",
+        "task": "Train verification as a habit using a shared checklist, peer review, and a reproducible PubMed triage protocol"
+      }
+    ],
+    "summary": "The current process is a fully manual priority-setting cycle: field signals, PubMed review, topic prioritization, capacity assignment, CRM/Excel updates, and plan approval all sit with people. In the agent era, the same cycle becomes one governed literature-triage and response-drafting workflow on a shared grounded corpus: agents draft and log, people retain risk-based oversight, safety-trigger ju"
+  },
+  "chat_id": "402a58b4ba7140a5",
+  "debate": [
+    {
+      "name": "Dr. Priya Raman",
+      "responding_to": "Marcus Feld",
+      "round": 1,
+      "stance": "build",
+      "statement": "Marcus is right that the pilot must show where MSL hours move, and that is exactly why the two steps belong in one governed workflow rather than two. If triage and drafting share one grounded corpus and one audit path, the hours returned and the hours spent verifying are both vis"
+    },
+    {
+      "name": "Marcus Feld",
+      "responding_to": "Dr. Priya Raman",
+      "round": 1,
+      "stance": "concede",
+      "statement": "I accept the single governed path if the measurement is built in from day one. My condition stands: baseline where MSL hours sit today before the pilot starts, so returned triage time is shown moving into verification and conversation prep, not just disappearing into a dashboard."
+    },
+    {
+      "name": "Elena Voss",
+      "responding_to": "Tomas Berg",
+      "round": 1,
+      "stance": "build",
+      "statement": "Tomas is correct that oversight labor is the hidden cost, and risk-based review tiers are the cheaper control than uniform review. But tiers only save money if the oversight hours are budgeted explicitly, so the pilot should cost the reviewer time per tier, not assume it away."
+    },
+    {
+      "name": "Tomas Berg",
+      "responding_to": "Sofia Lindqvist",
+      "round": 1,
+      "stance": "build",
+      "statement": "Sofia's point that drafting tolerates less drift than triage supports tiering rather than contradicting it. The response side gets the stricter verification tier and the oversight record is the defensible artifact, so the review standard is defined before volume grows, not after."
+    },
+    {
+      "name": "Sofia Lindqvist",
+      "responding_to": "Dr. Amara Diallo",
+      "round": 1,
+      "stance": "build",
+      "statement": "Amara is right that citation accuracy on drafted answers must be tested against a fixed sample before expansion. The three of us already know where drafting drifts, so the pilot should encode that into the verification tier and the prompt discipline rather than discover it at sca"
+    },
+    {
+      "name": "Nadia Okafor",
+      "responding_to": "Omar Haddad",
+      "round": 1,
+      "stance": "build",
+      "statement": "Omar is right that the audit trail belongs in Veeva CRM fields and Excel logs, not side documents. At maturity 2 the technology work is making the single pilot record what was asked, what PubMed evidence was retrieved, and where the human overrode, inside the system of record we"
+    },
+    {
+      "name": "Dr. Leo Marchetti",
+      "responding_to": "Dr. Priya Raman",
+      "round": 1,
+      "stance": "challenge",
+      "statement": "One governed workflow is fine, but the MSLs will treat AI output as a shortcut unless summarization is visibly separated from verified evidence. The pilot must ring-fence the returned triage time for citation checking and conversation prep, or the workflow just adds steps without"
+    },
+    {
+      "name": "Grace Chen",
+      "responding_to": "Elena Voss",
+      "round": 1,
+      "stance": "build",
+      "statement": "Elena's point about hidden oversight cost is the procurement case for proving the workflow before buying anything. The purchasing gate should be measurable time-to-answer, citation accuracy, and audit completeness on the existing stack, so no AI layer is bought until the pilot cl"
+    },
+    {
+      "name": "Dr. Samuel Adeyemi",
+      "responding_to": "Nadia Okafor",
+      "round": 1,
+      "stance": "build",
+      "statement": "Nadia has the right system of record, but the lineage must cover both literature summaries and drafted answers, recording which PubMed sources were retrieved, which version was used, and where a human verified or overrode. That is a data-lineage requirement before it is a review"
+    },
+    {
+      "name": "Dr. Hana Sato",
+      "responding_to": "Dr. Leo Marchetti",
+      "round": 1,
+      "stance": "build",
+      "statement": "Leo's separation of summarization from verified evidence matches what HCPs will do to MSLs: test them on provenance and nuance. The workflow should make it normal for an MSL to say what was AI-assisted, what was verified, and where the evidence is thin, so the summary prepares th"
+    },
+    {
+      "name": "Dr. Amara Diallo",
+      "responding_to": "Sofia Lindqvist",
+      "round": 1,
+      "stance": "build",
+      "statement": "Sofia is right that the three specialists already know where drafting drifts, so let us encode that now. My fixed sample of drafted answers gets scored on citation accuracy before any volume expansion, and the stricter response-side tier is the gate, not an afterthought."
+    },
+    {
+      "name": "Ravi Menon",
+      "responding_to": "Marcus Feld",
+      "round": 1,
+      "stance": "build",
+      "statement": "Marcus's baseline condition is the whole value case. Before the pilot starts we log where MSL hours sit today in Excel, so returned triage time can be shown moving into verification and conversation prep rather than vanishing into a dashboard nobody audits."
+    },
+    {
+      "name": "Claire Dubois",
+      "responding_to": "Dr. Hana Sato",
+      "round": 1,
+      "stance": "build",
+      "statement": "Hana's point about evidence being thin is exactly where HEOR conversations break. The grounding workflow should flag indirect and gap-heavy evidence explicitly rather than smooth it, so an MSL can say plainly where the literature does not carry the claim."
+    },
+    {
+      "name": "Kenji Watanabe",
+      "responding_to": "Dr. Mei-Lin Chow",
+      "round": 1,
+      "stance": "build",
+      "statement": "Mei-Lin is right that verification must be a trained habit, and at maturity 2 skill is the binding constraint. A shared checklist and peer review in the first weeks is the training artifact, but it only holds if the checklist is the same one the audit record cites."
+    },
+    {
+      "name": "Dr. Fiona Blake",
+      "responding_to": "Nadia Okafor",
+      "round": 1,
+      "stance": "challenge",
+      "statement": "Nadia's audit trail records what was asked and retrieved, but insight capture dies if tagged insights never land anywhere with an owner. The pilot needs one backlog with a disposition field, or the field intelligence the workflow generates converts to nothing."
+    },
+    {
+      "name": "Dr. Yusuf Karim",
+      "responding_to": "Dr. Samuel Adeyemi",
+      "round": 1,
+      "stance": "build",
+      "statement": "Samuel's lineage requirement starts upstream of the record: retrieval itself must be reproducible. At maturity 2 the MSLs need one documented PubMed triage protocol so every summary traces to a search someone else could rerun, not an ad hoc query."
+    },
+    {
+      "name": "Beatriz Almeida",
+      "responding_to": "Claire Dubois",
+      "round": 1,
+      "stance": "build",
+      "statement": "Claire's gap-flagging matters most on the payer side, where indirect and comparative evidence is what gets flattened. The corpus should mark where comparative claims rest on indirect data so MSLs do not overstate support in front of payer audiences."
+    },
+    {
+      "name": "Dr. Ingrid Solberg",
+      "responding_to": "Tomas Berg",
+      "round": 1,
+      "stance": "challenge",
+      "statement": "Tomas's tiers cover scientific drift but not the safety boundary. A drafted answer can be citation-accurate and still cross into safety signal territory, so the oversight standard needs an explicit trigger for when a response goes to safety review instead of routine scientific re"
+    },
+    {
+      "name": "Omar Haddad",
+      "responding_to": "Dr. Samuel Adeyemi",
+      "round": 1,
+      "stance": "build",
+      "statement": "Samuel is right that lineage comes first, and it has to be enforceable, which means the retrieval, version, and override fields live in Veeva CRM and the Excel log, not side documents. If the record sits outside the system of record, the oversight standard is unenforceable."
+    },
+    {
+      "name": "Dr. Mei-Lin Chow",
+      "responding_to": "Kenji Watanabe",
+      "round": 1,
+      "stance": "build",
+      "statement": "Kenji and I agree the constraint is skill, so the pilot trains verification as a habit from week one: each MSL paired with a checklist and a peer reviewer. Policy alone will not change behavior in twelve people carrying a full load."
+    },
+    {
+      "name": "Dr. Priya Raman",
+      "responding_to": "Marcus Feld",
+      "round": 2,
+      "stance": "concede",
+      "statement": "Marcus, I accept your baseline condition as part of the governed workflow itself, not a side exercise. The first thing we do is log current MSL hours in Excel, then run the single triage-and-drafting path so returned time is visibly redeployed into verification and conversation p"
+    },
+    {
+      "name": "Marcus Feld",
+      "responding_to": "Ravi Menon",
+      "round": 2,
+      "stance": "build",
+      "statement": "Ravi has made the baseline concrete, so let us lock it before any pilot activity: hours logged in Excel by task, reviewed weekly. The pilot's success test is where those hours move, and if they do not move into verification and conversation prep, we stop and redesign."
+    },
+    {
+      "name": "Elena Voss",
+      "responding_to": "Grace Chen",
+      "round": 2,
+      "stance": "build",
+      "statement": "Grace's purchasing gate is the right frame, and it needs a cost line: reviewer time per tier budgeted explicitly in the pilot plan. The existing stack keeps the pilot cheap, but the oversight hours are real spend and must be resourced before we start, not discovered after."
+    },
+    {
+      "name": "Tomas Berg",
+      "responding_to": "Dr. Ingrid Solberg",
+      "round": 2,
+      "stance": "build",
+      "statement": "Ingrid is right that citation accuracy alone does not catch the safety boundary, so the oversight standard gets an explicit safety-review trigger alongside the scientific tiers. The defensible artifact is the record of that routing decision, defined before volume grows."
+    },
+    {
+      "name": "Sofia Lindqvist",
+      "responding_to": "Dr. Amara Diallo",
+      "round": 2,
+      "stance": "build",
+      "statement": "Amara's fixed sample is the right gate, and the three of us should write the drift patterns into the response-side verification tier now. Stricter citation checking on drafted answers comes before any expansion, and the prompt discipline is encoded from what we already know."
+    },
+    {
+      "name": "Nadia Okafor",
+      "responding_to": "Omar Haddad",
+      "round": 2,
+      "stance": "build",
+      "statement": "Omar is right that the record must live in Veeva CRM fields and Excel logs, so the pilot's first technology task is defining those fields: what was asked, what PubMed evidence was retrieved, and where the human overrode. No side documents, and no expansion until the fields are po"
+    },
+    {
+      "name": "Dr. Leo Marchetti",
+      "responding_to": "Dr. Hana Sato",
+      "round": 2,
+      "stance": "build",
+      "statement": "Hana's provenance point is exactly why summarization stays visibly separate from verified evidence. In the first weeks each MSL rings-fences returned triage time for citation checking and conversation prep, and practices saying aloud what was AI-assisted and what was verified."
+    },
+    {
+      "name": "Grace Chen",
+      "responding_to": "Elena Voss",
+      "round": 2,
+      "stance": "build",
+      "statement": "Elena's cost line makes the gate honest: we prove time-to-answer, citation accuracy, and audit completeness on the existing stack, with oversight hours budgeted, before any AI layer is bought. That is the purchasing gate, and it holds for twelve months."
+    },
+    {
+      "name": "Dr. Samuel Adeyemi",
+      "responding_to": "Dr. Yusuf Karim",
+      "round": 2,
+      "stance": "build",
+      "statement": "Yusuf is right that lineage starts at retrieval, so the documented PubMed triage protocol is the first artifact: one reproducible search standard feeding the Veeva CRM lineage fields for both summaries and drafted answers. Without it the record proves nothing."
+    },
+    {
+      "name": "Dr. Hana Sato",
+      "responding_to": "Claire Dubois",
+      "round": 2,
+      "stance": "build",
+      "statement": "Claire's gap-flagging is what makes the workflow credible with HCPs who test provenance. The corpus marks thin and indirect evidence explicitly, so MSLs can say where the literature does not carry the claim, and the summary prepares the conversation rather than answering for it."
+    },
+    {
+      "name": "Dr. Amara Diallo",
+      "responding_to": "Sofia Lindqvist",
+      "round": 2,
+      "stance": "build",
+      "statement": "Sofia, agreed: the three specialists write the drift patterns into the response-side tier before we start, and my fixed sample scores citation accuracy against that tier. The gate is the first pilot deliverable, not a later check."
+    },
+    {
+      "name": "Ravi Menon",
+      "responding_to": "Marcus Feld",
+      "round": 2,
+      "stance": "build",
+      "statement": "Marcus's stop-and-redesign test needs the baseline locked first, so Excel hours-by-task logging starts week zero and is reviewed weekly. If returned triage time does not move into verification and conversation prep, the pilot fails on the evidence."
+    },
+    {
+      "name": "Claire Dubois",
+      "responding_to": "Dr. Hana Sato",
+      "round": 2,
+      "stance": "build",
+      "statement": "Hana, gap-flagging belongs in the corpus from day one, with thin and indirect evidence marked so MSLs can say plainly where the literature does not carry the claim. That is the credibility test with HCPs, not a later refinement."
+    },
+    {
+      "name": "Kenji Watanabe",
+      "responding_to": "Dr. Mei-Lin Chow",
+      "round": 2,
+      "stance": "build",
+      "statement": "Mei-Lin, the checklist and peer review are the training artifact, and it must be the same checklist the audit record cites. One shared verification habit, one document, so training and audit never diverge."
+    },
+    {
+      "name": "Dr. Fiona Blake",
+      "responding_to": "Nadia Okafor",
+      "round": 2,
+      "stance": "build",
+      "statement": "Nadia's fields record the retrieval, so the backlog is the next field: one owner and one disposition per tagged insight. Without that, the audit trail proves what was asked but not that anything converted to action."
+    },
+    {
+      "name": "Dr. Yusuf Karim",
+      "responding_to": "Dr. Samuel Adeyemi",
+      "round": 2,
+      "stance": "build",
+      "statement": "Samuel, the documented PubMed triage protocol is the first artifact and it feeds the Veeva CRM lineage fields directly. One reproducible search standard for summaries and drafted answers, written before any pilot run."
+    },
+    {
+      "name": "Beatriz Almeida",
+      "responding_to": "Claire Dubois",
+      "round": 2,
+      "stance": "build",
+      "statement": "Claire, the corpus marks where comparative claims rest on indirect data, so payer-facing MSLs can state the limit rather than overstate support. That flag is what keeps payer conversations honest."
+    },
+    {
+      "name": "Dr. Ingrid Solberg",
+      "responding_to": "Tomas Berg",
+      "round": 2,
+      "stance": "build",
+      "statement": "Tomas, the safety-review trigger sits beside the scientific tiers and is defined before volume grows. The routing decision is the artifact: which answers went to safety review and why, recorded in the same lineage fields."
+    },
+    {
+      "name": "Omar Haddad",
+      "responding_to": "Dr. Samuel Adeyemi",
+      "round": 2,
+      "stance": "build",
+      "statement": "Samuel, lineage is enforceable only in the system of record, so the Veeva CRM fields for retrieval, version, and override are defined first and the Excel log mirrors them. No expansion until those fields are populated and auditable."
+    },
+    {
+      "name": "Dr. Mei-Lin Chow",
+      "responding_to": "Kenji Watanabe",
+      "round": 2,
+      "stance": "build",
+      "statement": "Kenji, the checklist is trained as a habit from week one, each MSL paired with a peer reviewer, and it is the same checklist the audit cites. Twelve MSLs adopt it only if it is practiced, not posted."
+    }
+  ],
+  "debate_done": 4,
+  "depth": "strategy",
+  "experts": [
+    {
+      "insight": "The brief is right that at maturity 2 the single pilot must become a governed workflow rather than a second tool. The MSL literature-triage and medical information response-drafting steps share one grounded corpus, so formalizing them together gives a single auditable path from PubMed to HCP convers",
+      "lens": "Workflow design and pilot formalization",
+      "name": "Dr. Priya Raman",
+      "recommendation": "Write the pilot up as a documented standard operating procedure covering evidence grounding, triage, and response drafting, with named owners across the 12 MSLs and 3 medical information specialists, before any expansion.",
+      "role": "Medical Affairs Operations Lead (operator)"
+    },
+    {
+      "insight": "Twelve MSLs cannot absorb a new workflow on top of current load. The value case is time returned from literature triage and drafting, redeployed into verification and conversation quality, so the pilot must show where MSL hours move, not just that summaries exist.",
+      "lens": "MSL capacity and HCP engagement quality",
+      "name": "Marcus Feld",
+      "recommendation": "Instrument time-to-answer and time saved per triage in Veeva CRM from week one, and cap pilot scope so no MSL carries more than a defined share of AI-assisted cases until the metrics justify scaling.",
+      "role": "Field Medical Director (buyer of field time)"
+    },
+    {
+      "insight": "The budget envelope favors reusing Veeva CRM, PubMed, and Excel over new platforms. The measurable pilot is cheap; the risk is hidden cost in oversight labor and audit preparation, which must be resourced explicitly rather than assumed.",
+      "lens": "Cost of the pilot versus cost of sprawl",
+      "name": "Elena Voss",
+      "recommendation": "Fund oversight and auditability as line items in the 12-month plan, keep Excel strictly for tracking and measurement, and gate any second-workflow spend on the maturity metrics hitting agreed thresholds.",
+      "role": "Finance Business Partner"
+    },
+    {
+      "insight": "AI-drafted medical information answers must stay inside scientific-exchange boundaries, and FDA's January 2025 SIUU guidance makes the oversight record the defensible artifact. Risk-based review tiers, not uniform review, keep the workflow sustainable.",
+      "lens": "Human oversight and SIUU boundaries",
+      "name": "Tomas Berg",
+      "recommendation": "Adopt a risk-based human-oversight and auditability standard now: tiered review by answer type, mandatory citation checks, and a retained audit trail mapped to the SIUU guidance, applied identically to MSL summaries and medical information",
+      "role": "Regulatory and Compliance Risk Lead"
+    },
+    {
+      "insight": "The three medical information specialists already feel where AI drafting helps and where it drifts. Reusing the MSL grounded corpus is attractive, but response drafting needs stricter citation accuracy than literature summaries, and prompt and verification discipline is the binding constraint.",
+      "lens": "Front-line response drafting and verification discipline",
+      "name": "Sofia Lindqvist",
+      "recommendation": "Run a short upskilling block on data literacy and prompt/verification discipline for all 15 staff, and pilot the shared corpus first on medical information response drafting where citation accuracy is easiest to measure.",
+      "role": "Medical Information Specialist (client staff, seated)"
+    },
+    {
+      "insight": "At maturity 2, the technology constraint is not adding platforms but making the single pilot auditable inside Veeva CRM, PubMed, and Excel. The brief's voice-note-to-insight capture and insight tagging only help if the workflow records what was asked, what evidence was retrieved, and where the human",
+      "lens": "Workflow instrumentation and system interoperability",
+      "name": "Nadia Okafor",
+      "recommendation": "Define a minimal data contract for the pilot: required citation fields, verification status, insight tag, and audit-log location in Veeva CRM, with Excel used only for measurement tracking. Freeze new tool requests until those fields are po",
+      "role": "Medical Information Systems Product Owner (technology)"
+    },
+    {
+      "insight": "Twelve MSLs can absorb one governed literature-triage workflow only if AI summarization is clearly separated from verified evidence. The pilot must protect the time returned from triage for citation checking and conversation preparation, otherwise the team will treat AI output as a shortcut rather t",
+      "lens": "MSL workload and verification discipline",
+      "name": "Dr. Leo Marchetti",
+      "recommendation": "Run weekly triage huddles with named citation-check roles, cap AI summaries to defined question types, and require MSLs to log verification status before any HCP conversation use.",
+      "role": "MSL Team Lead (frontline operator)"
+    },
+    {
+      "insight": "The existing stack is sufficient for a maturity-2 pilot, so procurement value comes from proving the workflow before buying an AI layer. The brief's warning against tool sprawl should become a purchasing gate: no new platform unless the pilot shows measurable time-to-answer, citation accuracy, and i",
+      "lens": "Build-versus-buy and tool consolidation",
+      "name": "Grace Chen",
+      "recommendation": "Set a 90-day evidence gate with explicit exit criteria and a no-new-platform default. Require any vendor conversation to map to the existing Veeva CRM, PubMed, and Excel workflow rather than propose a parallel system.",
+      "role": "Procurement and Vendor Management Lead (buyer)"
+    },
+    {
+      "insight": "The defensible artifact is not the AI-drafted answer but the record showing which PubMed sources were retrieved, which version was used, and where a human verified or overrode the draft. That is a data-lineage problem before it is a review problem, and it must cover both MSL literature summaries and",
+      "lens": "Data lineage, provenance, and auditability",
+      "name": "Dr. Samuel Adeyemi",
+      "recommendation": "Maintain a source-version log and citation trace for the grounded corpus, sample-audit a fixed number of outputs weekly, and store the verification record alongside the Veeva CRM insight so oversight is inspectable without reconstructing it",
+      "role": "Data Governance and Audit Lead (risk)"
+    },
+    {
+      "insight": "HCPs who use AI tools will test MSLs on provenance and nuance, so AI summaries should prepare the conversation rather than become the answer engine. The workflow must make it normal for MSLs to explain what was AI-assisted, what was verified, and where the evidence is thin.",
+      "lens": "HCP trust and scientific-exchange quality",
+      "name": "Dr. Hana Sato",
+      "recommendation": "Define an \"explain the evidence\" standard for HCP interactions, train MSLs to disclose AI-assisted preparation and verification status, and review a sample of conversations for provenance quality before expanding beyond the pilot.",
+      "role": "HCP Engagement and Scientific Communications Lead (client staff)"
+    },
+    {
+      "insight": "Medical information drafting tolerates less drift than literature triage, so the shared corpus needs a stricter verification tier on the response side. The pilot should test citation accuracy against a fixed sample of drafted answers before any volume expansion.",
+      "lens": "Response-drafting quality control and citation accuracy",
+      "name": "Dr. Amara Diallo",
+      "recommendation": "Define a citation-accuracy sampling protocol for AI-drafted medical information responses and gate expansion on its results.",
+      "role": "Medical Information Quality Reviewer (operator)"
+    },
+    {
+      "insight": "The value case only holds if returned triage time is visibly redeployed into verification and conversation prep. Without a baseline of where MSL hours sit today, the pilot cannot show that shift.",
+      "lens": "Time allocation and workload measurement",
+      "name": "Ravi Menon",
+      "recommendation": "Capture a pre-pilot time baseline in Excel and track hours moved per MSL through the pilot.",
+      "role": "Field Force Effectiveness Analyst (buyer of MSL time)"
+    },
+    {
+      "insight": "AI summaries flatten nuance that HEOR conversations depend on, especially where evidence is thin or indirect. The grounding workflow should flag evidence gaps rather than smooth them over.",
+      "lens": "Evidence triangulation for payer and HCP nuance",
+      "name": "Claire Dubois",
+      "recommendation": "Add an evidence-gap flag to the triage template so MSLs know where to slow down and triangulate manually.",
+      "role": "HEOR Liaison (client staff)"
+    },
+    {
+      "insight": "At maturity 2 the binding constraint is skill, not tooling. MSLs and medical information staff need a shared verification habit before the workflow can be trusted at scale.",
+      "lens": "Data literacy and verification discipline",
+      "name": "Kenji Watanabe",
+      "recommendation": "Run a short verification-discipline training for all 15 staff and embed a checklist in the pilot workflow.",
+      "role": "Prompt and Verification Training Lead (technology)"
+    },
+    {
+      "insight": "Voice-note-to-insight capture only pays off if tagged insights land in one backlog with an owner and a disposition. Otherwise the field intelligence never converts to action.",
+      "lens": "Field intelligence capture and insight-to-action conversion",
+      "name": "Dr. Fiona Blake",
+      "recommendation": "Stand up a single insight backlog in Veeva CRM with weekly triage and a named owner for each disposition.",
+      "role": "Insight Backlog Owner (operator)"
+    },
+    {
+      "insight": "The pilot's grounding layer is only as good as the retrieval behind it; at maturity 2 the MSLs need a shared, documented PubMed triage protocol so summaries are traceable to a reproducible search rather than ad hoc queries.",
+      "lens": "PubMed search strategy and evidence triangulation quality",
+      "name": "Dr. Yusuf Karim",
+      "recommendation": "Codify one literature-triage protocol with saved search strings and inclusion criteria, and audit a sample of retrievals before scaling the workflow.",
+      "role": "Real-World Evidence and Literature Surveillance Lead (operator)"
+    },
+    {
+      "insight": "Payer-facing conversations need indirect and comparative evidence that AI summaries tend to flatten; the grounded corpus should surface evidence gaps explicitly so MSLs do not overstate what the literature supports.",
+      "lens": "Payer and formulary evidence needs",
+      "name": "Beatriz Almeida",
+      "recommendation": "Add an evidence-gap flag to the triage output and require MSLs to note it in Veeva before payer or HEOR discussions.",
+      "role": "Health Economics and Outcomes Buyer (payer-facing buyer)"
+    },
+    {
+      "insight": "AI-drafted medical information responses can drift across the safety and scientific-exchange boundary; the oversight standard must define when a drafted answer needs safety review rather than routine scientific review.",
+      "lens": "Safety information boundaries in AI-drafted answers",
+      "name": "Dr. Ingrid Solberg",
+      "recommendation": "Define a safety-trigger checklist in the review tiering and route flagged drafts to pharmacovigilance before release.",
+      "role": "Pharmacovigilance and Safety Signal Liaison (risk)"
+    },
+    {
+      "insight": "The pilot's audit trail must live in Veeva CRM fields and Excel measurement logs, not in side documents; if the workflow does not record retrieval, version, and human override in the system of record, the oversight standard is unenforceable.",
+      "lens": "Auditability inside the existing stack",
+      "name": "Omar Haddad",
+      "recommendation": "Specify the minimum Veeva fields for retrieval source, version, reviewer, and override before the pilot goes live, and keep Excel for measurement only.",
+      "role": "Veeva CRM and Data Integration Architect (technology)"
+    },
+    {
+      "insight": "Twelve MSLs will adopt the workflow only if verification discipline is trained as a habit, not a policy; the pilot should pair each MSL with a verification checklist and peer review in the first weeks.",
+      "lens": "Frontline adoption and verification habit",
+      "name": "Dr. Mei-Lin Chow",
+      "recommendation": "Run a short verification and prompt-discipline training with peer review before launch, and track checklist compliance as a pilot metric.",
+      "role": "MSL Field Trainer and Capability Lead (client staff)"
+    }
+  ],
+  "facts": [
+    "HCPs use AI tools to read the literature and answer patient questions.",
+    "The client needs to set medical affairs priorities for the next 12 months.",
+    "The team includes 12 MSLs and 3 medical information specialists.",
+    "Current tools are Veeva CRM, PubMed, and Excel.",
+    "AI maturity is 2, described as pilot-led, with one workflow in a pilot."
+  ],
+  "maturity": 2,
+  "memories": "",
+  "pack": {
+    "tier": "small"
+  },
+  "panel": {
+    "consensus": "The panel converges on one governed workflow rather than tool sprawl: a shared grounded corpus, risk-based oversight with a safety trigger, lineage recorded in Veeva CRM and Excel, a locked hours baseline and purchasing gate, and verification trained as a habit, all before any expansion.",
+    "dissent": "Dr. Leo Marchetti holds that one workflow is fine only if AI summarization stays visibly separate from verified evidence and returned triage time is ring-fenced for citation checking and conversation prep, or MSLs will treat AI output as a shortcut.",
+    "later": [
+      "Decide on a second workflow only if time-to-answer, citation accuracy, and audit completeness hold",
+      "Apply the purchasing gate before buying any AI layer",
+      "Expand only after the oversight record proves sustainable"
+    ],
+    "next": [
+      "Run the single triage-and-drafting workflow with checklist and peer review from week one",
+      "Review hours movement weekly and route tagged insights to one owned backlog",
+      "Score citation accuracy on the fixed sample before any volume expansion"
+    ],
+    "now": [
+      "Log current MSL hours by task in Excel at week zero as the baseline",
+      "Write the documented PubMed triage protocol and define the Veeva CRM lineage fields",
+      "Draft the risk-based review tiers, safety-review trigger, and fixed citation-accuracy sample"
+    ],
+    "personas": [
+      {
+        "insight": "Twelve MSLs cannot absorb a new workflow on top of current load. The value case is time returned from literature triage and drafting, redeployed into verification and conversation quality, so the pilot must show where MSL hours move, not just that summaries exist.",
+        "name": "Marcus Feld",
+        "recommendation": "Instrument time-to-answer and time saved per triage in Veeva CRM from week one, and cap pilot scope so no MSL carries more than a defined share of AI-assisted cases until the metrics justify scaling.",
+        "title": "Field Medical Director (buyer of field time)"
+      },
+      {
+        "insight": "The budget envelope favors reusing Veeva CRM, PubMed, and Excel over new platforms. The measurable pilot is cheap; the risk is hidden cost in oversight labor and audit preparation, which must be resourced explicitly rather than assumed.",
+        "name": "Elena Voss",
+        "recommendation": "Fund oversight and auditability as line items in the 12-month plan, keep Excel strictly for tracking and measurement, and gate any second-workflow spend on the maturity metrics hitting agreed thresholds.",
+        "title": "Finance Business Partner"
+      },
+      {
+        "insight": "The three medical information specialists already feel where AI drafting helps and where it drifts. Reusing the MSL grounded corpus is attractive, but response drafting needs stricter citation accuracy than literature summaries, and prompt and verification discipline is the binding constraint.",
+        "name": "Sofia Lindqvist",
+        "recommendation": "Run a short upskilling block on data literacy and prompt/verification discipline for all 15 staff, and pilot the shared corpus first on medical information response drafting where citation accuracy is easiest to measure.",
+        "title": "Medical Information Specialist (client staff, seated)"
+      },
+      {
+        "insight": "At maturity 2, the technology constraint is not adding platforms but making the single pilot auditable inside Veeva CRM, PubMed, and Excel. The brief's voice-note-to-insight capture and insight tagging only help if the workflow records what was asked, what evidence was retrieved, and where the human",
+        "name": "Nadia Okafor",
+        "recommendation": "Define a minimal data contract for the pilot: required citation fields, verification status, insight tag, and audit-log location in Veeva CRM, with Excel used only for measurement tracking. Freeze new tool requests until those fields are po",
+        "title": "Medical Information Systems Product Owner (technology)"
+      }
+    ],
+    "service_line": "Medical Affairs AI Governance and Evidence Workflow"
+  },
+  "phase": "done",
+  "problem": "Set medical affairs priorities for the next 12 months now that HCPs use AI tools to read the literature and answer patient questions. Team: 12 MSLs and 3 medical information specialists. Tools: Veeva CRM, PubMed, Excel. Maturity 2.",
+  "queries": [
+    "pharmaceutical medical affairs AI tools HCP literature patient questions",
+    "MSL medical information AI workflow pilot benchmarks",
+    "pharma medical affairs AI maturity pilot competitors",
+    "medical affairs AI readiness benchmark MSL field team",
+    "FDA regulations AI HCP communications medical affairs",
+    "Veeva CRM AI MSL medical affairs workflow"
+  ],
+  "red_team": false,
+  "service_line": "Medical Affairs AI Governance and Evidence Workflow",
+  "sig": "v1.ea7cb8a4203334b194396581db45eb569e527331c91d5dbed437cb6723ee5847",
+  "size": "small",
+  "skill_notes": {
+    "1": {
+      "description": "Use when formalizing the existing pilot into a governed evidence-grounding and literature-triage workflow: standardize how MSLs use PubMed plus an AI layer to summarize and triangulate literature before HCP conversations, and how medical information reuses the same grounded corpus for response drafting.",
+      "tools": [
+        "PubMed",
+        "AI summarization layer",
+        "grounded literature corpus",
+        "literature triage checklist"
+      ]
+    },
+    "2": {
+      "description": "Use when building or applying the risk-based human-oversight and auditability standard for AI-assisted scientific-exchange content, including review tiers, verification steps, and audit trails mapped to FDA's January 2025 SIUU guidance so AI-drafted answers stay within scientific-exchange boundaries.",
+      "tools": [
+        "FDA SIUU guidance",
+        "human-review checklist",
+        "audit log",
+        "AI content verification"
+      ]
+    },
+    "4": {
+      "description": "Use when instrumenting the governed workflow in Veeva CRM, especially to capture field intelligence through voice-note-to-insight conversion and consistent insight tagging so MSL inputs feed a single prioritized insight backlog.",
+      "tools": [
+        "Veeva CRM",
+        "voice-note-to-insight capture",
+        "insight tagging taxonomy",
+        "insight backlog"
+      ]
+    }
+  },
+  "sources": [
+    {
+      "content": "# Connected Medical Affairs solutions built on AWS Built on AWS, PwC\u2019s Connected Medical Affairs solutions harness AI, analytics, and automation to enhance evidence generation, deliver deeper medical insights, and elevate stakeholder engagement \u2014 empowering smarter decisions, operational efficiency, and better patient outcomes across the pharma value chain. Medical Affairs has come a long way since its inception as a support function to provide scientific information to healthcare professiona",
+      "date": "",
+      "query": "pharmaceutical medical affairs AI tools HCP literature patient questions",
+      "title": "Connected Medical Affairs solutions built on AWS: PwC",
+      "url": "https://www.pwc.com/us/en/technology/alliances/amazon-web-services/reinventing-the-pharma-sector/aws-connected-med-affairs.html"
+    },
+    {
+      "content": "# Your fastest route to a reliable answer for any scientific question It\u2019s an AI-ready content foundation built on hundreds of millions of centralized documents and extensible to any other sources you need. Powerful search, LLMs and agentic techniques make it easy to interrogate it all. ... ### Imagine a \u201cScientific GPS\u201d that enables you to: - Ask any scientific question - Triangulate across 100s of millions of documents - Gain high-precision navigation to reliable, evidence-backed answ",
+      "date": "",
+      "query": "pharmaceutical medical affairs AI tools HCP literature patient questions",
+      "title": "AI Scientific Navigator | IQVIA",
+      "url": "https://www.iqvia.com/solutions/technologies/ai-scientific-navigator"
+    },
+    {
+      "content": "As a technology company with deep roots in the machine learning and AI space, we\u2019ve seen how AI applied correctly can transform the business process of an industry. Over the last few years, we\u2019ve started applying machine learning to many of the facets of Pharmaceutical Medical Affairs & Commercial functions with the goal of improving efficiency, insights, and patient outcomes. In short, AI for Medical Affairs involves collecting and digitally analyzing relevant content, looking for the patterns",
+      "date": "",
+      "query": "pharmaceutical medical affairs AI tools HCP literature patient questions",
+      "title": "AI for Medical Affairs - Lexalytics Technology in Action",
+      "url": "https://www.lexalytics.com/resources/ai-medical-affairs/"
+    },
+    {
+      "content": "1. MAPS 2024 Report: Highlights AI, advanced analytics, and digital trends in Medical Affairs. 2. Survey Scope: Insights gathered from 34 representatives across 32 leading Pharma, Biotech, and MedTech companies. Thank you MAPS Partner Circle members for sharing use cases that bring to life MAPS\u2019 Vision for Generative Artificial Intelligence in Medical Affairs. Browse all use cases via the tiles below. Our challenge was to pilot generative Artificial Intelligence (gen AI) technology that could",
+      "date": "2023-09-27T16:34:09.000Z",
+      "query": "pharmaceutical medical affairs AI tools HCP literature patient questions",
+      "title": "GenAI in Medical Affairs: Use Cases",
+      "url": "https://medicalaffairs.org/solution-provider-perspective/gen-ai-use-cases/"
+    },
+    {
+      "content": "Medical Science Liaisons (MSLs) are the principal scientific interface between pharmaceutical companies and healthcare professionals (HCPs). In China the role is under structural strain: physician demand is dispersed across a tiered hospital system, guideline and congress evidence expands continuously, and HCPs increasingly consult general-purpose AI tools themselves. Field diagnostics identify three failure points. Before the visit, approved content, literature and congress data sit in separate",
+      "date": "",
+      "query": "MSL medical information AI workflow pilot benchmarks",
+      "title": "Adele Li, MBA, David Wang, MBA, Yixuan Zhou, MSc.",
+      "url": "https://www.ispor.org/docs/default-source/cti-meeting-21591-documents/ctrl-f7-d-88c-58f-b45-465-6b6-a96-c34-80c-2d6-f6.pdf?sfvrsn=98b9c550_0"
+    },
+    {
+      "content": "According to a 2024 Global Survey 1 on AI by the MSL Society (MSLS), including 584 responses from 58 countries, 47% of respondents believe that AI will be \u2018Impactful\u2019 while 27% consider it \u2018Highly impactful\u2019 on the future of Medical Affairs. 1 Medical Science Liaison Society, 2024 This highlights a strong expectation that AI will play a critical role in transforming how the field operates. Similarly, a survey among Medical Information Managers conducted across MILE member companies in Septembe",
+      "date": "",
+      "query": "MSL medical information AI workflow pilot benchmarks",
+      "title": "AI in Medical Affairs today A comprehensive companion for Pharma & Biotech industries",
+      "url": "https://www.mile-association.org/wp-content/uploads/2025/02/Transforming-Medical-Affairs-with-AI-A-Position-Paper-by-MILE-AVAYL-and-MSL-Society.pdf"
+    },
+    {
+      "content": "The utility of AI for what MSLs do every day is enticing: Summarization: To support staying up to date with the latest scientific data and clinical practice trends Connectivity: To keep pace with what HCPs and key experts are interested in, explore emerging trends, and discover new experts and networks to collaborate with Efficiency: To streamline day-to-day activity flows and find efficiencies Clarity of communication: To enhance communication with internal and external stakeholders through",
+      "date": "2025-07-20T15:39:42.000Z",
+      "query": "MSL medical information AI workflow pilot benchmarks",
+      "title": "Improving the Quality of Scientific Engagement With Key Experts Using AI - THE MSL",
+      "url": "https://themsljournal.com/article/improving-the-quality-of-scientific-engagement-with-kols-using-ai/"
+    },
+    {
+      "content": "- ISPOR26_Bell_MSR238_POSTER.pdf OBJECTIVES: AI-driven screening models can be trained to screen SLR citations to reduce burden and accelerate timelines. Our objective was to compare accuracy of human screening with machine-learning (ML) based systems under two training scenarios when screening a 3-month SLR update. Secondly, this analysis aimed to evaluate efficiency gains of AI-assisted versus human screening. METHODS: ML training scenarios were tested in two \u201cnests\u201d in Nested Knowledge\u00ae. Sce",
+      "date": "",
+      "query": "MSL medical information AI workflow pilot benchmarks",
+      "title": "ISPOR - OLD DATA, NEW TRICKS: ACCURACY AND EFFICIENCY GAINS FOR AI-DRIVEN SLR UPDATES",
+      "url": "https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-5-3/old-data-new-tricks-accuracy-and-efficiency-gains-for-ai-driven-slr-updates"
+    },
+    {
+      "content": "1. Suzana Giffin (VP, Value & Implementation GMVC, Merck) 2. Amita Joshi (Global Head, Strategy & Execution Oncology, Johnson & Johnson) 3. Dina Merchasin (Director, Commercial IT Business Analysis, AstraZeneca) 4. Shehla Sheikh (Head of Medical Communication & Publications, GMAE, Kyowa Kirin) 5. Christina Brooks (Global Compliance Excellence, AbbVie) 6. Jeanne Rhea-McManus (Senior Director, Medical Science Information and Communication, Siemens Diagnostics) 7. Myra Cocker (Global Director of",
+      "date": "2025-07-17T12:36:00.000Z",
+      "query": "pharma medical affairs AI maturity pilot competitors",
+      "title": "AI Maturity in Literature Workflows: Insights from a Medical Affairs Roundtable - Medical Affairs Professional Society",
+      "url": "https://medicalaffairs.org/solution-provider-roundtable/ai-maturity-in-literature-workflows/"
+    },
+    {
+      "content": "## Key Takeaways 1. MAPS 2024 Report: Highlights AI, advanced analytics, and digital trends in Medical Affairs. 2. Survey Scope: Insights gathered from 34 representatives across 32 leading Pharma, Biotech, and MedTech companies. ... Drawing on the 2026 AI in Medical Affairs Industry Benchmark Survey and a senior leadership roundtable convened at MAPS Americas 2026 ... Medical Affairs professionals believe in AI. The data is clear on that. In the 2026 AI in Medical Affairs Industry Benchmark",
+      "date": "2026-06-03T11:41:29.000Z",
+      "query": "pharma medical affairs AI maturity pilot competitors",
+      "title": "The AI Medical Affairs Hasn't Imagined Yet: Workflows, Not Chatbots - Medical Affairs Professional Society",
+      "url": "https://medicalaffairs.org/innovate-articles/workflows-not-chatbots/"
+    },
+    {
+      "content": "Over the past two years, the potential of Generative AI (GenAI) has caused huge excitement across the life sciences industry. What began as experiments automating basic tasks like document search and summarization has evolved into a belief that GenAI can be a powerful catalyst driving strategic outcomes like speed to market, improved compliance, personalised customer engagement, deep insights, improved patient-centricity and lower costs across drug discovery, clinical development, regulatory, sa",
+      "date": "2025-04-02T19:25:46.000Z",
+      "query": "pharma medical affairs AI maturity pilot competitors",
+      "title": "Two Years of Generative AI in Life Sciences: Lessons Learned and the Path Forward | Reports | What We Think | Indegene",
+      "url": "https://www.indegene.com/what-we-think/reports/generative-ai-life-sciences-lessons-path-forward"
+    },
+    {
+      "content": "## Key Takeaways 1. Planning: Smarter preparation through AI 2. Execution: Enhancing efficiency and onsite experience 3. However, the group raised an important caution: there is a fine line between smart data capture and surveillance. There were concerns that attendees may perceive overly intrusive tools as \u201cBig Brother\u201d-like. Thoughtful implementation will be essential to ensure acceptance and avoid undermining engagement. 4. Reporting: Accelerating insights and personalising follow-up 5. The",
+      "date": "2025-07-03T14:38:18.000Z",
+      "query": "pharma medical affairs AI maturity pilot competitors",
+      "title": "AI in Action: Revolutionizing Scientific Congresses from Concept to Conclusion - Medical Affairs Professional Society",
+      "url": "https://medicalaffairs.org/solution-provider-perspective/ai-in-action-revolutionizing-scientific-congresses-from-concept-to-conclusion/"
+    },
+    {
+      "content": "## Key Takeaways 1. AI is transforming Medical Affairs and yet existing digital maturity models are often not specific to Medical Affairs and lack modern understanding of AI. 2. This paper presents a digital maturity framework scoring the following dimensions: Digital Foundation, AI Capability, and an AI Use Case Matrix. 3. Digital maturity is the foundation for successful AI adoption. 4. Measuring digital maturity enables more strategic investment and transformation. 5. An interactive assessme",
+      "date": "2026-10-15T00:00:00.000Z",
+      "query": "medical affairs AI readiness benchmark MSL field team",
+      "title": "Enabling AI and Digital Transformation - Medical Affairs Professional Society",
+      "url": "https://medicalaffairs.org/white-papers/enabling-ai-digital-transformation/"
+    },
+    {
+      "content": "## Key Takeaways 1. Strategic Co-Leadership: Medical Affairs now co-leads enterprise strategy and end-to-end evidence generation across the product lifecycle. 2. Integrated Evidence & Payer Reach: Teams prioritize unifying clinical, RWE, and HEOR data while expanding outreach to payers and patients. 3. Scaling AI & Talent Upskilling: Focus is shifting from AI content creation to predictive analytics, driving a critical need for data literacy and upskilling. ... The 2026 MAPS Annual Benchmark",
+      "date": "",
+      "query": "medical affairs AI readiness benchmark MSL field team",
+      "title": "2026 Benchmark Report - Medical Affairs Professional Society",
+      "url": "https://medicalaffairs.org/benchmark-reports/2026-benchmark-report/"
+    },
+    {
+      "content": "## Abstract Introduction Artificial intelligence (AI) is increasingly being adopted in Medical Affairs and has the potential to transform the role of medical science liaisons (MSLs). This study was designed to assess the current state of AI adoption, perceptions, organizational readiness, and potential impact among MSLs through a global survey. Methods A global, cross-sectional survey was conducted, including 367 participants from 48 countries representing diverse roles in Medical Affairs, incl",
+      "date": "2026-04-16T00:00:00.000Z",
+      "query": "medical affairs AI readiness benchmark MSL field team",
+      "title": "Perceptions, Utilization, and Impact of Artificial Intelligence on Medical Science Liaisons: A Global Cross-Sectional Survey of Medical Affairs Professionals",
+      "url": "https://doi.org/10.7759/cureus.107157"
+    },
+    {
+      "content": "An analysis of this year\u2019s survey data identified the following key trends: Evolution of medical affairs organizations: With the addition of a key organizational dimension, most medical affairs organizations are striving to continually adapt to a changing landscape. Over the past year, the percentage of organizations identifying themselves as best in class declined from 19% to 13%, while those classifying themselves as nascent increased from 11% to 16%. External perception of pharmaceutical comp",
+      "date": "",
+      "query": "medical affairs AI readiness benchmark MSL field team",
+      "title": "ZS Medical Affairs Outlook Report 2025",
+      "url": "https://www.zs.com/content/dam/global/master/pdfs/zs-medical-affairs-outlook-report-2025.pdf"
+    },
+    {
+      "content": "# Section 14.4: Compliance & AI Content A risk-based framework for governing AI-generated Medical Affairs content: communication context, unapproved-use risk, evidence grounding, human oversight, intellectual property, privacy, safety reporting, and auditability. Context before architecture Risk follows intended use, audience, autonomy, and consequence of error\u2014not the model family alone. Layered controls Grounding, policy routing, human oversight, privacy/IP controls, traceability, and",
+      "date": "",
+      "query": "FDA regulations AI HCP communications medical affairs",
+      "title": "14.4 Compliance considerations for AI-generated content \u2013 Council on Pharmacy Standards",
+      "url": "https://pharmacystandards.org/caidra-examination/section-14-4-compliance-considerations-for-ai-generated-content/"
+    },
+    {
+      "content": "Communications From Firms to Health Care Providers Regarding Scientific Information on Unapproved Uses of Approved/Cleared Medical Products: Questions and Answers | FDA # Communications From Firms to Health Care Providers Regarding Scientific Information on Unapproved Uses of Approved/Cleared Medical Products: Questions and Answers January 2025 Docket Number: : FDA-2008-D-0053 Issued by: : Guidance Issuing Office Center for Veterinary Medicine Center for Biologics Evaluation and Research C",
+      "date": "",
+      "query": "FDA regulations AI HCP communications medical affairs",
+      "title": "Communications From Firms to Health Care Providers Regarding Scientific Information on Unapproved Uses of Approved/Cleared Medical Products: Questions and Answers | FDA",
+      "url": "https://www.fda.gov/regulatory-information/search-fda-guidance-documents/communications-firms-health-care-providers-regarding-scientific-information-unapproved-uses"
+    },
+    {
+      "content": "FDA is pushing out new guidance documents at a pace rarely seen, likely caused by the upcoming change in administration. Today, we are sharing with you our thoughts on two of FDA\u2019s guidance documents, but we have a few more coming. We\u2019ll need to keep an eye on whether the Trump administration retains or makes changes to any of these last-minute guidance documents. The two guidance documents we will discuss today are: - Communications from Firms to Health Care Providers Regarding Scientific I",
+      "date": "2025-01-22T13:33:22.000Z",
+      "query": "FDA regulations AI HCP communications medical affairs",
+      "title": "FDA's AI Lifecycle & Scientific Information Guidance Documents | ReedSmith",
+      "url": "https://www.reedsmith.com/our-insights/blogs/viewpoints/102jugc/fdas-ai-lifecycle-scientific-information-guidance-documents/"
+    },
+    {
+      "content": "The FDA SIUU guidance gives pharmaceutical companies a more defined framework for certain firm-initiated scientific communications about unapproved uses. Finalized in January 2025, the guidance addresses how firms may share scientific information with healthcare professionals while maintaining important boundaries between scientific exchange and promotion. For medical affairs, regulatory, legal, and commercial teams, that distinction matters. The challenge is no longer simply deciding whether ev",
+      "date": "2026-08-19T12:56:00.000Z",
+      "query": "FDA regulations AI HCP communications medical affairs",
+      "title": "FDA SIUU Guidance: What Pharma Teams Need to Know - Pharma Marketing Network",
+      "url": "https://www.pharma-mkting.com/articles/fda-siuu-guidance-pharma-scientific-communications/"
+    },
+    {
+      "content": "# Drive Personalized Scientific Exchange Vault CRM is an agentic CRM for life sciences that connects sales, marketing, and medical teams on a single platform with a unified customer database and embedded AI. It enables key capabilities such as customer profiling, content sharing and management, territory and account planning, key account management, sampling, call center, inside sales, and field engagement. Core capabilities support critical region-specific business requirements and regulatory",
+      "date": "",
+      "query": "Veeva CRM AI MSL medical affairs workflow",
+      "title": "Medical CRM | Vault CRM for Medical Affairs | Veeva",
+      "url": "https://www.veeva.com/products/vault-crm-medical/"
+    },
+    {
+      "content": "Creating Medical Insights with Agentic Voice ## Creating Medical Insights with Agentic Voice Field users and Medical Science Liaisons (MSLs) can capture important medical information by recording Voice Notes that are automatically transcribed, then saved for later or converted to a Medical Insight. This ensures detailed information is captured while it is fresh in the user's memory, improving the accuracy of field intelligence while reducing the administrative burden of manual data entry. Who",
+      "date": "",
+      "query": "Veeva CRM AI MSL medical affairs workflow",
+      "title": "Creating Medical Insights with Agentic Voice",
+      "url": "https://vaultcrmhelp.veeva.com/doc/Content/CRM_topics/VeevaAI/VoiceAgent/VoiceAgentMedInsight.htm"
+    },
+    {
+      "content": "# Accelerate Insights from Capture to Action Veeva Link Medical Insights is applications, agents, and services to manage medical insights across the enterprise. It enables users to capture insights related to KOLs, get relevant themes, and ask questions to improve decision-making. The product uses insights captured by the user as well as deep data in Link Key People and the public domain. Themes and answers to questions are generated by AI with human oversight. Users can capture and consume i",
+      "date": "",
+      "query": "Veeva CRM AI MSL medical affairs workflow",
+      "title": "Veeva Link Medical Insights l Medical Insights Management l Veeva",
+      "url": "https://www.veeva.com/products/veeva-link/medical-insights/"
+    },
+    {
+      "content": "Delivering meaningful experiences to healthcare professionals (HCPs) and patients requires biopharma teams to provide cohesive, timely information across every interaction, from digital campaigns and WhatsApp messaging to virtual events and field visits. Yet, the ability to achieve continuous customer dialogues is often hindered by disconnected technology stacks and siloed customer data. Shifting from point solutions to a unified CRM aligns sales, marketing, medical, and service operations fo",
+      "date": "2026-10-08T04:00:56.000Z",
+      "query": "Veeva CRM AI MSL medical affairs workflow",
+      "title": "Agentic Commercial\u2122 and Life Sciences CRM Innovation | Veeva",
+      "url": "https://www.veeva.com/blog/powering-agentic-commercial-latest-innovations-in-veeva-vault-crm-suite/"
+    }
+  ],
+  "team": "12 MSLs and 3 medical information specialists",
+  "tools": "Veeva CRM, PubMed, Excel",
+  "top5": [
+    {
+      "backers": [
+        "Dr. Priya Raman",
+        "Marcus Feld",
+        "Sofia Lindqvist",
+        "Dr. Amara Diallo",
+        "Nadia Okafor"
+      ],
+      "citation_url": "https://medicalaffairs.org/innovate-articles/workflows-not-chatbots/",
+      "confidence": "high",
+      "detail": "Convert the existing pilot into one auditable path from PubMed retrieval through MSL literature triage to medical information response drafting, sharing one grounded corpus and one audit trail rather than standing up a second tool at maturity 2.",
+      "dissenters": [
+        {
+          "name": "Dr. Leo Marchetti",
+          "why": "Warns MSLs will treat AI output as a shortcut unless summarization is visibly separated from verified evidence and returned triage time is ring-fenced for citation checking."
+        }
+      ],
+      "effort": "medium",
+      "impact": "high",
+      "title": "Formalize the single pilot as one governed literature-triage and response-drafting workflow on a shared grounded corpus"
+    },
+    {
+      "backers": [
+        "Tomas Berg",
+        "Elena Voss",
+        "Sofia Lindqvist",
+        "Dr. Amara Diallo",
+        "Dr. Ingrid Solberg"
+      ],
+      "citation_url": "https://www.fda.gov/regulatory-information/search-fda-guidance-documents/communications-firms-health-care-providers-regarding-scientific-information-unapproved-uses",
+      "confidence": "high",
+      "detail": "Define risk-based review tiers with a stricter response-side verification tier, an explicit safety-review trigger for answers crossing the safety boundary, and an oversight record as the defensible artifact, mapped to FDA's January 2025 SIUU guidance.",
+      "dissenters": [],
+      "effort": "medium",
+      "impact": "high",
+      "title": "Build a risk-based human-oversight and auditability standard with a safety-review trigger, mapped to FDA SIUU guidance"
+    },
+    {
+      "backers": [
+        "Nadia Okafor",
+        "Omar Haddad",
+        "Dr. Samuel Adeyemi",
+        "Dr. Fiona Blake",
+        "Dr. Yusuf Karim"
+      ],
+      "citation_url": "https://vaultcrmhelp.veeva.com/doc/Content/CRM_topics/VeevaAI/VoiceAgent/VoiceAgentMedInsight.htm",
+      "confidence": "high",
+      "detail": "Define Veeva CRM fields for what was asked, which PubMed evidence was retrieved, which version was used, and where a human verified or overrode, mirrored in Excel logs, plus one insight backlog with an owner and disposition per tagged insight so field intelligence converts to action.",
+      "dissenters": [],
+      "effort": "medium",
+      "impact": "high",
+      "title": "Instrument the workflow in Veeva CRM and Excel with data lineage and a single owned insight backlog"
+    },
+    {
+      "backers": [
+        "Marcus Feld",
+        "Ravi Menon",
+        "Elena Voss",
+        "Grace Chen"
+      ],
+      "citation_url": "https://www.zs.com/content/dam/global/master/pdfs/zs-medical-affairs-outlook-report-2025.pdf",
+      "confidence": "high",
+      "detail": "Log where MSL hours sit today by task in Excel at week zero, reviewed weekly, so returned triage time is shown moving into verification and conversation prep; gate any new AI layer on measurable time-to-answer, citation accuracy, and audit completeness, with reviewer time per tier budgeted explicitly.",
+      "dissenters": [],
+      "effort": "low",
+      "impact": "medium",
+      "title": "Lock a baseline of MSL hours and a purchasing gate on the existing stack before pilot activity"
+    },
+    {
+      "backers": [
+        "Kenji Watanabe",
+        "Dr. Mei-Lin Chow",
+        "Dr. Yusuf Karim",
+        "Dr. Samuel Adeyemi"
+      ],
+      "citation_url": "https://medicalaffairs.org/white-papers/enabling-ai-digital-transformation/",
+      "confidence": "medium",
+      "detail": "Pair each MSL with a verification checklist and peer reviewer in the first weeks, using the same checklist the audit record cites, and write one documented PubMed triage protocol so every summary and drafted answer traces to a reproducible search.",
+      "dissenters": [],
+      "effort": "medium",
+      "impact": "medium",
+      "title": "Train verification as a habit with a shared checklist and peer review, and a documented reproducible PubMed triage protocol"
+    }
+  ],
+  "uploads": []
+}

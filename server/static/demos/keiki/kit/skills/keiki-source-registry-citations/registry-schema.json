@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SourceRegistryEntry",
+  "type": "object",
+  "required": ["url", "title", "owner", "sla_days", "last_verified", "status"],
+  "properties": {
+    "url": { "type": "string", "format": "uri" },
+    "title": { "type": "string" },
+    "owner": { "type": "string" },
+    "sla_days": { "type": "integer", "minimum": 1 },
+    "last_verified": { "type": "string", "format": "date" },
+    "status": { "type": "string", "enum": ["active", "stale", "retired"] }
+  },
+  "additionalProperties": false
+}

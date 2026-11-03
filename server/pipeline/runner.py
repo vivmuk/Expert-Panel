@@ -8,7 +8,7 @@ from ..config import Config
 from ..db import engagements as store
 from ..modes import get_mode
 from ..prompts.loader import render
-from ..venice.client import get_client
+from ..venice.client import LONG_TIMEOUT, VeniceClient
 from ..venice.models import get_catalog
 from ..venice.usage import UsageLedger
 from . import architect, insights, market_intel, prestages, synthesis
@@ -60,7 +60,7 @@ def start_run(payload):
 
 
 def _execute(run, mode, payload, problem, panel_size, est):
-    client = get_client()
+    client = VeniceClient(timeout=LONG_TIMEOUT)
     catalog = get_catalog()
     ledger = UsageLedger(pricing_lookup=catalog.pricing)
     budget_limit = max(est["totalCostUsd"], 0.05) * Config.COST_CIRCUIT_BREAKER_MULTIPLIER
