@@ -73,6 +73,25 @@ def test_turn_runs_engine_and_replies(monkeypatch, client):
     assert keiki._states[("agent-1", "+15555550123")] == {"n": 1}
 
 
+def test_turn_follows_engine_steps(monkeypatch):
+    from server.api import keiki
+
+    steps = iter([
+        {"reply": "Researching.", "state": {"n": 1}, "next": "go"},
+        {"reply": "Panel seated.", "state": {"n": 2}, "next": "go"},
+        {"reply": "Top 5 ready.", "state": {"n": 3}, "next": None},
+    ])
+    seen, calls = [], []
+    monkeypatch.setattr(keiki, "_engine", lambda m, s: seen.append((m, s)) or next(steps))
+    monkeypatch.setattr(keiki, "_post", lambda url, tok, body: calls.append(body))
+    keiki.run_turn(dict(PAYLOAD, conversationId="steps"), "ht_x")
+    assert [m for m, _ in seen] == ["We run a clinic", "", ""]
+    assert seen[2][1] == {"n": 2}
+    assert [c.get("text") for c in calls] == ["Researching.", "Panel seated.", "Top 5 ready.", None]
+    assert len({c.get("idempotencyKey") for c in calls[:3]}) == 3
+    assert calls[-1] == {"status": "completed"}
+
+
 def test_engine_failure_completes_failed(monkeypatch):
     from server.api import keiki
 

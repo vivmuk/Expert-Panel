@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 
 MAX_SKEW = 300
 MAX_TEXT = 3500
-_states = {}  # (agentId, conversationId) -> engine state; in-process only
+MAX_STEPS = 30  # one engagement is ~13 engine steps; Keiki's turn deadline is 10 minutes
+MAX_CONVERSATIONS = 500
+_states = {}  # (agentId, conversationId) -> engine state; in-process only, oldest evicted first
 _lock = threading.Lock()
 CHANNELS = ["iMessage", "WhatsApp", "Slack", "SMS", "Telegram", "Teams", "email"]
 
@@ -34,7 +36,7 @@ def _secret():
 def verify(raw, header, secret, now=None):
     if not secret or not header:
         return False
-    parts = dict(p.split("=", 1) for p in header.split(",") if "=" in p)
+    parts = dict(p.strip().split("=", 1) for p in header.split(",") if "=" in p)
     try:
         ts = int(parts.get("t", ""))
     except ValueError:
@@ -52,7 +54,9 @@ def _engine(message, state):
 
 
 def _post(url, token, body):
-    return requests.post(url, json=body, headers={"Authorization": f"Bearer {token}"}, timeout=30)
+    response = requests.post(url, json=body, headers={"Authorization": f"Bearer {token}"}, timeout=30)
+    response.raise_for_status()
+    return response
 
 
 def run_turn(payload, token):
@@ -66,12 +70,20 @@ def run_turn(payload, token):
         if text and not payload.get("silent"):
             with _lock:
                 state = _states.get(key, {})
-            result = _engine(text, state)
-            with _lock:
-                _states[key] = result.get("state") or state
-            reply = (result.get("reply") or "").strip() or "Working on it."
-            for i in range(0, len(reply), MAX_TEXT):
-                _post(f"{turn_url}/messages", token, {"text": reply[i : i + MAX_TEXT], "idempotencyKey": f"{turn_id}:{i}"})
+            for step in range(MAX_STEPS):
+                result = _engine(text if step == 0 else "", state)
+                state = result.get("state") or state
+                with _lock:
+                    _states.pop(key, None)
+                    _states[key] = state
+                    while len(_states) > MAX_CONVERSATIONS:
+                        _states.pop(next(iter(_states)))
+                reply = (result.get("reply") or "").strip()
+                for i in range(0, len(reply), MAX_TEXT):
+                    body = {"text": reply[i : i + MAX_TEXT], "idempotencyKey": f"{turn_id}:{step}:{i}"}
+                    _post(f"{turn_url}/messages", token, body)
+                if not result.get("next"):
+                    break
         _post(f"{turn_url}/complete", token, {"status": "completed"})
     except Exception as exc:  # report, never leak details
         logger.exception("keiki turn failed")
@@ -119,6 +131,7 @@ def keiki_strip():
     if soon:
         bits.append("<span>Coming soon:</span> " + escape(", ".join(soon)))
     return (
-        '<p class="keiki-strip">Reach AI Partner on iMessage, WhatsApp, Slack, SMS, Telegram, Teams, email via '
-        '<a href="https://onkeiki.com" rel="noopener">Keiki</a> · ' + " · ".join(bits) + "</p>"
+        '<p class="keiki-strip">Reach AI Partner via <a href="https://onkeiki.com" rel="noopener">Keiki</a> · '
+        + " · ".join(bits)
+        + "</p>"
     )
