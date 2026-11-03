@@ -59,6 +59,45 @@ def nav(current=""):
 
 NAV = nav()
 
+# Infrastructure the running agent actually uses. Wording stays "Built on":
+# a credit, not a partnership or sponsorship claim.
+BUILT_ON = (
+    ("https://maritime.sh", "Maritime", "Hosts the agent."),
+    ("https://supermemory.ai", "Supermemory", "Memory across engagements."),
+    ("https://onkeiki.com", "Keiki", "iMessage and email channel."),
+    ("https://venice.ai", "Venice", "Model inference."),
+    ("https://exa.ai", "Exa", "Market research search."),
+    ("https://railway.com", "Railway", "Backup host."),
+)
+
+
+def _built_on_link(href, name):
+    return f'<a href="{href}" target="_blank" rel="noopener noreferrer">{escape(name)}</a>'
+
+
+def built_on_strip():
+    """Each separator stays with the name before it, so a wrap never starts with ·."""
+    chunks = []
+    last = len(BUILT_ON) - 1
+    for i, (href, name, _line) in enumerate(BUILT_ON):
+        label = "Built on " if i == 0 else ""
+        sep = " ·" if i < last else ""
+        chunks.append(f'<span class="built-on-item">{label}{_built_on_link(href, name)}{sep}</span>')
+    return f'<p class="built-on">{" ".join(chunks)}</p>'
+
+
+def built_on_section():
+    items = "".join(
+        f"<li>{_built_on_link(href, name)}<span>{escape(line)}</span></li>"
+        for href, name, line in BUILT_ON
+    )
+    return (
+        '<section class="built-on-section" aria-labelledby="built-on-title">'
+        '<h2 id="built-on-title">Built on</h2>'
+        f'<ul class="built-on-list">{items}</ul>'
+        "</section>"
+    )
+
 
 def header(current=""):
     return (
@@ -69,14 +108,15 @@ def header(current=""):
     )
 
 
-FOOT = """
+FOOT = f"""
 <footer class="site-foot">
   <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="24" height="24"><span>AI Partner</span></a>
   <p class="foot-note">Your team directs the agents. Your first engagement is free.</p>
-  <p class="foot-credits">Messaging channels: <a href="https://onkeiki.com" target="_blank" rel="noopener"><img src="/img/marks/keiki.svg" alt="" width="14" height="14" loading="lazy" decoding="async">Integrated with Keiki</a></p>
+  <p class="foot-credits">Messaging channels: <a href="https://onkeiki.com" target="_blank" rel="noopener noreferrer"><img src="/img/marks/keiki.svg" alt="" width="14" height="14" loading="lazy" decoding="async">Integrated with Keiki</a></p>
   <nav class="foot-links" aria-label="Footer">
     <a href="/demos">Demos</a><a href="/what-you-get">What you get</a><a href="/catalog">Catalog</a><a href="/about">About</a><a href="/deck">Deck</a><a href="/connect">Connect</a><a href="/get-started.md">get-started.md</a><a href="/keiki.md">keiki.md</a>
   </nav>
+  {built_on_strip()}
 </footer>
 """
 
