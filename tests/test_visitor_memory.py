@@ -1,4 +1,5 @@
 """Visitor memory stays per browser, and a first visit does not search."""
+import logging
 import threading
 from pathlib import Path
 
@@ -6,7 +7,7 @@ import pytest
 import requests
 from werkzeug.serving import make_server
 
-from server.chatmemory import memory_namespace, recall, remember, reset_written
+from server.chatmemory import _scalar_metadata, memory_namespace, recall, remember, reset_written
 from tests.test_chatjob import ONE_SHOT, fake_model
 
 # chatmemory tests replace requests.post. Keep the original for the live server.
@@ -15,6 +16,8 @@ _CHAT_JS = Path(__file__).resolve().parents[1] / "server" / "static" / "chat.js"
 
 OTHER = "Pricing for a B2B analytics product. Team: 3 managers. Tools: Excel. Maturity 2."
 PHRASE = "medtech device into Germany"
+WRITE_URL = "https://api.supermemory.ai/v3/documents"
+WRITE_KEYS = {"content", "customId", "containerTags", "metadata"}
 
 
 class _Response:
@@ -34,10 +37,12 @@ class MemoryStub:
         self.docs = []
 
     def post(self, url, headers, json, timeout):
-        self.calls.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
-        if url.endswith("/document"):
-            ns = _ns(url)
-            self.docs.append({"ns": ns, "body": json})
+        self.calls.append({"method": "POST", "url": url, "json": json, "headers": headers, "timeout": timeout})
+        if url == WRITE_URL:
+            tags = json.get("containerTags")
+            if not isinstance(tags, list) or len(tags) != 1 or not isinstance(tags[0], str):
+                raise AssertionError(json)
+            self.docs.append({"ns": tags[0], "body": json})
             return _Response({})
         if url.endswith("/search"):
             ns = _ns(url)
@@ -124,9 +129,9 @@ def test_same_visitor_recalls_across_chats_and_a_new_visitor_does_not_search(cli
     chat_id = first["state"]["chat_id"]
     doc = stub.docs[0]
     assert doc["ns"] == "visitor-alpha"
-    assert doc["body"]["containerTag"] == "visitor-alpha"
+    assert set(doc["body"]) == WRITE_KEYS
+    assert doc["body"]["containerTags"] == ["visitor-alpha"]
     assert doc["body"]["customId"] == "visitor-alpha-" + chat_id
-    assert doc["body"]["id"] == doc["body"]["customId"]
     assert PHRASE in doc["body"]["content"]
 
     second = _turn(post, OTHER, "alpha", has_history=False)
@@ -183,7 +188,15 @@ def test_engagements_accumulate_for_one_visitor(monkeypatch):
         "visitor-alpha-chatB",
         "visitor-beta-chatC",
     ]
-    assert {doc["body"]["containerTag"] for doc in stub.docs} == {"visitor-alpha", "visitor-beta"}
+    assert [doc["body"]["containerTags"] for doc in stub.docs] == [
+        ["visitor-alpha"],
+        ["visitor-alpha"],
+        ["visitor-beta"],
+    ]
+    assert len({doc["body"]["customId"] for doc in stub.docs if doc["ns"] == "visitor-alpha"}) == 2
+    for doc in stub.docs:
+        assert set(doc["body"]) == WRITE_KEYS
+        assert doc["body"]["containerTags"] == [doc["ns"]]
     alpha = recall("chatD", "widgets", visitor_id="alpha")
     assert "alpha widgets" in alpha and "alpha follow-up" in alpha
     assert "beta only" not in alpha
@@ -205,10 +218,12 @@ def test_malformed_visitor_id_is_sanitized_or_ignored(monkeypatch):
     assert ".." not in memory_namespace("chat1", "../etc/passwd")
 
     remember("chat1", "hello", visitor_id="../../etc/passwd")
-    assert stub.calls[-1]["url"] == "https://api.supermemory.ai/ns/visitor-etcpasswd/document"
+    assert stub.calls[-1]["url"] == WRITE_URL
     assert ".." not in stub.calls[-1]["url"]
     assert stub.calls[-1]["json"]["customId"] == "visitor-etcpasswd-chat1"
-    assert stub.calls[-1]["json"]["containerTag"] == "visitor-etcpasswd"
+    assert stub.calls[-1]["json"]["containerTags"] == ["visitor-etcpasswd"]
+    assert ".." not in stub.calls[-1]["json"]["customId"]
+    assert ".." not in stub.calls[-1]["json"]["containerTags"][0]
 
     before = len(stub.calls)
     assert recall("chat1", "hello", visitor_id="../", has_history=True) == ""
@@ -267,6 +282,131 @@ def test_running_app_stubs_supermemory_for_two_chats(monkeypatch):
         fresh = _turn(post, OTHER, "gamma", has_history=False)
         assert len(stub.searches()) == before
         assert fresh["state"]["memories"] == ""
-        assert all(call["url"].startswith("https://api.supermemory.ai/ns/visitor-") for call in stub.calls)
+        assert all(
+            call["url"] == WRITE_URL or call["url"].startswith("https://api.supermemory.ai/ns/visitor-")
+            for call in stub.calls
+        )
+        writes = [call for call in stub.calls if call["url"] == WRITE_URL]
+        assert writes
+        assert all(call["json"]["containerTags"] == ["visitor-alpha"] for call in writes)
+        assert all("visitor-gamma" not in call["url"] for call in stub.calls)
     finally:
         httpd.shutdown()
+
+
+def _assert_write(call, ns, custom_id):
+    assert call["method"] == "POST"
+    assert call["url"] == WRITE_URL
+    body = call["json"]
+    assert set(body) == WRITE_KEYS
+    assert isinstance(body["containerTags"], list)
+    assert body["containerTags"] == [ns]
+    assert body["customId"] == custom_id
+    assert body["metadata"] == {"type": "engagement"}
+    assert "containerTag" not in body
+    assert "id" not in body
+    for value in body["metadata"].values():
+        assert isinstance(value, (str, int, float, bool))
+
+
+def test_remember_posts_the_v3_document_shape(monkeypatch):
+    monkeypatch.setenv("SUPERMEMORY_API_KEY", "test-memory-key")
+    seen = []
+
+    def post(url, headers, json, timeout):
+        seen.append({"method": "POST", "url": url, "json": json, "headers": headers, "timeout": timeout})
+        return _Response({})
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("remember used a method other than POST")
+
+    monkeypatch.setattr("server.chatmemory.requests.post", post)
+    for name in ("get", "put", "patch", "delete", "head", "request"):
+        monkeypatch.setattr("server.chatmemory.requests." + name, unexpected, raising=False)
+
+    remember("chatA", "Problem: alpha widgets", visitor_id="alpha")
+    remember("chatB", "Problem: alpha follow-up", visitor_id="alpha")
+    remember("chatC", "Problem: beta only", visitor_id="beta")
+    remember("abc_123", "hello")
+
+    assert len(seen) == 4
+    _assert_write(seen[0], "visitor-alpha", "visitor-alpha-chatA")
+    _assert_write(seen[1], "visitor-alpha", "visitor-alpha-chatB")
+    _assert_write(seen[2], "visitor-beta", "visitor-beta-chatC")
+    _assert_write(seen[3], "chat-abc_123", "chat-abc_123-abc_123")
+    assert seen[0]["json"]["customId"] != seen[1]["json"]["customId"]
+    assert seen[0]["json"]["containerTags"] == seen[1]["json"]["containerTags"]
+    assert seen[2]["json"]["containerTags"] != seen[0]["json"]["containerTags"]
+    assert seen[0]["headers"]["Authorization"] == "Bearer test-memory-key"
+    assert "test-memory-key" not in seen[0]["url"]
+
+    remember("chatA", "Problem: alpha widgets", visitor_id="alpha")
+    assert len(seen) == 4
+
+    remember("chatA", "Problem: alpha widgets, revised", visitor_id="alpha")
+    assert len(seen) == 5
+    _assert_write(seen[4], "visitor-alpha", "visitor-alpha-chatA")
+    assert seen[4]["json"]["content"] != seen[0]["json"]["content"]
+
+
+def test_metadata_keeps_only_plain_scalars():
+    assert _scalar_metadata(
+        {
+            "type": "engagement",
+            "n": 1,
+            "ok": True,
+            "ratio": 0.5,
+            "nested": {"a": 1},
+            "tags": ["x"],
+            "empty": None,
+        }
+    ) == {"type": "engagement", "n": 1, "ok": True, "ratio": 0.5}
+
+
+def test_one_engagement_posts_a_single_document(client, monkeypatch):
+    stub = _install(monkeypatch)
+    post = _flask_post(client)
+    body = _turn(post, ONE_SHOT, "alpha")
+    for _ in range(20):
+        if not body.get("next"):
+            break
+        body = _turn(post, "", "alpha", False, body["state"])
+    else:
+        raise AssertionError(body["state"]["phase"])
+    assert body["state"]["phase"] == "ask_size"
+    assert len(stub.docs) == 1
+    done = _turn(post, "12 people", "alpha", False, body["state"])
+    assert done["state"]["phase"] == "done"
+    assert len(stub.docs) == 1
+    _assert_write(
+        stub.calls[0],
+        "visitor-alpha",
+        "visitor-alpha-" + done["state"]["chat_id"],
+    )
+    assert all(call["url"] == WRITE_URL for call in stub.calls)
+
+
+def test_remember_logs_status_and_body_without_the_key(monkeypatch, caplog):
+    monkeypatch.setenv("SUPERMEMORY_API_KEY", "test-memory-key")
+
+    class Bad:
+        status_code = 400
+        text = '{"code":"unrecognized_keys","keys":["customId","containerTag"]}'
+
+        def raise_for_status(self):
+            raise requests.HTTPError("400 Client Error")
+
+    def post(url, headers, json, timeout):
+        return Bad()
+
+    monkeypatch.setattr("server.chatmemory.requests.post", post)
+    with caplog.at_level(logging.INFO, logger="server.chatmemory"):
+        remember("chatA", "Problem: alpha", visitor_id="alpha")
+    failed = [rec.message for rec in caplog.records if "supermemory remember failed" in rec.message]
+    assert len(failed) == 1
+    assert "status=400" in failed[0]
+    assert "unrecognized_keys" in failed[0]
+    assert "containerTag" in failed[0]
+    assert "test-memory-key" not in failed[0]
+    assert "Authorization" not in failed[0]
+    assert "Bearer" not in failed[0]
