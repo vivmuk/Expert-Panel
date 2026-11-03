@@ -76,8 +76,14 @@ def _built_on_link(href, name):
 
 
 def built_on_strip():
-    links = " · ".join(_built_on_link(href, name) for href, name, _line in BUILT_ON)
-    return f'<p class="built-on">Built on {links}</p>'
+    """Each separator stays with the name before it, so a wrap never starts with ·."""
+    chunks = []
+    last = len(BUILT_ON) - 1
+    for i, (href, name, _line) in enumerate(BUILT_ON):
+        label = "Built on " if i == 0 else ""
+        sep = " ·" if i < last else ""
+        chunks.append(f'<span class="built-on-item">{label}{_built_on_link(href, name)}{sep}</span>')
+    return f'<p class="built-on">{" ".join(chunks)}</p>'
 
 
 def built_on_section():

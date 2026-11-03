@@ -85,7 +85,10 @@ def test_built_on_credits_in_the_footer_and_on_connect(client):
     )
     chat = client.get("/chat").get_data(as_text=True)
     footer = chat.split('<p class="built-on">', 1)[1].split("</p>", 1)[0]
-    assert footer.startswith("Built on ")
+    assert footer.startswith('<span class="built-on-item">Built on ')
+    for name in ("Maritime", "Supermemory", "Keiki", "Venice", "Exa"):
+        assert f"{name}</a> ·</span>" in footer
+    assert "Railway</a></span>" in footer
     connect = client.get("/connect").get_data(as_text=True)
     section = connect.split('class="built-on-section"', 1)[1].split("</section>", 1)[0]
     for href in links:
