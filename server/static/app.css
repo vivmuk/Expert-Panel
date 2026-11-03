@@ -468,9 +468,9 @@ details.more[open] summary .ico { transform: rotate(180deg); }
 .setup h2 img { height: 22px; width: auto; }
 .setup p { color: var(--ink-2); font-size: 14.5px; }
 .code { position: relative; min-width: 0; }
-.code pre { padding: 14px 16px; padding-right: 88px; border-radius: var(--r-sm); background: #0F1424; color: #E7ECFF; font-size: 12.5px; line-height: 1.6; overflow-x: auto; white-space: pre; }
-.code .copy { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .08); color: #E7ECFF; font: 500 11px var(--mono); cursor: pointer; }
-.code .copy:hover { background: rgba(255, 255, 255, .16); }
+.code pre { padding: 14px 16px; padding-right: 52px; border-radius: var(--r-sm); background: #0F1424; color: #E7ECFF; font-size: 12.5px; line-height: 1.6; overflow-x: auto; white-space: pre; }
+.code .copy { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .2); background: #222735; color: #E7ECFF; font: 500 11px var(--mono); cursor: pointer; }
+.code .copy:hover { background: #353A47; }
 .code .copy .ico { width: 13px; height: 13px; }
 .form-card { --gb-bg: var(--white); border-radius: calc(var(--r) + 4px); padding: clamp(20px, 3vw, 30px); display: grid; gap: 14px; max-width: 560px; box-shadow: var(--shadow); }
 .field { display: grid; gap: 6px; }
