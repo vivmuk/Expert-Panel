@@ -9,8 +9,8 @@
 .toc a.on { color: var(--cobalt); background: var(--cobalt-wash); border-left-color: var(--cobalt); }
 .toc a.on span { color: var(--cobalt); }
 
-.report-body { min-width: 0; display: grid; gap: clamp(48px, 7vw, 88px); }
-.report-section { display: grid; gap: 18px; scroll-margin-top: 84px; min-width: 0; }
+.report-body { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(48px, 7vw, 88px); }
+.report-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; scroll-margin-top: 84px; min-width: 0; }
 .section-head { display: grid; gap: 8px; max-width: 760px; }
 .section-head h2 { font-size: clamp(26px, 3vw, 40px); }
 .prose { font-size: 16px; line-height: 1.65; color: var(--ink-2); max-width: 72ch; }
@@ -126,13 +126,14 @@
 .kit-files a { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-sm); border: 1px solid var(--rule); background: var(--white); color: var(--ink); text-decoration: none; font: 500 12.5px var(--mono); transition: border-color .2s var(--ease-out), color .2s var(--ease-out); }
 .kit-files a:hover { border-color: var(--cobalt); color: var(--cobalt); }
 .kit-files .ico { width: 16px; height: 16px; color: var(--cobalt); }
+.kit-files a, .kit-files span { min-width: 0; }
 .kit-files span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 1080px) {
   .report-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 960px) {
-  .report-layout { grid-template-columns: 1fr; padding-top: 0; }
+  .report-layout { grid-template-columns: minmax(0, 1fr); padding-top: 0; }
   .toc { position: sticky; top: 57px; z-index: 6; display: flex; overflow-x: auto; gap: 4px; max-height: none; margin: 0 calc(var(--pad) * -1); padding: 8px var(--pad); background: rgba(250, 250, 247, .94); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-bottom: 1px solid var(--rule); scrollbar-width: none; }
   .toc::-webkit-scrollbar { display: none; }
   .toc .kicker { display: none; }
@@ -150,7 +151,7 @@
   .report-top5 > li.rec { grid-template-columns: 34px minmax(0, 1fr); }
   .report-top5 .rank { font-size: 28px; }
   .hero-actions .btn { flex: 1 1 auto; }
-  .kit-files { grid-template-columns: 1fr; }
+  .kit-files { grid-template-columns: minmax(0, 1fr); }
 }
 @media print {
   .toc, .hero-actions, .sort-bar, .round-tabs, .report-tools, .read-more { display: none !important; }
