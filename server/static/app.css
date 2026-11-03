@@ -628,7 +628,7 @@ details.more[open] summary .ico { transform: rotate(180deg); }
 .keiki-steps li { min-width: 0; }
 .keiki-steps li::marker { color: var(--cobalt); font-weight: 700; }
 .keiki-steps .code { margin-top: 8px; }
-.keiki-steps .code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.keiki-steps .code pre { white-space: pre-wrap; overflow-wrap: anywhere; padding-top: 44px; }
 .keiki-signup { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .keiki-signup input { flex: 1 1 200px; min-width: 0; min-height: 34px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--rule-2); background: var(--white); font: inherit; font-size: 14px; }
 .keiki-steps .status-line:empty { display: none; }
