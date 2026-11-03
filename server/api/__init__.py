@@ -6,6 +6,7 @@ def register_blueprints(app):
     from .demos import bp as demos_bp
     from .voice import bp as voice_bp
     from .engagements import bp as engagements_bp
+    from .keiki import bp as keiki_bp
     from .meta import bp as meta_bp
     from .onboard import bp as onboard_bp
     from .runs import bp as runs_bp
@@ -17,6 +18,7 @@ def register_blueprints(app):
     app.register_blueprint(voice_bp)
     app.register_blueprint(agents_bp)
     app.register_blueprint(deck_bp)
+    app.register_blueprint(keiki_bp)
     app.register_blueprint(meta_bp, url_prefix="/api")
     app.register_blueprint(branding_bp, url_prefix="/api")
     app.register_blueprint(engagements_bp, url_prefix="/api")

@@ -3,6 +3,7 @@ import json
 from html import escape
 
 from ..icons import icon
+from .keiki import keiki_strip
 from .pages import FOOT, connect_pill, dots, head, header
 
 EXAMPLES = (
@@ -50,6 +51,7 @@ def render_page(welcome, origin=""):
     </form>
     <div class="examples" role="group" aria-label="Example engagements"><span class="lbl">Try</span>{chips}</div>
     {connect_pill(origin)}
+    {keiki_strip()}
   </section>
   <section class="session" id="session" hidden aria-label="Engagement">
     <aside class="rail" aria-label="Progress">

@@ -604,3 +604,6 @@ details.more[open] summary .ico { transform: rotate(180deg); }
   .deck-hint { font-size: 11px; }
 }
 @media print { .deck-embed { display: none; } }
+
+.keiki-strip { margin: 10px auto 0; max-width: 640px; text-align: center; font-size: 12px; line-height: 1.5; color: var(--ink); opacity: .62; }
+.keiki-strip a { text-decoration: underline; }
