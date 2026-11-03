@@ -610,6 +610,13 @@ def _advance(reply, state, card=None):
 
 
 def _remember(remember, state):
+    """Write the engagement snapshot once, from the verdict.
+
+    Supermemory appends a later POST with the same customId. Problem, team,
+    tools, maturity, service line, and consensus are all set by the time the
+    judge runs, and the chart and skill pack do not change them. Writing again
+    there would store the same text twice.
+    """
     if remember is None:
         return
     try:
@@ -795,8 +802,8 @@ def _work(state, complete, recall, remember, search):
     if phase == "red_team":
         return _red_team(state, complete)
     if phase == "skills":
-        return _skills(state, complete, remember)
-    return _blueprint(state, complete, remember)
+        return _skills(state, complete)
+    return _blueprint(state, complete)
 
 
 def _brief(state):
@@ -1006,7 +1013,7 @@ def _red_team(state, complete):
     return _advance("\n\n".join(lines), state, {"kind": "red_team"})
 
 
-def _blueprint(state, complete, remember):
+def _blueprint(state, complete):
     system = (
         "You map one consulting process twice. "
         "Today every owner is Human. "
@@ -1032,7 +1039,6 @@ def _blueprint(state, complete, remember):
     if not chart:
         return _pack(INCOMPLETE_REPLY, state, None, {"code": "incomplete", "message": INCOMPLETE_REPLY})
     state["chart"] = chart
-    _remember(remember, state)
     return _advance(chart_reply(state), state, {"kind": "chart"})
 
 
@@ -1180,7 +1186,7 @@ def _merge_citations(data, sources):
     return {"summary": summary, "citations": citations}
 
 
-def _skills(state, complete, remember):
+def _skills(state, complete):
     from .skillpack import agent_steps, plan_slots
 
     slots = plan_slots(state["size"], agent_steps(state["chart"]))
@@ -1218,7 +1224,6 @@ def _skills(state, complete, remember):
                 notes[slug] = notes[name]
     state["skill_notes"] = notes
     state["pack"] = {"tier": state["size"]}
-    _remember(remember, state)
     return _advance(closing_text(state), state, {"kind": "done"})
 
 

@@ -312,8 +312,10 @@ def test_recall_posts_to_the_chat_namespace(monkeypatch):
     assert seen == []
     remember("abc_123", "hello")
     assert recall("abc_123", "Germany") == "known payer mix"
-    assert seen[0]["url"] == "https://api.supermemory.ai/ns/chat-abc_123/document"
-    assert seen[0]["json"]["id"] == "chat-abc_123"
+    assert seen[0]["url"] == "https://api.supermemory.ai/v3/documents"
+    assert set(seen[0]["json"]) == {"content", "customId", "containerTags", "metadata"}
+    assert seen[0]["json"]["customId"] == "chat-abc_123-abc_123"
+    assert seen[0]["json"]["containerTags"] == ["chat-abc_123"]
     assert seen[1]["url"] == "https://api.supermemory.ai/ns/chat-abc_123/search"
     assert seen[1]["auth"] == "Bearer test-memory-key"
     assert seen[1]["json"]["query"] == "Germany"
