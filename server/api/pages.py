@@ -74,7 +74,7 @@ FOOT = """
   <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="24" height="24"><span>AI Partner</span></a>
   <p class="foot-note">Your team directs the agents. Your first engagement is free.</p>
   <nav class="foot-links" aria-label="Footer">
-    <a href="/demos">Demos</a><a href="/what-you-get">What you get</a><a href="/catalog">Catalog</a><a href="/about">About</a><a href="/deck">Deck</a><a href="/connect">Connect</a><a href="/get-started.md">get-started.md</a>
+    <a href="/demos">Demos</a><a href="/what-you-get">What you get</a><a href="/catalog">Catalog</a><a href="/about">About</a><a href="/deck">Deck</a><a href="/connect">Connect</a><a href="/get-started.md">get-started.md</a><a href="/keiki.md">keiki.md</a>
   </nav>
 </footer>
 """

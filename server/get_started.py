@@ -264,6 +264,7 @@ def render_llms(host):
             "> The strategy-engagement harness any agent can run. Your team directs the agents.",
             "",
             f"- [Get started]({origin}/get-started.md): setup playbook for a coding agent.",
+            f"- [Keiki]({origin}/keiki.md): put AI Partner in iMessage, WhatsApp, Slack, Telegram and email through a Keiki agent.",
             f"- [OpenAPI]({origin}/openapi.json): HTTP API, including signup.",
             f"- [MCP]({origin}/mcp): streamable HTTP MCP. Send Authorization: Bearer $AI_PARTNER_API_KEY.",
             "- Grok Bot: paste the get-started line into a Grok Bot chat, or add a custom connector for that MCP URL. Ask Grok Bot: list the AI Partner tools.",

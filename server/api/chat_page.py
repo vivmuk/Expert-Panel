@@ -3,7 +3,7 @@ import json
 from html import escape
 
 from ..icons import icon
-from .keiki import keiki_strip
+from .keiki_connect import channel_dialog, channel_pill
 from .pages import FOOT, connect_pill, dots, head, header
 
 EXAMPLES = (
@@ -50,8 +50,10 @@ def render_page(welcome, origin=""):
       </div>
     </form>
     <div class="examples" role="group" aria-label="Example engagements"><span class="lbl">Try</span>{chips}</div>
-    {connect_pill(origin)}
-    {keiki_strip()}
+    <div class="pill-stack">
+      {connect_pill(origin)}
+      {channel_pill()}
+    </div>
   </section>
   <section class="session" id="session" hidden aria-label="Engagement">
     <aside class="rail" aria-label="Progress">
@@ -69,6 +71,7 @@ def render_page(welcome, origin=""):
     </div>
   </section>
   <div id="onboard-slot" hidden></div>
+  {channel_dialog(origin)}
 </main>
 {FOOT}
 <script id="welcome" type="text/plain">{welcome}</script>
@@ -76,6 +79,7 @@ def render_page(welcome, origin=""):
 <script src="/report.js" defer></script>
 <script src="/chat.js" data-endpoint="/api/chat" defer></script>
 <script src="/onboard.js" defer></script>
+<script src="/keiki.js" defer></script>
 <script src="/voice.js"></script>
 </body>
 </html>

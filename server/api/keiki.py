@@ -26,7 +26,6 @@ MAX_STEPS = 30  # one engagement is ~13 engine steps; Keiki's turn deadline is 1
 MAX_CONVERSATIONS = 500
 _states = {}  # (agentId, conversationId) -> engine state; in-process only, oldest evicted first
 _lock = threading.Lock()
-CHANNELS = ["iMessage", "WhatsApp", "Slack", "SMS", "Telegram", "Teams", "email"]
 
 
 def _secret():
@@ -112,26 +111,3 @@ def keiki_turn():
         return jsonify({"error": "bad_turn"}), 400
     threading.Thread(target=run_turn, args=(payload, token), daemon=True).start()
     return jsonify({"ok": True}), 202
-
-
-def live_channels():
-    raw = os.environ.get("KEIKI_LIVE_CHANNELS", "")
-    wanted = {c.strip().lower() for c in raw.split(",") if c.strip()}
-    return [c for c in CHANNELS if c.lower() in wanted]
-
-
-def keiki_strip():
-    from html import escape
-
-    live = live_channels()
-    soon = [c for c in CHANNELS if c not in live]
-    bits = []
-    if live:
-        bits.append("<b>Live:</b> " + escape(", ".join(live)))
-    if soon:
-        bits.append("<span>Coming soon:</span> " + escape(", ".join(soon)))
-    return (
-        '<p class="keiki-strip">Reach AI Partner via <a href="https://onkeiki.com" rel="noopener">Keiki</a> · '
-        + " · ".join(bits)
-        + "</p>"
-    )

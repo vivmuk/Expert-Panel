@@ -4,6 +4,7 @@ from html import escape
 
 from .. import art
 from ..icons import icon
+from .keiki_connect import LABEL, fetch_line, mcp_connection
 from .pages import connect_pill, page_head, shell
 
 MARKS = (
@@ -24,6 +25,7 @@ def _setups(origin):
     line = f"Set up AI Partner for me. Fetch {origin}/get-started.md and follow it."
     return (
         ("get-started", None, "Any agent", f"Paste one line into any agent that can fetch a URL. It reads the playbook, gets a key, and runs the engagement.", (("get-started-line", line),), ""),
+        ("keiki", None, LABEL, "Through Keiki, any Keiki agent can run AI Partner engagements on its channels. Get a free key, add it in Keiki under Settings, then Secrets, as AI_PARTNER_API_KEY, turn on the agent's Sandbox and MCP features, and add this MCP connection. Or paste the line into your coding agent.", (("keiki-line", fetch_line(origin)), ("keiki-connection", json.dumps(mcp_connection(origin), indent=2))), "Coming soon: bring your own Keiki agent, with signed turns pushed to an endpoint for your account."),
         ("chatgpt", "/img/marks/openai-blossom.svg", "ChatGPT", "Add a custom connector and paste the MCP URL. Send the bearer token in the Authorization header.", (("gpt", f"MCP URL\n{mcp}\n\n{bearer}"),), ""),
         ("claude-code", "/img/marks/claude-code.png", "Claude Code", "Claude Code speaks stdio. This config runs the remote server through mcp-remote.", (("claude", json.dumps({"mcpServers": {"ai-partner": {"command": "npx", "args": ["-y", "mcp-remote", mcp, "--header", bearer]}}}, indent=2)),), ""),
         ("claude-app", "/img/marks/claude.svg", "Claude", "In the Claude app, add a custom connector and paste the MCP URL. Send the bearer token in the Authorization header.", (("claude-app-snippet", f"MCP URL\n{mcp}\n\n{bearer}"),), ""),
@@ -57,7 +59,7 @@ def render_connect(origin):
     ) + '<a class="mark-tile gb spot" href="#grok-bot-setup" id="grok-bot"><span class="wordmark" aria-hidden="true">Grok Bot</span><span class="cap">Grok Bot</span></a>'
     cards = []
     for anchor, mark, title, text, snippets, note in _setups(origin):
-        logo = f'<img src="{mark}" alt="" height="22" loading="lazy" decoding="async">' if mark else icon("plug" if anchor == "get-started" else "bot")
+        logo = f'<img src="{mark}" alt="" height="22" loading="lazy" decoding="async">' if mark else icon({"get-started": "plug", "keiki": "messages-square"}.get(anchor, "bot"))
         codes = "".join(_code(sid, body) for sid, body in snippets)
         tail = f'<p class="foot-small">{escape(note)}</p>' if note else ""
         cards.append(f'<section class="setup gb reveal" id="{anchor}"><h2>{logo}{escape(title)}</h2><p>{escape(text)}</p>{codes}{tail}</section>')

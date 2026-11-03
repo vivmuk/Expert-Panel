@@ -106,12 +106,3 @@ def test_cancellation_accepted(client):
     raw = json.dumps({"type": "keiki.turn.cancelled", "turnId": "t", "agentId": "agent-1"}).encode()
     r = client.post("/keiki/turn", data=raw, content_type="application/json", headers={"Keiki-Signature": _sign(raw)})
     assert r.status_code == 202
-
-
-def test_strip_is_honest(monkeypatch, client):
-    monkeypatch.delenv("KEIKI_LIVE_CHANNELS", raising=False)
-    html = client.get("/chat").get_data(as_text=True)
-    assert "keiki-strip" in html and "Coming soon:</span> iMessage, WhatsApp" in html and "Live:" not in html
-    monkeypatch.setenv("KEIKI_LIVE_CHANNELS", "telegram,email")
-    html = client.get("/chat").get_data(as_text=True)
-    assert "<b>Live:</b> Telegram, email" in html
