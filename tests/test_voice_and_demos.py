@@ -98,7 +98,7 @@ def test_artifact_html_carries_the_demo_footer():
     from server.artifact_doc import as_html, as_markdown
 
     html = as_html("Charter", "## Purpose\n\nRun the count.", demo=True)
-    assert "Playfair Display" in html
+    assert "#0033CC" in html
     assert "AI-generated demo engagement from public information. Not commissioned by the company." in html
     assert "<h2>Purpose</h2>" in html
     assert "AI-generated demo engagement from public information. Not commissioned by the company." in as_markdown("Charter", "Body", demo=True)
