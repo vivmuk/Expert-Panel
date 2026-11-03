@@ -11,7 +11,15 @@ from .. import art
 from ..catalog import by_id
 from ..demo_schema import DISCLAIMER, valid_demo
 from ..icons import icon
-from .pages import ARTIFACT_ICONS, DECK_EMBED_SCRIPT, deck_embed, page_head, shell, task_slug
+from ..live_report import step_name, swimlane
+from .pages import (
+    ARTIFACT_ICONS,
+    DECK_EMBED_SCRIPT,
+    deck_embed,
+    page_head,
+    shell,
+    task_slug,
+)
 
 bp = Blueprint("demos", __name__)
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static", "demos"))
@@ -147,8 +155,12 @@ def _page(demo):
     )
 
 
+def report_fragment(demo):
+    return _report(demo)
+
+
 def _report(demo):
-    slug = demo["slug"]
+    live = demo.get("live")
     cites = demo["market"].get("citations") or []
     top = demo.get("top5") or []
     experts = demo.get("experts") or []
@@ -169,17 +181,13 @@ def _report(demo):
     return f"""
 <section id="summary" class="report-section">
   <div class="report-hero">
-    {_art(slug, "cover", eager=True)}
+    {_art(demo, "cover", eager=True)}
     <div class="report-hero-copy">
-      <p class="kicker"><a href="/demos">Demos</a><span aria-hidden="true">/</span>{escape(_site(demo))}</p>
+      {_hero_kicker(demo)}
       <h1>{escape(demo["company"])}</h1>
       <p class="lede">{escape(_client_problem(demo))}</p>
-      <p class="disclaimer">{icon("info")}<span>{escape(DISCLAIMER)}</span></p>
-      <div class="hero-actions">
-        {_deck_button(slug)}
-        <a class="btn ghost" href="#top5">{icon("trophy")}Jump to the Top 5</a>
-        <a class="btn ghost" href="/demos/{escape(slug)}/kit.zip" download>{icon("download")}Kit zip</a>
-      </div>
+      {"" if live else f'<p class="disclaimer">{icon("info")}<span>{escape(DISCLAIMER)}</span></p>'}
+      <div class="hero-actions">{_hero_actions(demo)}</div>
     </div>
   </div>
   <div class="stats report-stats">{stat_html}</div>
@@ -192,8 +200,8 @@ def _report(demo):
   {_deck_embed(demo)}
 </section>
 <section id="market" class="report-section">
-  {_section_head("02", "Market analysis", f"{len(cites)} public pages, each with the note the research agents kept.")}
-  {_art(slug, "market")}
+  {_section_head("02", "Research" if live else "Market analysis", f"{len(cites)} public pages, each with the note the research agents kept.")}
+  {_art(demo, "market")}
   <p class="prose">{escape(demo["market"].get("summary") or "Not generated yet. Run scripts/run_demo.py.")}</p>
   {_citations(cites)}
 </section>
@@ -203,11 +211,11 @@ def _report(demo):
 </section>
 <section id="debate" class="report-section">
   {_section_head("04", "Debate", "Two rounds. Each expert answers a named colleague.")}
-  {_art(slug, "panel")}
+  {_art(demo, "panel")}
   {_debate(debate)}
 </section>
 <section id="synthesis" class="report-section">
-  {_section_head("05", "Synthesis", "Where the panel converged, and what it may be missing.")}
+  {_section_head("05", "Judge and synthesis" if live else "Synthesis", "Where the panel converged, and what it may be missing.")}
   {_synthesis(synthesis)}
 </section>
 <section id="top5" class="report-section">
@@ -224,12 +232,12 @@ def _report(demo):
 </section>
 <section id="skills" class="report-section">
   {_section_head("09", "Harness and skill pack", "The files your team keeps running after the engagement. Every file is AI-generated.")}
-  {_art(slug, "build")}
+  {_art(demo, "build")}
   {_kit(demo)}
 </section>
 <section id="artifacts" class="report-section">
-  {_section_head("10", "Artifacts", "The catalog artifacts this engagement feeds. Generate any of them for your own problem in chat.")}
-  {_artifacts(demo.get("artifacts") or [])}
+  {_section_head("10", "Deliverables" if live else "Artifacts", "The client deck, memo, work chart, brief, and roadmap from this engagement. Open any of them here, as a full page, or as a file." if live else "The catalog artifacts this engagement feeds. Generate any of them for your own problem in chat.")}
+  {_deliverables(demo) if live else _artifacts(demo.get("artifacts") or [])}
 </section>
 """
 
@@ -249,9 +257,30 @@ def _slide_count(slug):
         return len(re.findall(r'<section class="slide\b', handle.read()))
 
 
+def _hero_kicker(demo):
+    if demo.get("live"):
+        return f'<p class="kicker">{icon("sparkles")}Live engagement<span aria-hidden="true">/</span>{len(demo.get("experts") or [])} AI experts</p>'
+    return f'<p class="kicker"><a href="/demos">Demos</a><span aria-hidden="true">/</span>{escape(_site(demo))}</p>'
+
+
+def _hero_actions(demo):
+    if demo.get("live"):
+        return (
+            f'<button type="button" class="btn primary deck-btn" data-artifact="deck">{icon("monitor-play")}Open the client deck</button>'
+            f'<button type="button" class="btn ghost" data-download="pptx">{icon("download")}Download .pptx</button>'
+            f'<a class="btn ghost" href="#top5">{icon("trophy")}Jump to the Top 5</a>'
+            f'<button type="button" class="btn ghost" data-download="kit">{icon("package")}Harness kit</button>'
+        )
+    slug = escape(demo["slug"])
+    return (
+        f'{_deck_button(demo["slug"])}<a class="btn ghost" href="#top5">{icon("trophy")}Jump to the Top 5</a>'
+        f'<a class="btn ghost" href="/demos/{slug}/kit.zip" download>{icon("download")}Kit zip</a>'
+    )
+
+
 def _deck_embed(demo):
     slug = demo["slug"]
-    if not _has_deck(slug):
+    if demo.get("live") or not _has_deck(slug):
         return ""
     return deck_embed(
         f"/demos/{slug}/deck",
@@ -266,8 +295,8 @@ def _section_head(number, title, lede):
     return f'<header class="section-head"><p class="kicker"><b>{number}</b></p><h2>{escape(title)}</h2><p class="muted">{escape(lede)}</p></header>'
 
 
-def _art(slug, kind, eager=False):
-    path = f"demos/img/{slug}-{kind}.webp"
+def _art(demo, kind, eager=False):
+    path = (demo.get("art") or {}).get(kind) or f"demos/img/{demo['slug']}-{kind}.webp"
     if not art.exists(path):
         return ""
     cls = "hero-art" if kind == "cover" else "section-art"
@@ -378,6 +407,7 @@ def _experts(items):
     return f"""<div class="report-tools">
   <div class="search gb small-search">{icon("search")}<label class="sr-only" for="expert-q">Search experts</label><input id="expert-q" type="search" placeholder="Search {len(items)} experts by name, role, or lens" autocomplete="off"></div>
   <p class="search-count" id="expert-count" role="status">{len(items)} experts</p>
+  <button type="button" class="btn small ghost expand-all" data-expand="expert-list" aria-pressed="false">{icon("chevrons-up-down")}<span>Expand all</span></button>
 </div>
 <div class="expert-grid report-experts" id="expert-list">{"".join(cards)}</div>
 {_empty_filter("expert-empty", "No expert matches that search.")}"""
@@ -389,6 +419,8 @@ def _empty_filter(element_id, text):
 
 def _expert_detail(item):
     parts = []
+    if item.get("insight"):
+        parts.append(f"<p><strong>Insight.</strong> {escape(item['insight'])}</p>")
     if item.get("background"):
         parts.append(f"<p><strong>Background.</strong> {escape(item['background'])}</p>")
     if item.get("risks"):
@@ -406,6 +438,14 @@ def _expert_detail(item):
             + ("<p><strong>Opportunities</strong></p>" + _ul(row.get("identified_opportunities")) if row.get("identified_opportunities") else "")
             + "</div>"
         )
+    if item.get("said"):
+        rows = "".join(
+            f'<li><span class="pill">Round {escape(str(row.get("round") or ""))}</span>'
+            + (f'<b>to {escape(row["responding_to"])}</b> ' if row.get("responding_to") else "")
+            + f'{escape(row.get("statement") or "")}</li>'
+            for row in item["said"]
+        )
+        parts.append(f'<p><strong>In the debate</strong></p><ul class="said">{rows}</ul>')
     if not parts:
         return ""
     return f'<details class="more"><summary>Full analysis{icon("chevron-down")}</summary><div class="detail">{"".join(parts)}</div></details>'
@@ -439,16 +479,29 @@ def _synthesis(item):
     if not item:
         return _empty("The synthesis is not in this file yet.")
     steps = "".join(
-        f'<li><span class="pill {"magenta" if _value(s.get("priority")) == "high" else "cobalt"}">{escape(s.get("priority") or "")}</span>'
+        f'<li><span class="pill {"magenta" if _value(s.get("priority")) in ("high", "now") else "cobalt"}">{escape(s.get("priority") or "")}</span>'
         f'<b>{escape(s.get("step_description") or "")}</b><span>{escape(s.get("suggested_rationale") or "")}</span></li>'
         for s in item.get("actionable_next_steps") or []
     )
+    judges = "".join(
+        f'<article class="judge card"><header>{_avatar(p.get("name"))}<div><b>{escape(p.get("name") or "")}</b><small>{escape(p.get("title") or "")}</small></div></header>'
+        f'<p>{escape(p.get("insight") or "")}</p><p class="rec-line"><span class="pill cobalt">Asks for</span> {escape(p.get("recommendation") or "")}</p></article>'
+        for p in item.get("judges") or []
+    )
+    judges = f'<h3 class="sub-head">The judge\'s panel</h3><div class="judge-grid">{judges}</div>' if judges else ""
+    red = item.get("red_team") or {}
+    attacks = "".join(
+        f'<li><b>{escape(a.get("threat") or "")}</b><span>{escape(a.get("why") or "")}</span><span class="fix">{icon("shield-check")}{escape(a.get("mitigation") or "")}</span></li>'
+        for a in red.get("attacks") or []
+    )
+    red_html = f'<div class="card red-team"><h3>{icon("swords")}Red team</h3><p class="take">{escape(red.get("top_risk") or "")}</p><ul class="attack-list">{attacks}</ul></div>' if attacks else ""
     return f"""<p class="take prose">{escape(item.get("cohesive_summary") or "")}</p>
 <div class="synth-grid">
   <div class="card"><h3>{icon("sparkles")}Key themes</h3>{_ul(item.get("key_themes"), "dots-list")}</div>
   <div class="card"><h3>{icon("eye-off")}Blind spots</h3>{_ul(item.get("potential_blind_spots"), "dots-list")}</div>
 </div>
-<div class="card next-steps"><h3>{icon("list-checks")}Next steps</h3><ol class="next-list">{steps}</ol></div>"""
+<div class="card next-steps"><h3>{icon("list-checks")}Next steps</h3><ol class="next-list">{steps}</ol></div>
+{judges}{red_html}"""
 
 
 def _top5(items):
@@ -520,7 +573,8 @@ def _owner(raw):
 
 def _steps(rows):
     return "".join(
-        f'<li>{_owner(step.get("owner"))}<b>{escape(step.get("step") or "")}</b><span class="task">{escape(step.get("task") or "")}</span></li>'
+        f'<li>{_owner(step.get("owner"))}<b>{escape(step_name(step) or step.get("task") or "")}</b>'
+        f'<span class="task">{escape(step.get("task") if step_name(step) else "")}</span></li>'
         for step in rows
     )
 
@@ -532,21 +586,29 @@ def _chart(chart):
     counts = {}
     for step in future:
         counts[step.get("owner") or "Human"] = counts.get(step.get("owner") or "Human", 0) + 1
-    tally = "".join(f'<span class="pill">{escape(k)} · {v}</span>' for k, v in counts.items())
+    tally = "".join(
+        f'<div class="tally-box {o.split()[-1].lower()}"><b>{counts.get(o, 0)}</b><span>{o}</span></div>' for o in ("Human", "Hybrid", "AI Agent")
+    )
     return f"""<p class="prose">{escape(chart.get("summary") or "")}</p>
-<div class="chart-cols report-chart">
-  <div class="chart-col"><h4>Today</h4><ol class="steps-list">{_steps(chart.get("current") or [])}</ol></div>
-  <div class="chart-col"><h4>Agent era</h4><div class="chips tally">{tally}</div><ol class="steps-list">{_steps(future)}</ol></div>
+<div class="tally">{tally}</div>
+<div class="report-chart">
+  <h3 class="sub-head">Agent era</h3>
+  {swimlane({"future": [s for s in future if s.get("owner") in ("Human", "Hybrid", "AI Agent")]})}
+  <h3 class="sub-head">Today</h3>
+  <ol class="steps-list">{_steps(chart.get("current") or [])}</ol>
 </div>"""
 
 
 def _kit(demo):
     slug = escape(demo["slug"])
     paths = _kit_paths(demo)
-    files = "".join(
-        f'<li><a href="/demos/{slug}/{escape(p)}" target="_blank" rel="noopener">{icon("file-text")}<span>{escape(p[4:])}</span></a></li>'
-        for p in paths
-    )
+    if demo.get("live"):
+        files = "".join(f'<li><span class="file">{icon("file-text")}<span>{escape(p)}</span></span></li>' for p in paths)
+    else:
+        files = "".join(
+            f'<li><a href="/demos/{slug}/{escape(p)}" target="_blank" rel="noopener">{icon("file-text")}<span>{escape(p[4:])}</span></a></li>'
+            for p in paths
+        )
     described = {s.get("name"): s.get("description") for s in ((demo.get("kit_files") or {}).get("skills") or []) if isinstance(s, dict)}
     skills = "".join(
         f'<article class="skill card">{icon("puzzle")}<h3>{escape(name)}</h3><p>{escape(described.get(name) or "")}</p></article>'
@@ -559,6 +621,13 @@ def _kit(demo):
         out += _empty("The skill pack is not in this file yet.")
     if files:
         out += f'<h3 class="sub-head">Kit files</h3><ul class="kit-files">{files}</ul>'
+    if demo.get("live"):
+        return out + (
+            f'<div class="hero-actions"><button type="button" class="btn primary" data-download="kit">{icon("package")}Download the harness kit</button>'
+            f'<button type="button" class="btn ghost" data-download="skill-pack">{icon("puzzle")}Skill pack zip</button>'
+            f'<button type="button" class="btn ghost" data-download="report">{icon("file-text")}Report .md</button>'
+            f'<a class="btn ghost" href="/connect">{icon("plug")}Run it in your own agent</a></div>'
+        )
     out += f'<div class="hero-actions"><a class="btn primary" href="/demos/{slug}/kit.zip" download>{icon("download")}Download the kit zip</a>{_deck_button(demo["slug"]).replace("btn primary", "btn ghost")}<a class="btn ghost" href="/connect">{icon("plug")}Run it in your own agent</a></div>'
     return out
 
@@ -572,8 +641,47 @@ def _artifacts(items):
         title = entry.get("title") or item.get("title") or item.get("id") or "Artifact"
         purpose = entry.get("purpose") or ""
         href = f'/catalog#{task_slug(entry["group"])}' if entry.get("group") else "/catalog"
+        thumb = f'img/catalog/{task_slug(entry["group"])}.webp' if entry.get("group") else ""
         cards.append(
-            f'<a class="art-card gb spot" href="{escape(href)}"><span class="art-icon">{icon(ARTIFACT_ICONS.get(item.get("id"), "file-text"))}</span>'
-            f'<h3>{escape(title)}</h3><p>{escape(purpose)}</p></a>'
+            f'<a class="deliverable gb spot" href="{escape(href)}">{_thumb(thumb)}<div class="deliverable-copy">'
+            f'<span class="art-icon">{icon(ARTIFACT_ICONS.get(item.get("id"), "file-text"))}</span>'
+            f'<h3>{escape(title)}</h3><p>{escape(purpose)}</p></div></a>'
         )
-    return f'<div class="art-grid">{"".join(cards)}</div><div class="hero-actions"><a class="btn primary" href="/chat">{icon("message-circle")}Generate them in chat</a></div>'
+    return f'<div class="deliverable-grid">{"".join(cards)}</div><div class="hero-actions"><a class="btn primary" href="/chat">{icon("message-circle")}Generate them in chat</a></div>'
+
+
+def _thumb(path):
+    return art.img(path, "thumb") if path and art.exists(path) else ""
+
+
+def _deliverables(demo):
+    cards = []
+    for item in demo.get("artifacts") or []:
+        key = escape(item["id"])
+        kind = ".pptx" if item["id"] == "deck" else ".html"
+        cards.append(
+            f"""<article class="deliverable gb spot{' hero' if item['id'] == 'deck' else ''}" data-card="{key}">
+  <button type="button" class="thumb-btn" data-artifact="{key}" aria-label="View the {escape(item['title'])}">{_thumb(item.get("thumb"))}</button>
+  <div class="deliverable-copy">
+    <h3>{escape(item["title"])}</h3>
+    <p>{escape(item.get("purpose") or "")}</p>
+    <div class="deliverable-actions">
+      <button type="button" class="btn small primary" data-artifact="{key}">{icon("eye")}View</button>
+      <button type="button" class="btn small ghost" data-open="{key}">{icon("external-link")}Full page</button>
+      <button type="button" class="btn small ghost" data-save="{key}" data-kind="{kind}">{icon("download")}{kind}</button>
+      <button type="button" class="linkish" data-save="{key}" data-kind=".md">.md</button>
+    </div>
+  </div>
+</article>"""
+        )
+    return f"""<div class="deliverable-grid live">{"".join(cards)}</div>
+<div class="viewer card" id="viewer" hidden>
+  <header class="viewer-head"><p class="kicker" id="viewer-kicker">Deliverable</p><h3 id="viewer-title"></h3><div class="deliverable-actions" id="viewer-actions"></div></header>
+  <iframe id="viewer-frame" title="Deliverable preview" loading="lazy"></iframe>
+</div>
+<div class="more-artifacts">
+  <h3 class="sub-head">More from the catalog</h3>
+  <p class="muted">Each one is written by a model from this engagement and opens here as a styled page.</p>
+  <div class="chips" id="catalog-picks"></div>
+  <p class="status-line" id="artifact-status" role="status"></p>
+</div>"""

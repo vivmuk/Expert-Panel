@@ -5,8 +5,9 @@ import time
 
 from flask import Blueprint, Response, jsonify, redirect, request, send_from_directory
 
+from ..artifact_doc import as_html
 from ..artifacts import ArtifactError, generate_artifact
-from ..catalog import groups, recommend
+from ..catalog import by_id, groups, recommend
 from ..chatjob import (
     NOT_CONFIGURED_REPLY,
     WELCOME,
@@ -19,6 +20,7 @@ from ..chatmemory import recall, remember
 from ..exa_search import exa_search
 from ..harnesskit import build_kit_zip
 from ..keys import signing_secrets
+from ..live_report import deliverables, live_demo
 from ..skillpack import build_pack_zip
 from ..uploads import take_uploads
 from ..venice.errors import SPEND_LIMIT_REPLY, out_of_credit
@@ -406,7 +408,46 @@ def chat_artifact():
         if out_of_credit(exc):
             return jsonify({"error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY}}), 503
         return jsonify({"error": {"code": "model", "message": "The model call failed. Try again."}}), 502
+    result["html"] = as_html(by_id(artifact_id.strip())["title"], result["markdown"])
     return jsonify(result)
+
+
+@bp.post("/api/chat/view")
+def chat_view():
+    from .access import request_origin
+    from .demos import report_fragment
+
+    raw = _body()
+    if raw is None:
+        return _bad("Send a JSON object.")
+    try:
+        demo = live_demo(raw.get("state"))
+        files = deliverables(raw.get("state"), request_origin())
+    except ValueError:
+        return jsonify({"error": {"code": "not_ready", "message": "The report is not ready yet."}}), 400
+    catalog = []
+    for key, text in load_state(raw.get("state")).get("artifacts", {}).items():
+        title = by_id(key)["title"]
+        catalog.append({"id": f"catalog:{key}", "title": title, "html": as_html(title, text), "markdown": text})
+    return jsonify({"report": report_fragment(demo), "deliverables": files, "catalog": catalog})
+
+
+@bp.post("/api/chat/deck.pptx")
+def chat_deck():
+    from ..deck_pptx import build_pptx
+
+    raw = _body()
+    if raw is None:
+        return _bad("Send a JSON object.")
+    try:
+        blob = build_pptx(raw.get("state"))
+    except ValueError:
+        return jsonify({"error": {"code": "not_ready", "message": "The deck is not ready yet."}}), 400
+    return Response(
+        blob,
+        mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        headers={"Content-Disposition": "attachment; filename=client-deck.pptx"},
+    )
 
 
 @bp.post("/api/chat/report")
