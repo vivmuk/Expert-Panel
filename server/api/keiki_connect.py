@@ -56,9 +56,12 @@ def mcp_connection(origin):
     }
 
 
+DEFAULT_LIVE = "imessage,email"
+
+
 def live_channels():
     """Channel slugs listed in KEIKI_LIVE_CHANNELS, the only ones the site may call live."""
-    wanted = {c.strip().lower() for c in os.environ.get("KEIKI_LIVE_CHANNELS", "").split(",") if c.strip()}
+    wanted = {c.strip().lower() for c in os.environ.get("KEIKI_LIVE_CHANNELS", DEFAULT_LIVE).split(",") if c.strip()}
     return [slug for slug, _, _ in CHANNELS if slug in wanted]
 
 

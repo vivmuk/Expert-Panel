@@ -51,9 +51,15 @@ def test_home_page_has_the_chats_pill_under_the_connect_pill(client):
     assert client.get("/keiki.js").status_code == 200
 
 
+def _live(html):
+    return [item.split("/img/marks/channels/", 1)[1].split(".svg", 1)[0] for item in html.split("<li>") if 'class="live-tag"' in item]
+
+
 def test_no_channel_is_called_live_unless_listed(client, monkeypatch):
-    html = client.get("/chat").get_data(as_text=True)
-    assert "live-tag" not in html
+    monkeypatch.delenv("KEIKI_LIVE_CHANNELS", raising=False)
+    assert _live(client.get("/chat").get_data(as_text=True)) == ["imessage", "agentmail"]
+    monkeypatch.setenv("KEIKI_LIVE_CHANNELS", "")
+    assert "live-tag" not in client.get("/chat").get_data(as_text=True)
     monkeypatch.setenv("KEIKI_LIVE_CHANNELS", " Telegram, bogus ")
     html = client.get("/chat").get_data(as_text=True)
     assert html.count('class="live-tag"') == 1
