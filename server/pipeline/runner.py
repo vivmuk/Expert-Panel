@@ -9,6 +9,7 @@ from ..db import engagements as store
 from ..modes import get_mode
 from ..prompts.loader import render
 from ..venice.client import LONG_TIMEOUT, VeniceClient
+from ..venice.errors import SPEND_LIMIT_REPLY, out_of_credit
 from ..venice.models import get_catalog
 from ..venice.usage import UsageLedger
 from . import architect, insights, market_intel, prestages, synthesis
@@ -109,9 +110,10 @@ def _execute(run, mode, payload, problem, panel_size, est):
     except Exception as exc:
         logger.exception("Run %s failed", run.id)
         run.status = "failed"
-        run.error = str(exc)
+        message = SPEND_LIMIT_REPLY if out_of_credit(exc) else "The model call failed. Try again."
+        run.error = message
         store.set_status(run.engagement_id, "failed")
-        run.emit("run.error", {"message": str(exc), "stage": run.mode})
+        run.emit("run.error", {"message": message, "stage": run.mode})
     finally:
         try:
             store.save_run_events(run.id, run.events)

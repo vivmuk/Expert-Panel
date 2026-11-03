@@ -20,7 +20,7 @@ from ..keys import signing_secret
 from ..skillpack import build_pack_zip
 from ..venice.errors import SPEND_LIMIT_REPLY, out_of_credit
 from .access import origin_allowed, request_origin, require_partner_key
-from .chat import complete_with_venice, exa_search
+from .chat import complete_with_venice, exa_search, spend_block
 
 bp = Blueprint("agents", __name__)
 logger = logging.getLogger(__name__)
@@ -112,7 +112,8 @@ def _tool(name, arguments):
         if state is None:
             return _err("Unknown or expired job_id. Call start_job again.")
     if name == "start_job":
-        result = _turn(arguments.get("message") or "", {})
+        seed = arguments.get("state") if isinstance(arguments.get("state"), dict) else {}
+        result = _turn(arguments.get("message") or "", seed)
         job_id = mcpjobs.new_id()
         mcpjobs.save(_owner(), job_id, result.get("state") or {})
         return _ok({**result, "job_id": job_id})
@@ -187,6 +188,40 @@ def _rpc(body):
 
 
 MODELS = ("ai-partner", "ai-partner-full")
+SPENDING_TOOLS = {"start_job", "chat_turn", "generate_artifact"}
+
+
+def _gate_mcp_call(body):
+    """Rate-limit and daily-cap the tools that call the model. Mutates a new chat id into the arguments."""
+    if body.get("method") != "tools/call":
+        return None
+    params = body.get("params")
+    if not isinstance(params, dict):
+        params = {}
+        body["params"] = params
+    name = params.get("name")
+    if name not in SPENDING_TOOLS:
+        return None
+    arguments = params.get("arguments")
+    if not isinstance(arguments, dict):
+        arguments = {}
+        params["arguments"] = arguments
+    state = arguments.get("state") if isinstance(arguments.get("state"), dict) else {}
+    job_id = arguments.get("job_id")
+    if job_id:
+        loaded = mcpjobs.load(_owner(), job_id)
+        if not isinstance(loaded, dict):
+            return None
+        state = loaded
+    elif name == "start_job" or not (isinstance(state.get("chat_id"), str) and state.get("chat_id").strip()):
+        state = {**state, "chat_id": uuid.uuid4().hex[:16]}
+    code, message, chat_id = spend_block(state)
+    if code:
+        payload = {"jsonrpc": "2.0", "id": body.get("id"), "error": {"code": -32000, "message": message}}
+        return Response(json.dumps(payload), status=429, mimetype="application/json")
+    if not job_id:
+        arguments["state"] = {"chat_id": chat_id} if name == "start_job" else {**state, "chat_id": chat_id}
+    return None
 
 
 def _completion(completion_id, model, created, result):
@@ -267,6 +302,9 @@ def mcp():
     sent = request.headers.get("Mcp-Session-Id", "").strip()
     if sent and body.get("method") != "initialize" and not session_valid(sent):
         return jsonify({"jsonrpc": "2.0", "id": body.get("id"), "error": {"code": -32001, "message": "Unknown session. Send initialize again."}}), 404
+    blocked = _gate_mcp_call(body)
+    if blocked:
+        return blocked
     try:
         payload = _rpc(body)
     except Exception as exc:
@@ -298,7 +336,11 @@ def chat_completions():
     denied = require_partner_key()
     if denied:
         return denied
-    body = request.get_json(force=True, silent=True) or {}
+    raw_bytes = request.get_data(cache=True)
+    body = request.get_json(force=True, silent=True)
+    if raw_bytes.strip() and not isinstance(body, dict):
+        return jsonify({"error": {"message": "Send a JSON object.", "type": "invalid_request_error"}}), 400
+    body = body or {}
     messages = body.get("messages") or []
     user = ""
     for message in reversed(messages):
@@ -314,6 +356,13 @@ def chat_completions():
     if model == "ai-partner-full":
         state = dict(state)
         state["depth"] = "full"
+    if not isinstance(state.get("chat_id"), str) or not state.get("chat_id").strip():
+        state = dict(state)
+        state["chat_id"] = uuid.uuid4().hex[:16]
+    code, message, chat_id = spend_block(state)
+    if code:
+        return jsonify({"error": {"message": message, "type": code}}), 429
+    state = {**state, "chat_id": chat_id}
     try:
         result = _turn(user, state)
     except Exception as exc:

@@ -12,7 +12,7 @@ def exa_search(query, limit=4, api_key=None):
         return []
     capped = max(1, min(int(limit), 20))
     response = requests.post(
-        EXA_URL,
+        os.environ.get("EXA_URL", EXA_URL),
         headers={
             "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",

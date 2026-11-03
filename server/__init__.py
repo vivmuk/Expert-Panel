@@ -6,6 +6,7 @@ mimetypes.add_type("image/webp", ".webp")
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .api.access import allowed_origins
@@ -25,6 +26,15 @@ SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
 }
+# Four uploads at the chat's 500KB cap, base64-expanded, plus the job state.
+MAX_BODY_BYTES = 4 * 1024 * 1024
+
+
+def _wants_json():
+    path = request.path or ""
+    if path.startswith(("/api/", "/v1/", "/mcp", "/keiki")):
+        return True
+    return path == "/chat" and request.method == "POST"
 
 
 def create_app():
@@ -32,6 +42,7 @@ def create_app():
 
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config["MAX_CONTENT_LENGTH"] = MAX_BODY_BYTES
     # For hosts without an edge-set client header (see client_ip): trust only the hop our one proxy appended.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
     CORS(
@@ -78,6 +89,23 @@ def create_app():
     @app.errorhandler(PersistentStoreUnavailable)
     def no_store(exc):
         return jsonify({"error": {"code": "no_store", "message": str(exc)}}), 503
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def too_large(_exc):
+        message = "The request is too large."
+        if _wants_json():
+            return jsonify({"error": {"code": "too_large", "message": message}}), 413
+        return message, 413, {"Content-Type": "text/plain; charset=utf-8"}
+
+    @app.errorhandler(Exception)
+    def unexpected(exc):
+        if isinstance(exc, HTTPException):
+            return exc
+        logger.exception("request failed")
+        message = "Something went wrong. Try again."
+        if _wants_json():
+            return jsonify({"error": {"code": "error", "message": message}}), 500
+        return message, 500, {"Content-Type": "text/plain; charset=utf-8"}
 
     @app.errorhandler(404)
     def not_found(_exc):

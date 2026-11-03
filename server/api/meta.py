@@ -15,9 +15,9 @@ bp = Blueprint("meta", __name__)
 def list_models():
     try:
         return jsonify(get_catalog().summary())
-    except Exception as exc:
+    except Exception:
         logger.exception("Model listing failed")
-        return jsonify({"error": {"code": "venice_unavailable", "message": str(exc)}}), 502
+        return jsonify({"error": {"code": "venice_unavailable", "message": "The model list is unavailable right now."}}), 502
 
 
 @bp.get("/modes")
@@ -32,8 +32,8 @@ def estimate():
     panel_size = int(data.get("panelSize", 20))
     try:
         return jsonify(estimate_run(mode, panel_size, data.get("models") or {}))
-    except Exception as exc:
+    except Exception:
         logger.exception("Estimate failed")
-        return jsonify({"error": {"code": "estimate_failed", "message": str(exc)}}), 500
+        return jsonify({"error": {"code": "estimate_failed", "message": "The estimate could not be computed."}}), 500
 
 

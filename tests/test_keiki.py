@@ -29,6 +29,10 @@ PAYLOAD = {
 def client(monkeypatch):
     monkeypatch.setenv("KEIKI_HARNESS_SIGNING_SECRET", SECRET)
     monkeypatch.setenv("KEIKI_AGENT_ID", "agent-1")
+    monkeypatch.delenv("KEIKI_SELF_CHECK_URL", raising=False)
+    from server.api import keiki
+
+    keiki.reset_replays()
     from server import create_app
 
     return create_app().test_client()
@@ -99,7 +103,50 @@ def test_engine_failure_completes_failed(monkeypatch):
     monkeypatch.setattr(keiki, "_engine", lambda m, s: (_ for _ in ()).throw(RuntimeError("x")))
     monkeypatch.setattr(keiki, "_post", lambda url, tok, body: calls.append(body))
     keiki.run_turn(PAYLOAD, "ht_x")
-    assert calls[-1]["status"] == "failed"
+    assert calls[-1] == {"status": "failed", "error": "RuntimeError"}
+    assert "x" not in json.dumps(calls)
+
+
+def test_replay_of_a_signed_turn_is_rejected(client, monkeypatch):
+    from server.api import keiki
+
+    monkeypatch.setattr(keiki, "_engine", lambda m, s: {"reply": "ok", "state": {}})
+    monkeypatch.setattr(keiki, "_post", lambda *a, **k: None)
+    raw = json.dumps(PAYLOAD).encode()
+    headers = {"Keiki-Signature": _sign(raw), "Keiki-Turn-Token": "ht_x", "Content-Type": "application/json"}
+    assert client.post("/keiki/turn", data=raw, headers=headers).status_code == 202
+    again = client.post("/keiki/turn", data=raw, headers=headers)
+    assert again.status_code == 401
+    assert again.get_json()["error"] == "replayed"
+
+
+def test_malformed_signed_body_is_400(client):
+    raw = b"not-json"
+    res = client.post(
+        "/keiki/turn",
+        data=raw,
+        headers={"Keiki-Signature": _sign(raw), "Keiki-Turn-Token": "ht_x", "Content-Type": "application/json"},
+    )
+    assert res.status_code == 400
+    assert res.get_json()["error"] == "bad_turn"
+    assert "Traceback" not in res.get_data(as_text=True)
+
+
+def test_turn_stops_at_the_deadline_without_leaking_the_error(monkeypatch):
+    from server.api import keiki
+
+    calls = []
+    ticks = {"n": 0}
+
+    def monotonic():
+        ticks["n"] += 1
+        return 0 if ticks["n"] == 1 else 1000
+
+    monkeypatch.setattr(keiki.time, "monotonic", monotonic)
+    monkeypatch.setattr(keiki, "_engine", lambda *a: pytest.fail("the deadline is already past"))
+    monkeypatch.setattr(keiki, "_post", lambda url, tok, body: calls.append(body))
+    keiki.run_turn(PAYLOAD, "ht_x")
+    assert calls == [{"status": "failed", "error": "TimeoutError"}]
 
 
 def test_cancellation_accepted(client):

@@ -52,12 +52,12 @@ def _extract_json(text):
         pass
     starts = [i for i in (stripped.find("{"), stripped.find("[")) if i != -1]
     if not starts:
-        raise VeniceError(f"No JSON found in model output: {text[:200]!r}")
+        raise VeniceError("No JSON found in model output")
     start = min(starts)
     try:
         value, _end = json.JSONDecoder().raw_decode(stripped[start:])
     except json.JSONDecodeError as exc:
-        raise VeniceError(f"Unbalanced JSON in model output: {exc}") from exc
+        raise VeniceError("Unbalanced JSON in model output") from exc
     return value
 
 
@@ -98,11 +98,7 @@ class VeniceClient:
                         except ValueError:
                             pass
                 else:
-                    raise VeniceError(
-                        f"HTTP {resp.status_code} from {path}: {body}",
-                        resp.status_code,
-                        body,
-                    )
+                    raise VeniceError(f"HTTP {resp.status_code} from {path}", resp.status_code, body)
             if attempts.left > 0:
                 time.sleep((2 ** (MAX_ATTEMPTS - attempts.left)) + random.random())
         raise last_error or VeniceError(f"Request to {path} failed")

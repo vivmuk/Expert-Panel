@@ -24,13 +24,37 @@ logger = logging.getLogger(__name__)
 MAX_SKEW = 300
 MAX_TEXT = 3500
 MAX_STEPS = 30  # one engagement is ~13 engine steps; Keiki's turn deadline is 10 minutes
+TURN_DEADLINE = 480  # stop before Keiki's 10 minute turn deadline, so a stuck run cannot keep spending
 MAX_CONVERSATIONS = 500
+MAX_SEEN = 2000
 _states = {}  # (agentId, conversationId) -> engine state; in-process only, oldest evicted first
+_seen = {}  # signature digest -> time; replays inside the skew window are rejected
 _lock = threading.Lock()
+_seen_lock = threading.Lock()
 
 
 def _secret():
     return os.environ.get("KEIKI_HARNESS_SIGNING_SECRET", "")
+
+
+def reset_replays():
+    with _seen_lock:
+        _seen.clear()
+
+
+def _fresh(raw, header, now):
+    """True the first time this exact signed body is seen inside the skew window."""
+    digest = hashlib.sha256(header.encode() + b"\n" + raw).hexdigest()
+    with _seen_lock:
+        stale = [key for key, seen in _seen.items() if now - seen > MAX_SKEW]
+        for key in stale:
+            _seen.pop(key, None)
+        if digest in _seen:
+            return False
+        _seen[digest] = now
+        if len(_seen) > MAX_SEEN:
+            _seen.pop(min(_seen, key=_seen.get), None)
+        return True
 
 
 def verify(raw, header, secret, now=None):
@@ -66,11 +90,14 @@ def run_turn(payload, token):
     text = "\n".join(
         str(m.get("content") or m.get("text") or "") for m in payload.get("messages") or [] if not m.get("silent")
     ).strip()
+    started = time.monotonic()
     try:
         if text and not payload.get("silent"):
             with _lock:
                 state = _states.get(key, {})
             for step in range(MAX_STEPS):
+                if time.monotonic() - started >= TURN_DEADLINE:
+                    raise TimeoutError("turn deadline")
                 result = _engine(text if step == 0 else "", state)
                 state = result.get("state") or state
                 with _lock:
@@ -98,9 +125,15 @@ def keiki_turn():
     if not _secret():
         return jsonify({"error": "not_configured"}), 503
     raw = request.get_data(cache=True)
-    if not verify(raw, request.headers.get("Keiki-Signature", ""), _secret()):
+    header = request.headers.get("Keiki-Signature", "")
+    now = time.time()
+    if not verify(raw, header, _secret(), now=now):
         return jsonify({"error": "signature_rejected"}), 401
-    payload = request.get_json(silent=True) or {}
+    if not _fresh(raw, header, now):
+        return jsonify({"error": "replayed"}), 401
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "bad_turn"}), 400
     expected_agent = os.environ.get("KEIKI_AGENT_ID")
     if expected_agent and payload.get("agentId") != expected_agent:
         return jsonify({"error": "unknown_agent"}), 401

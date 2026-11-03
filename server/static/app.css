@@ -225,11 +225,11 @@ body.home .site-foot { border-top-color: transparent; background: transparent; }
 .files .pill { text-transform: none; letter-spacing: 0; font-size: 11.5px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 
 /* connect pill */
-.pill-row { display: flex; align-items: center; gap: 8px; justify-content: center; max-width: 100%; }
+.pill-row { display: flex; align-items: center; gap: 8px; justify-content: center; max-width: 100%; min-width: 0; }
 .connect-pill {
   --gb-bg: rgba(255, 255, 255, .9);
   display: inline-flex; align-items: center; gap: 14px; padding: 9px 16px 9px 10px; border-radius: 999px; text-decoration: none; color: var(--ink);
-  box-shadow: var(--shadow); max-width: 100%; transition: transform .25s var(--ease-out);
+  box-shadow: var(--shadow); max-width: 100%; min-width: 0; transition: transform .25s var(--ease-out);
 }
 .connect-pill:hover { color: var(--ink); transform: translateY(-1px); }
 .pill-marks { display: inline-flex; align-items: center; flex: none; }
@@ -239,7 +239,7 @@ body.home .site-foot { border-top-color: transparent; background: transparent; }
 }
 .pill-marks img:first-child { margin-left: 0; }
 .grok-chip { display: inline-grid; place-items: center; width: auto; padding: 0 8px; font: 800 10.5px/1 var(--sans); letter-spacing: -.01em; color: var(--white); background: var(--ink); }
-.pill-copy { display: grid; gap: 1px; text-align: left; min-width: 0; }
+.pill-copy { display: grid; gap: 1px; text-align: left; min-width: 0; overflow: hidden; }
 .pill-copy b { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
 .pill-copy code { font-size: 11.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pill-go { color: var(--cobalt); transition: transform .25s var(--ease-out); }
@@ -608,7 +608,7 @@ details.more[open] summary .ico { transform: rotate(180deg); }
 
 /* ---------- channels via Keiki ---------- */
 .pill-stack { display: grid; justify-content: center; gap: 12px; max-width: 100%; }
-.pill-stack > .pill-row > .connect-pill { flex: 1 1 auto; }
+.pill-stack > .pill-row > .connect-pill { flex: 1 1 auto; min-width: 0; }
 .channel-pill { cursor: pointer; }
 .pill-open { display: inline-grid; place-items: center; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
 .pill-open::before { content: ""; position: absolute; inset: 0; border-radius: inherit; }
@@ -673,14 +673,18 @@ details.more[open] summary .ico { transform: rotate(180deg); }
 .keiki-soon { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r-sm); border: 1px dashed var(--rule-2); font-size: 13.5px; }
 .keiki-soon .soon { flex: none; font: 600 10.5px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); background: var(--paper-2); border-radius: 999px; padding: 3px 8px; }
 @media (max-width: 640px) {
-  .keiki-dialog { width: 100vw; max-width: 100vw; max-height: 92dvh; margin: auto 0 0; border-radius: 18px 18px 0 0; }
+  .keiki-dialog { width: 100%; max-width: 100%; max-height: 92dvh; margin: auto 0 0; border-radius: 18px 18px 0 0; }
+  .channel-pill .pill-title b { min-width: 0; }
+  .channel-pill .chat-action { white-space: normal; }
+  .top { min-width: 0; gap: 8px; }
+  .links { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
   .pill-stack { grid-template-columns: minmax(0, 1fr); }
   .keiki-badge { white-space: normal; font: 500 10.5px/1.25 var(--sans); border-radius: 10px; }
   .channel-pill { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 10px; min-width: 0; border-radius: 26px; padding: 10px 12px 12px 10px; }
   .channel-pill .pill-copy { display: contents; }
   .channel-pill .pill-marks { grid-area: 1 / 1 / 3 / 2; align-self: center; }
-  .channel-pill .pill-title { grid-area: 1 / 2; }
-  .channel-pill .pill-copy > code { grid-area: 2 / 2; }
+  .channel-pill .pill-title { grid-area: 1 / 2; min-width: 0; }
+  .channel-pill .pill-copy > code { grid-area: 2 / 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .channel-pill .pill-open { grid-area: 1 / 3 / 3 / 4; align-self: center; }
   .channel-pill .chat-actions { grid-area: 3 / 1 / 4 / 4; margin-top: 8px; padding: 8px 4px 0; border-top: 1px solid var(--rule); gap: 6px 16px; }
   .channel-marks { display: grid; grid-template-columns: repeat(4, 21px); gap: 2px; }
