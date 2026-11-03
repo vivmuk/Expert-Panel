@@ -66,11 +66,11 @@ def pack_files(state):
             owner = "AI Agent"
         else:
             step = slot["step"]
-            name = _slug(step["step"], used)
-            title = step["step"]
+            title = " ".join(step["task"].split()[:6]) if step["step"].strip().isdigit() else step["step"]
+            name = _slug(title, used)
             task = step["task"]
             owner = step["owner"]
-        note = notes.get(name) or notes.get(title) or {}
+        note = notes.get(name) or notes.get(title) or notes.get((slot["step"] or {}).get("step")) or {}
         description = _description(note.get("description"), title, slot["level"])
         calls = [item["name"] for item in skills] if slot["level"] == "orchestrator" else []
         if slot["level"] == "orchestrator":

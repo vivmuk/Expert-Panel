@@ -45,6 +45,7 @@ def main():
     parser.add_argument("base")
     parser.add_argument("--size", choices=("small", "medium", "large"))
     parser.add_argument("--problem", default=PROBLEM)
+    parser.add_argument("--save", help="write the final job state to this JSON file")
     args = parser.parse_args()
 
     state, message, total = {}, args.problem, time.time()
@@ -69,6 +70,9 @@ def main():
             continue
         break
 
+    if args.save:
+        with open(args.save, "w", encoding="utf-8") as handle:
+            json.dump(state, handle, indent=2)
     top5 = state.get("top5") or []
     print(f"\n{time.time() - total:.0f}s total. Phase {state.get('phase')}.")
     print(f"{len(state.get('sources') or [])} sources, {len(state.get('experts') or [])} experts, "

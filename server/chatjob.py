@@ -92,7 +92,11 @@ _LABELS = (
 def _str(value, limit):
     if not isinstance(value, str):
         return ""
-    return " ".join(value.split())[:limit]
+    text = " ".join(value.split())
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - 1].rsplit(" ", 1)[0] or text[: limit - 1]
+    return cut.rstrip(",;:") + "…"
 
 
 def _chat_id(value):
@@ -207,8 +211,8 @@ def normalize_experts(raw, seated=()):
             "name": _str(item.get("name"), 80),
             "role": _str(item.get("role"), 80),
             "lens": _str(item.get("lens"), 160),
-            "insight": _str(item.get("insight"), 300),
-            "recommendation": _str(item.get("recommendation"), 240),
+            "insight": _str(item.get("insight"), 600),
+            "recommendation": _str(item.get("recommendation"), 480),
         }
         if not (expert["name"] and expert["role"] and expert["insight"]):
             continue
@@ -225,7 +229,7 @@ def normalize_debate(raw, roster, round_no=None):
         if not isinstance(item, dict):
             continue
         name = _str(item.get("name"), 80)
-        statement = _str(item.get("statement"), 280)
+        statement = _str(item.get("statement"), 500)
         number = round_no or item.get("round")
         if name not in roster or not statement or number not in range(1, DEBATE_ROUNDS + 1):
             continue
@@ -300,7 +304,7 @@ def normalize_chart(raw):
         return None
     current = _steps(raw.get("current"), ("Human",), "Human")
     future = _steps(raw.get("future"), ("Human", "AI Agent", "Hybrid"), "Hybrid")
-    summary = _str(raw.get("summary"), 400)
+    summary = _str(raw.get("summary"), 800)
     if len(current) < 2 or len(future) < 2 or not summary:
         return None
     return {"current": current, "future": future, "summary": summary}
@@ -977,7 +981,9 @@ def _blueprint(state, complete, remember):
         "Human means judgment, a relationship, or accountability. "
         "AI Agent means the step can run without a person. "
         "Hybrid means an agent drafts and a person approves. "
-        "Use 3 to 6 steps on each side. Do not ask questions."
+        "Use 3 to 6 steps on each side. "
+        "Name each step in 2 to 6 words, such as Triage the literature, never a number. "
+        "Do not ask questions."
     )
     user = _brief(state) + "\n\nPanel consensus: " + state["panel"]["consensus"]
     if state.get("top5"):
@@ -1338,7 +1344,7 @@ RED_TEAM_SCHEMA = _schema(
 
 _STEP = _schema(
     {
-        "step": {"type": "string"},
+        "step": {"type": "string", "description": "A short step name of 2 to 6 words, not a number."},
         "task": {"type": "string"},
         "owner": {"type": "string", "enum": ["Human", "AI Agent", "Hybrid"]},
     },
