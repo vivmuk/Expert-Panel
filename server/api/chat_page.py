@@ -52,7 +52,7 @@ def render_page(welcome, origin=""):
     <div class="examples" role="group" aria-label="Example engagements"><span class="lbl">Try</span>{chips}</div>
     <div class="pill-stack">
       {connect_pill(origin)}
-      {channel_pill()}
+      {channel_pill(origin)}
     </div>
   </section>
   <section class="session" id="session" hidden aria-label="Engagement">

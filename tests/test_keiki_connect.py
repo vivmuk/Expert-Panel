@@ -29,18 +29,39 @@ def _call(client, key, name, arguments):
     return result["isError"], (text if result["isError"] else json.loads(text))
 
 
-def test_home_page_offers_channels_without_a_status_strip(client):
+def test_home_page_has_the_chats_pill_under_the_connect_pill(client):
     html = client.get("/chat").get_data(as_text=True)
     assert "keiki-strip" not in html
-    assert 'data-open-dialog="keiki-dialog"' in html and "Put AI Partner in iMessage / WhatsApp / Slack / Telegram / email" in html
-    for slug in ("imessage", "whatsapp", "slack", "telegram", "email"):
-        assert f"/img/marks/channels/{slug}.svg" in html
-        assert client.get(f"/img/marks/channels/{slug}.svg").status_code == 200
+    stack = html.split('<div class="pill-stack">', 1)[1]
+    assert stack.index("Connect your own agent") < stack.index("Put AI Partner in your chats")
+    assert f"<code>Fetch {ORIGIN}/keiki.md and follow it</code>" in html
+    assert f'data-copy-text="Fetch {ORIGIN}/keiki.md and follow it."' in html
+    assert 'class="pill-open" data-open-dialog="keiki-dialog"' in html
+    assert '<a class="keiki-badge" href="https://onkeiki.com"' in html and "Integrated with Keiki" in html
+    for mark in ("imessage", "whatsapp", "slack", "telegram", "agentmail", "x", "sms", "teams"):
+        assert f"/img/marks/channels/{mark}.svg" in html
+        assert client.get(f"/img/marks/channels/{mark}.svg").status_code == 200
+    assert client.get("/img/marks/keiki.svg").status_code == 200
     assert '<dialog class="keiki-dialog" id="keiki-dialog"' in html
-    assert f"Fetch {ORIGIN}/keiki.md and follow it." in html
     assert "{{secret.AI_PARTNER_API_KEY}}" in html and f"{ORIGIN}/mcp" in html
     assert "Coming soon" in html and "/keiki.js" in html
     assert client.get("/keiki.js").status_code == 200
+
+
+def test_no_channel_is_called_live_unless_listed(client, monkeypatch):
+    html = client.get("/chat").get_data(as_text=True)
+    assert "live-tag" not in html
+    monkeypatch.setenv("KEIKI_LIVE_CHANNELS", " Telegram, bogus ")
+    html = client.get("/chat").get_data(as_text=True)
+    assert html.count('class="live-tag"') == 1
+    live_item = html.split('class="live-tag"')[0].rsplit("<li>", 1)[1]
+    assert live_item.startswith('<img src="/img/marks/channels/telegram.svg"')
+
+
+def test_keiki_is_credited_in_the_footer_and_on_connect(client):
+    assert 'href="https://onkeiki.com"' in client.get("/catalog").get_data(as_text=True).split('<footer class="site-foot">', 1)[1]
+    connect = client.get("/connect").get_data(as_text=True)
+    assert 'class="credits-line">Partners: <a class="keiki-badge" href="https://onkeiki.com"' in connect
 
 
 def test_keiki_md_is_an_agent_playbook(client):

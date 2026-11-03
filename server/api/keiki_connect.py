@@ -4,6 +4,7 @@ The visitor's Keiki agent calls AI Partner's MCP server with their own ap_ key, 
 organization secrets. No secret is exchanged with AI Partner beyond that bearer key.
 """
 import json
+import os
 from html import escape
 
 from flask import Blueprint, Response
@@ -13,14 +14,18 @@ from .access import request_origin
 
 bp = Blueprint("keiki_connect", __name__)
 
+KEIKI_URL = "https://onkeiki.com"
+TITLE = "Put AI Partner in your chats"
 CHANNELS = (
-    ("imessage", "iMessage"),
-    ("whatsapp", "WhatsApp"),
-    ("slack", "Slack"),
-    ("telegram", "Telegram"),
-    ("email", "email"),
+    ("imessage", "iMessage", "imessage"),
+    ("whatsapp", "WhatsApp", "whatsapp"),
+    ("slack", "Slack", "slack"),
+    ("telegram", "Telegram", "telegram"),
+    ("email", "Email (AgentMail)", "agentmail"),
+    ("x", "X", "x"),
+    ("sms", "SMS", "sms"),
+    ("teams", "Microsoft Teams", "teams"),
 )
-LABEL = "Put AI Partner in " + " / ".join(name for _, name in CHANNELS)
 
 SYSTEM_PROMPT = (
     "When someone describes a business problem, run an AI Partner engagement with the AI Partner tools. "
@@ -45,19 +50,45 @@ def mcp_connection(origin):
     }
 
 
-def _marks():
-    return "".join(
-        f'<img src="/img/marks/channels/{slug}.svg" alt="" width="22" height="22" decoding="async">' for slug, _ in CHANNELS
+def live_channels():
+    """Channel slugs listed in KEIKI_LIVE_CHANNELS, the only ones the site may call live."""
+    wanted = {c.strip().lower() for c in os.environ.get("KEIKI_LIVE_CHANNELS", "").split(",") if c.strip()}
+    return [slug for slug, _, _ in CHANNELS if slug in wanted]
+
+
+def _mark(mark, size=22, title=""):
+    tip = f' title="{escape(title)}"' if title else ""
+    return f'<img src="/img/marks/channels/{mark}.svg" alt="" width="{size}" height="{size}" loading="lazy" decoding="async"{tip}>'
+
+
+def keiki_badge():
+    return (
+        f'<a class="keiki-badge" href="{KEIKI_URL}" target="_blank" rel="noopener">'
+        '<img src="/img/marks/keiki.svg" alt="" width="14" height="14" decoding="async">Integrated with Keiki</a>'
     )
 
 
-def channel_pill():
-    names = ", ".join(name for _, name in CHANNELS)
-    return f"""<button type="button" class="connect-pill channel-pill gb spot" data-open-dialog="keiki-dialog" aria-haspopup="dialog">
-    <span class="pill-marks" role="img" aria-label="{escape(names)}">{_marks()}</span>
-    <span class="pill-copy"><b>{escape(LABEL)}</b><code>via Keiki, with your free AI Partner key</code></span>
-    {icon("arrow-right", "ico pill-go")}
-  </button>"""
+def channel_pill(origin):
+    line = fetch_line(origin).rstrip(".")
+    names = ", ".join(name for _, name, _ in CHANNELS)
+    marks = "".join(_mark(mark, title=name) for _, name, mark in CHANNELS)
+    return f"""<div class="pill-row">
+  <div class="connect-pill channel-pill gb spot">
+    <span class="pill-marks channel-marks" role="img" aria-label="{escape(names)}">{marks}</span>
+    <span class="pill-copy"><span class="pill-title"><b>{escape(TITLE)}</b>{keiki_badge()}</span><code>{escape(line)}</code></span>
+    <button type="button" class="pill-open" data-open-dialog="keiki-dialog" aria-haspopup="dialog" aria-label="{escape(TITLE)}: open the setup">{icon("arrow-right", "ico pill-go")}</button>
+  </div>
+  <button type="button" class="copy-btn" data-copy-text="{escape(line)}." aria-label="Copy the Keiki setup line">{icon("copy")}<span class="copied" aria-live="polite"></span></button>
+</div>"""
+
+
+def _channel_list():
+    live = set(live_channels())
+    tag = '<em class="live-tag">Live</em>'
+    items = "".join(
+        f"<li>{_mark(mark, 20)}<span>{escape(name)}</span>{tag if slug in live else ''}</li>" for slug, name, mark in CHANNELS
+    )
+    return f'<ul class="keiki-channels" aria-label="Channels">{items}</ul>'
 
 
 def _code(snippet_id, text):
@@ -72,9 +103,11 @@ def channel_dialog(origin):
     connection = json.dumps(mcp_connection(origin), indent=2)
     return f"""<dialog class="keiki-dialog" id="keiki-dialog" aria-labelledby="keiki-title"><div class="dialog-body">
   <form method="dialog" class="dialog-close"><button type="submit" class="icon-btn" aria-label="Close">{icon("x")}</button></form>
-  <p class="kicker">Via Keiki</p>
-  <h2 id="keiki-title">Put AI Partner in your own channels</h2>
-  <p class="muted">Keiki runs an agent on iMessage, WhatsApp, Slack, Telegram and email. Add AI Partner to that agent as an MCP tool, and anyone who messages it can run an engagement. Your key stays in your Keiki account.</p>
+  <p class="dialog-kicker">{keiki_badge()}</p>
+  <h2 id="keiki-title">{escape(TITLE)}</h2>
+  <p class="muted">Keiki runs your agent on the messaging channels your Keiki account offers. Add AI Partner to that agent as an MCP tool, and anyone who messages it can run an engagement. Your key stays in your Keiki account.</p>
+  {_channel_list()}
+  <p class="foot-small">A channel is marked Live once we have run AI Partner on it end to end. Your Keiki dashboard shows which channels your account can connect.</p>
   <div class="agent-line"><span class="lbl">Let your coding agent do it</span>
     <div class="pill-row"><code>{escape(line)}</code><button type="button" class="copy-btn" data-copy-text="{escape(line)}" aria-label="Copy the setup line">{icon("copy")}<span class="copied" aria-live="polite"></span></button></div>
   </div>
@@ -87,7 +120,7 @@ def channel_dialog(origin):
     <li><b>Store it in Keiki.</b> In the Keiki dashboard, open Settings, then Secrets, and add <code>AI_PARTNER_API_KEY</code> with the key.</li>
     <li><b>Add AI Partner to a Keiki agent.</b> Create an agent, turn on its Sandbox and MCP features, and add this MCP connection on the Global MCP page (or in <code>deploy_agent</code>'s <code>mcp_connections</code>).{_code("keiki-mcp", connection)}</li>
     <li><b>Tell the agent when to use it.</b> Add this to its system prompt.{_code("keiki-prompt", SYSTEM_PROMPT)}</li>
-    <li><b>Connect a channel and message it.</b> Pick iMessage, WhatsApp, Slack, Telegram or email in Keiki, then send it a business problem.</li>
+    <li><b>Connect a channel and message it.</b> Pick a channel for the agent in Keiki, then send it a business problem.</li>
   </ol>
   <p class="foot-small">Keiki is invite-only, and its agents need a Keiki plan to call MCP tools. See <a href="https://onkeiki.com/setup.md" rel="noopener">Keiki's setup guide</a>.</p>
   <div class="keiki-soon"><span class="soon">Coming soon</span><p><b>Bring your own Keiki agent.</b> Keiki pushes signed turns to an endpoint for your account and AI Partner runs the whole turn.</p></div>
@@ -95,9 +128,9 @@ def channel_dialog(origin):
 </div></dialog>"""
 
 
-_PLAYBOOK = """# Put AI Partner in iMessage, WhatsApp, Slack, Telegram and email with Keiki
+_PLAYBOOK = """# Put AI Partner in your chats with Keiki
 
-Use this playbook when someone wants to reach AI Partner from a messaging channel. You build them a Keiki agent that uses AI Partner's MCP server as a tool. Anyone who messages that agent can run an AI Partner engagement: research, 20 AI experts, a debate, the judge's Top 5, a work chart and the harness kit.
+AI Partner is integrated with Keiki (https://onkeiki.com). Use this playbook when someone wants to reach AI Partner from a messaging channel. You build them a Keiki agent that uses AI Partner's MCP server as a tool. Anyone who messages that agent can run an AI Partner engagement: research, 20 AI experts, a debate, the judge's Top 5, a work chart and the harness kit.
 
 The person's AI Partner key stays in their own Keiki organization's secrets. Keiki sends it to `https://HOST/mcp` as a bearer token. Nothing else is shared.
 
@@ -148,7 +181,7 @@ Call `talk_to_agent` with agent `AI Partner` and a real first message, for examp
 
 ## 6. Go live
 
-Call `list_channel_types` for the fields each channel needs: iMessage, WhatsApp, Slack, Telegram or email. Then call `deploy_agent` again with the same `external_ref`, `"agent": {}`, and a `channels` list. Ask the person before connecting a production channel. Call `get_deployment` with `{ "externalRef": "ai-partner" }` and check that each channel is `connected`.
+Call `list_channel_types` for the channels the person's Keiki organization can connect and the fields each one needs, for example iMessage, SMS, WhatsApp, Slack, Telegram or email through AgentMail. Then call `deploy_agent` again with the same `external_ref`, `"agent": {}`, and a `channels` list. Ask the person before connecting a production channel. Call `get_deployment` with `{ "externalRef": "ai-partner" }` and check that each channel is `connected`.
 
 ## 7. Report
 

@@ -73,6 +73,7 @@ FOOT = """
 <footer class="site-foot">
   <a class="brand" href="/chat"><img class="persona" src="/img/brand/avatar.webp" alt="" width="24" height="24"><span>AI Partner</span></a>
   <p class="foot-note">Your team directs the agents. Your first engagement is free.</p>
+  <p class="foot-credits">Messaging channels: <a href="https://onkeiki.com" target="_blank" rel="noopener"><img src="/img/marks/keiki.svg" alt="" width="14" height="14" loading="lazy" decoding="async">Integrated with Keiki</a></p>
   <nav class="foot-links" aria-label="Footer">
     <a href="/demos">Demos</a><a href="/what-you-get">What you get</a><a href="/catalog">Catalog</a><a href="/about">About</a><a href="/deck">Deck</a><a href="/connect">Connect</a><a href="/get-started.md">get-started.md</a><a href="/keiki.md">keiki.md</a>
   </nav>

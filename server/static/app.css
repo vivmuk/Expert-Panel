@@ -607,10 +607,30 @@ details.more[open] summary .ico { transform: rotate(180deg); }
 
 
 /* ---------- channels via Keiki ---------- */
-.pill-stack { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px 14px; max-width: 100%; }
-.channel-pill { border: 0; font: inherit; cursor: pointer; }
-.channel-pill .pill-marks img { padding: 5px; }
-.channel-pill .pill-copy b { white-space: normal; }
+.pill-stack { display: grid; justify-content: center; gap: 12px; max-width: 100%; }
+.pill-stack > .pill-row > .connect-pill { flex: 1 1 auto; }
+.channel-pill { cursor: pointer; }
+.pill-open { display: inline-grid; place-items: center; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
+.pill-open::before { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.pill-open:focus-visible { outline: none; }
+.channel-pill:has(.pill-open:focus-visible) { outline: 2px solid var(--cobalt); outline-offset: 3px; }
+.pill-title { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+.keiki-badge {
+  position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 3px; border-radius: 999px;
+  border: 1px solid var(--rule-2); background: var(--white); color: var(--ink-2); font: 500 10.5px/1.3 var(--mono); text-decoration: none; white-space: nowrap;
+}
+.keiki-badge img { width: 14px; height: 14px; border-radius: 4px; }
+.keiki-badge:hover { color: var(--cobalt); border-color: var(--cobalt); }
+.foot-credits { margin: 0; font-size: 12px; }
+.foot-credits a { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); text-decoration: none; }
+.foot-credits a:hover { color: var(--cobalt); }
+.foot-credits img { border-radius: 4px; }
+.credits-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 18px 0 6px; font-size: 13.5px; color: var(--ink-2); }
+.dialog-kicker { margin: 0; }
+.keiki-channels { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.keiki-channels li { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border-radius: 999px; border: 1px solid var(--rule); background: var(--white); font-size: 13px; }
+.keiki-channels img { width: 20px; height: 20px; object-fit: contain; }
+.live-tag { font: 600 10px var(--mono); font-style: normal; letter-spacing: .05em; text-transform: uppercase; color: #0B6B32; background: #E3F6EA; border-radius: 999px; padding: 1px 6px; }
 .keiki-dialog {
   width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); padding: 0; border: 0; border-radius: calc(var(--r) + 4px);
   background: var(--paper); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 31, 122, .45), 0 0 0 1px var(--rule);
@@ -636,5 +656,7 @@ details.more[open] summary .ico { transform: rotate(180deg); }
 .keiki-soon .soon { flex: none; font: 600 10.5px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); background: var(--paper-2); border-radius: 999px; padding: 3px 8px; }
 @media (max-width: 640px) {
   .keiki-dialog { width: 100vw; max-width: 100vw; max-height: 92dvh; margin: auto 0 0; border-radius: 18px 18px 0 0; }
-  .channel-pill .pill-marks img:nth-child(n+4) { display: none; }
+  .pill-stack { justify-content: stretch; }
+  .channel-marks { display: grid; grid-template-columns: repeat(4, 22px); gap: 3px; }
+  .channel-marks img, .channel-marks img:nth-child(n+5) { display: block; width: 22px; height: 22px; padding: 3px; margin: 0; }
 }
