@@ -27,6 +27,25 @@
     blueprint: "Drawing the work chart",
     skills: "Writing the skill pack"
   };
+  var NAV = [
+    ["summary", "Summary", function () { return ""; }],
+    ["market", "Research", function (s) { return (s.sources || []).length + " sources"; }],
+    ["experts", "20 experts", function (s) { return (s.experts || []).length + "/20"; }],
+    ["debate", "Debate", function (s) { return String((s.debate || []).length); }],
+    ["synthesis", "Judge", function () { return "synthesis"; }],
+    ["top5", "Top 5", function () { return "ranked"; }],
+    ["maturity", "Maturity", function (s) { return s.maturity ? s.maturity + "/4" : ""; }],
+    ["chart", "Work chart", function () { return "swimlanes"; }],
+    ["skills", "Skill pack", function () { return "kit"; }],
+    ["artifacts", "Deliverables", function () { return "deck + 4"; }]
+  ];
+  var STAGE_OF = { research: 1, brief: 1, experts: 2, debate: 3, top5: 4, red_team: 4, chart: 5, done: 6 };
+  var DOWNLOADS = {
+    kit: ["/api/chat/kit", "harness-kit.zip"],
+    "skill-pack": ["/api/chat/skill-pack", "skill-pack.zip"],
+    report: ["/api/chat/report", "report.md"],
+    pptx: ["/api/chat/deck.pptx", "client-deck.pptx"]
+  };
   var MATURITY = [["1", "Invoice-led"], ["2", "Pilot-led"], ["3", "Hybrid"], ["4", "Machine-led"]];
   var SIZES = [["small", "Small", "one team"], ["medium", "Medium", "several teams"], ["large", "Large", "company-wide"]];
 
@@ -52,6 +71,11 @@
   var running = false;
   var lastMessage = "";
   var timer = null;
+  var reportNode = null;
+  var viewing = false;
+  var booted = false;
+  var doneStatus = null;
+  var docs = {};
 
   function ico(name) {
     var span = document.createElement("span");
@@ -220,50 +244,131 @@
       [(s.sources || []).length, "sources"], [(s.experts || []).length, "AI experts"], [(s.debate || []).length, "debate turns"],
       [(s.top5 || []).length, "top moves"], [s.maturity ? s.maturity + "/4" : "—", "AI maturity"]
     ].map(function (r) { return h("div", { class: "stat" }, [h("strong", { text: String(r[0]) }), h("span", { text: r[1] })]); });
-    var status = h("p", { class: "status-line", role: "status" });
-    var out = h("div", { class: "artifact-out" });
-    var picks = h("div", { class: "artifact-picks" });
-    loadArtifacts(picks, out, status);
+    doneStatus = h("p", { class: "status-line", role: "status", text: "Building the full report and the deliverables." });
+    loadView();
     return h("article", { class: "card gb done-card live" }, [
       h("header", { class: "card-head" }, [h("h3", {}, [ico("package"), " The harness kit is ready"]), h("span", { class: "pill cobalt", text: "done" })]),
       h("div", { class: "stats" }, stats),
       h("div", { class: "downloads" }, [
-        h("button", { type: "button", class: "btn primary small", onclick: function () { download("/api/chat/kit", "harness-kit.zip", status); } }, [ico("package"), "Harness kit"]),
-        h("button", { type: "button", class: "btn small", onclick: function () { download("/api/chat/skill-pack", "skill-pack.zip", status); } }, [ico("puzzle"), "Skill pack"]),
-        h("button", { type: "button", class: "btn small", onclick: function () { download("/api/chat/report", "report.md", status); } }, [ico("file-text"), "Report"]),
+        h("button", { type: "button", class: "btn primary small", "data-download": "kit" }, [ico("package"), "Harness kit"]),
+        h("button", { type: "button", class: "btn small", "data-download": "pptx" }, [ico("presentation"), "Client deck .pptx"]),
+        h("button", { type: "button", class: "btn small", "data-download": "skill-pack" }, [ico("puzzle"), "Skill pack"]),
+        h("button", { type: "button", class: "btn small ghost", "data-download": "report" }, [ico("file-text"), "Report .md"]),
         h("button", { type: "button", class: "btn small ghost", onclick: saveJson }, [ico("download"), "JSON"])
       ]),
-      h("p", { class: "sub", text: "Generate any catalog artifact from this engagement." }),
-      picks, out, status,
-      h("a", { class: "btn ghost small", href: "/connect" }, [ico("plug"), "Run the kit in your own agent"])
+      doneStatus
     ]);
   }
 
+  /* ---------- the full report, rendered by the same code as /demos ---------- */
+  function loadView() {
+    if (viewing || reportNode || !state || state.phase !== "done") return;
+    viewing = true;
+    var jump = booted;
+    fetch("/api/chat/view", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: state }) })
+      .then(read).then(function (data) {
+        viewing = false;
+        if (!data.ok || !data.report) throw new Error("no report");
+        docs = {};
+        (data.deliverables || []).concat(data.catalog || []).forEach(function (d) { docs[d.id] = d; });
+        reportNode = h("div", { class: "live-report report-body" });
+        reportNode.innerHTML = data.report;
+        paintLog();
+        paintRail();
+        if (window.initReport) window.initReport(reportNode, null);
+        loadCatalog(reportNode.querySelector("#catalog-picks"), reportNode.querySelector("#artifact-status"));
+        if (jump) window.scrollTo({ top: Math.max(reportNode.getBoundingClientRect().top + window.scrollY - 90, 0), behavior: motion() });
+      }).catch(function () {
+        viewing = false;
+        if (doneStatus) doneStatus.textContent = "The full report did not load. Reload the page to try again.";
+      });
+  }
+
+  function motion() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"; }
+
+  function statusLine() {
+    return (reportNode && reportNode.querySelector("#artifact-status")) || doneStatus;
+  }
+
+  function showDoc(id) {
+    var doc = docs[id];
+    if (!doc || !reportNode) return;
+    var viewer = reportNode.querySelector("#viewer");
+    var save = doc.pptx ? ".pptx" : ".html";
+    viewer.hidden = false;
+    reportNode.querySelector("#viewer-kicker").textContent = doc.pptx ? "Client deck · the same slides as the .pptx" : id.indexOf("catalog:") === 0 ? "Catalog artifact" : "Deliverable";
+    reportNode.querySelector("#viewer-title").textContent = doc.title;
+    var actions = reportNode.querySelector("#viewer-actions");
+    actions.textContent = "";
+    actions.appendChild(h("button", { type: "button", class: "btn small ghost", "data-open": id }, [ico("external-link"), "Open full page"]));
+    actions.appendChild(h("button", { type: "button", class: "btn small primary", "data-save": id, "data-kind": save }, [ico("download"), "Download " + save]));
+    if (doc.pptx) actions.appendChild(h("button", { type: "button", class: "btn small ghost", "data-save": id, "data-kind": ".html" }, [ico("download"), ".html"]));
+    actions.appendChild(h("button", { type: "button", class: "linkish", "data-save": id, "data-kind": ".md" }, [".md"]));
+    reportNode.querySelector("#viewer-frame").srcdoc = doc.html;
+    reportNode.querySelectorAll("[data-card]").forEach(function (card) { card.classList.toggle("on", card.getAttribute("data-card") === id); });
+    viewer.scrollIntoView({ behavior: motion(), block: "start" });
+  }
+
+  function openDoc(id) {
+    var doc = docs[id];
+    if (!doc) return;
+    var url = URL.createObjectURL(new Blob([doc.html], { type: "text/html" }));
+    window.open(url, "_blank", "noopener");
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+  }
+
+  function saveDoc(id, kind) {
+    var doc = docs[id];
+    if (!doc) return;
+    var name = id.replace("catalog:", "");
+    if (kind === ".pptx") download(DOWNLOADS.pptx[0], DOWNLOADS.pptx[1], statusLine());
+    else if (kind === ".md") blobSave(doc.markdown || "", name + ".md", "text/markdown");
+    else blobSave(doc.html, name + ".html", "text/html");
+  }
+
+  log.addEventListener("click", function (ev) {
+    var el = ev.target.closest("[data-artifact],[data-open],[data-save],[data-download]");
+    if (!el || !log.contains(el)) return;
+    if (el.hasAttribute("data-artifact")) showDoc(el.getAttribute("data-artifact"));
+    else if (el.hasAttribute("data-open")) openDoc(el.getAttribute("data-open"));
+    else if (el.hasAttribute("data-save")) saveDoc(el.getAttribute("data-save"), el.getAttribute("data-kind"));
+    else if (DOWNLOADS[el.getAttribute("data-download")]) {
+      var d = DOWNLOADS[el.getAttribute("data-download")];
+      download(d[0], d[1], statusLine());
+    }
+  });
+
   function recommend() {
     var text = ((state && state.problem) || "").toLowerCase();
-    var ids = ["research-brief", "exec-memo", "issue-tree", "work-chart", "roadmap"];
+    var ids = ["issue-tree", "board-one-pager", "business-case", "stakeholder-map", "risks", "raci"];
     if (text.indexOf("pric") >= 0) ids.unshift("pricing-analysis");
     if (text.indexOf("cost") >= 0) ids.unshift("cost-reduction");
     return ids.slice(0, 6);
   }
 
-  function loadArtifacts(picks, out, status) {
+  function loadCatalog(picks, status) {
+    if (!picks) return;
     fetch("/api/catalog").then(function (res) { return res.json(); }).then(function (data) {
       var byId = {};
       (data.groups || []).forEach(function (g) { (g.artifacts || []).forEach(function (a) { byId[a.id] = a; }); });
-      recommend().forEach(function (id) {
+      var ids = Object.keys((state && state.artifacts) || {});
+      recommend().forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); });
+      ids.forEach(function (id) {
         var item = byId[id];
         if (!item) return;
-        picks.appendChild(h("button", { type: "button", class: "chip", onclick: function (ev) { generate(item, ev.currentTarget, out, status); } }, [ico("sparkles"), item.title]));
+        var made = !!docs["catalog:" + id];
+        picks.appendChild(h("button", { type: "button", class: "chip" + (made ? " on" : ""), onclick: function (ev) {
+          if (docs["catalog:" + id]) showDoc("catalog:" + id); else generate(item, ev.currentTarget, status);
+        } }, [ico(made ? "eye" : "sparkles"), item.title]));
       });
       picks.appendChild(h("a", { class: "chip", href: "/catalog" }, ["All artifacts", ico("arrow-right")]));
     }).catch(function () {});
   }
 
-  function generate(item, button, out, status) {
+  function generate(item, button, status) {
     if (button.disabled) return;
     button.disabled = true;
-    status.textContent = "Writing " + item.title + ".";
+    status.textContent = "Writing " + item.title + ". This takes about 20 seconds.";
     fetch("/api/chat/artifact", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ state: state || {}, artifact_id: item.id })
@@ -272,13 +377,10 @@
       if (!data.ok) { status.textContent = (data.error && data.error.message) || "The artifact was not written. Try again."; return; }
       if (data.state) { state = data.state; save(); }
       status.textContent = "";
-      var pre = h("pre", { text: data.markdown || "" });
-      out.insertBefore(h("div", { class: "card" }, [
-        h("header", { class: "card-head" }, [h("h3", { text: item.title }), h("div", { class: "downloads" }, [
-          h("button", { type: "button", class: "btn small ghost", onclick: function (ev) { copyText(pre.textContent, ev.currentTarget); } }, [ico("copy"), "Copy"]),
-          h("button", { type: "button", class: "btn small ghost", onclick: function () { blobSave(pre.textContent, item.id + ".md", "text/markdown"); } }, [ico("download"), ".md"])
-        ])]), pre
-      ]), out.firstChild);
+      docs["catalog:" + item.id] = { id: "catalog:" + item.id, title: item.title, html: data.html || "", markdown: data.markdown || "" };
+      button.classList.add("on");
+      button.replaceChild(ico("eye"), button.firstChild);
+      showDoc("catalog:" + item.id);
     }).catch(function () { button.disabled = false; status.textContent = "The request failed. Try again."; });
   }
 
@@ -337,9 +439,30 @@
 
   function paintLog() {
     log.textContent = "";
+    var showReport = reportNode && state && state.phase === "done";
+    var runlog = null;
+    var seen = {};
     items.forEach(function (item, i) {
+      var kind = item.role === "card" && item.card ? item.card.kind : null;
+      if (showReport && kind === "done") {
+        log.appendChild(h("li", { class: "msg report-msg", id: "stage-6" }, [reportNode]));
+        return;
+      }
       var node = renderItem(item, i);
-      if (node) log.appendChild(node);
+      if (!node) return;
+      var stage = kind ? STAGE_OF[kind] : item.role === "user" ? 0 : null;
+      if (stage != null && !seen[stage]) { node.id = "stage-" + stage; seen[stage] = true; }
+      if (showReport && kind) {
+        if (!runlog) {
+          runlog = h("ol");
+          log.appendChild(h("li", { class: "msg runlog-msg" }, [h("details", { class: "runlog" }, [
+            h("summary", {}, [ico("chevron-down"), "Live run log: every card from research to the judge, as it happened"]), runlog
+          ])]));
+        }
+        runlog.appendChild(node);
+        return;
+      }
+      log.appendChild(node);
     });
   }
 
@@ -372,15 +495,29 @@
   function paintRail() {
     var s = state || {};
     var current = stageIndex(s.phase);
+    var nav = !!(reportNode && s.phase === "done");
     stagesEl.textContent = "";
-    STAGES.forEach(function (stage, i) {
+    stagesEl.classList.toggle("nav", nav);
+    document.body.classList.toggle("reporting", nav);
+    stagesEl.parentElement.setAttribute("aria-label", nav ? "Report sections" : "Progress");
+    if (nav) {
+      NAV.forEach(function (row) {
+        stagesEl.appendChild(h("li", { class: "done" }, [h("a", { href: "#" + row[0] }, [
+          h("span", { class: "n" }, [ico("check")]), h("span", { class: "lbl", text: row[1] }), h("span", { class: "count", text: row[2](s) })
+        ])]));
+      });
+      if (window.reportSpy) window.reportSpy(stagesEl, reportNode);
+    }
+    if (!nav) STAGES.forEach(function (stage, i) {
       var done = i < current;
       var active = i === current;
-      stagesEl.appendChild(h("li", { class: done ? "done" : active ? "active" : "", "aria-current": active ? "step" : null }, [
+      var kids = [
         h("span", { class: "n" }, [done ? ico("check") : String(i + 1)]),
         h("span", { class: "lbl", text: stage.label }),
         h("span", { class: "count", text: stage.count(s) })
-      ]));
+      ];
+      stagesEl.appendChild(h("li", { class: done ? "done" : active ? "active" : "", "aria-current": active ? "step" : null },
+        done || active ? [h("a", { href: "#stage-" + Math.min(i, 6) }, kids)] : kids));
     });
     var pct = Math.min(100, Math.round(current / STAGES.length * 100));
     if (s.phase === "panel" || s.phase === "debate") {
@@ -504,6 +641,8 @@
     if (!text || running) return;
     if (state && state.phase === "done" && text.length > 15) {
       state = null;
+      reportNode = null;
+      docs = {};
       items = [{ role: "assistant", text: welcome() }];
     }
     append({ role: "user", text: text });
@@ -554,6 +693,7 @@
   }
 
   function download(path, name, status) {
+    status = status || { textContent: "" };
     status.textContent = "Preparing " + name + ".";
     fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: state }) })
       .then(function (res) {
@@ -570,14 +710,6 @@
     blobSave(JSON.stringify(keep, null, 2), "engagement.json", "application/json");
   }
 
-  function copyText(text, button) {
-    if (navigator.clipboard) navigator.clipboard.writeText(text);
-    var label = button.lastChild;
-    var was = label.textContent;
-    label.textContent = "Copied";
-    setTimeout(function () { label.textContent = was; }, 1400);
-  }
-
   /* ---------- persistence ---------- */
   function save() {
     try { localStorage.setItem(STORE, JSON.stringify({ state: state, items: items })); } catch (e) { /* storage full or blocked */ }
@@ -588,6 +720,8 @@
   function fresh() {
     try { localStorage.removeItem(STORE); } catch (e) { /* ignore */ }
     state = null;
+    reportNode = null;
+    docs = {};
     items = [{ role: "assistant", text: welcome() }];
     uploads = [];
     paintFiles();
@@ -626,6 +760,7 @@
     items.push({ role: "error", text: "The engagement paused while the agents were working. Continue from where it stopped.", retry: true, resume: true });
   }
   paint();
+  booted = true;
   if (!items.some(function (i) { return i.role === "user"; }) && window.matchMedia("(pointer: fine)").matches) box.focus();
   var tick = 0;
   var placeholders = Array.prototype.map.call(document.querySelectorAll("[data-example]"), function (c) { return c.getAttribute("data-example"); });

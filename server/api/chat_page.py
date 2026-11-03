@@ -15,6 +15,7 @@ CLIENT_ICONS = (
     "arrow-right", "check", "copy", "download", "external-link", "file-text", "globe", "link", "loader-circle",
     "package", "puzzle", "refresh-cw", "rotate-ccw", "search", "shield-check", "sparkles", "trophy", "users",
     "workflow", "messages-square", "triangle-alert", "plug", "chevron-down", "x", "file-search",
+    "eye", "monitor-play", "presentation",
 )
 
 
@@ -28,7 +29,7 @@ def render_page(welcome, origin=""):
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-{head("AI Partner · Your team directs. AI Partner agents do the work.")}
+{head("AI Partner · Your team directs. AI Partner agents do the work.", '<link rel="stylesheet" href="/report.css">' + chr(10))}
 </head>
 <body class="home">
 {header("/chat")}
@@ -70,6 +71,7 @@ def render_page(welcome, origin=""):
 {FOOT}
 <script id="welcome" type="text/plain">{welcome}</script>
 <script id="chat-icons" type="application/json">{icons}</script>
+<script src="/report.js" defer></script>
 <script src="/chat.js" data-endpoint="/api/chat" defer></script>
 <script src="/onboard.js" defer></script>
 <script src="/voice.js"></script>

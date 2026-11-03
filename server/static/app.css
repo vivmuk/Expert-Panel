@@ -272,6 +272,25 @@ body.chatting .home-stage { display: none; }
 .meter-line { height: 3px; border-radius: 3px; background: var(--paper-3); overflow: hidden; }
 .meter-line i { display: block; height: 100%; width: var(--v, 0%); background: linear-gradient(90deg, var(--cobalt), var(--cobalt-lt)); transition: width .8s var(--ease-out); }
 .rail-actions { display: grid; gap: 8px; }
+.stages a { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; margin: -8px -8px; padding: 8px; border-radius: 8px; color: inherit; text-decoration: none; transition: background-color .2s var(--ease-out), color .2s var(--ease-out); }
+.stages a:hover { background: rgba(15, 15, 15, .04); color: var(--ink); }
+.stages.nav li { padding: 3px 0; border-top: 0; }
+.stages.nav a { margin: 0 -8px; padding: 7px 8px; }
+.stages.nav a.on { background: var(--cobalt-wash); color: var(--cobalt); font-weight: 600; box-shadow: inset 2px 0 0 var(--cobalt); }
+.stages.nav a.on .n { background: #D7263D; border-color: #D7263D; }
+.stages.nav a.on .count { color: var(--cobalt); }
+.runlog { border: 1px solid var(--rule); border-radius: var(--r); background: var(--white); }
+.runlog > summary { cursor: pointer; padding: 12px 16px; font: 500 12px var(--mono); color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+.runlog > summary .ico { transition: transform .2s var(--ease-out); }
+.runlog[open] > summary .ico { transform: rotate(180deg); }
+.runlog > ol { list-style: none; margin: 0; padding: 0 16px 16px; display: grid; gap: 14px; }
+.msg.report-msg, .msg.runlog-msg { display: block; }
+.stages li > a { grid-column: 1 / -1; }
+body.reporting .wrap { max-width: 1320px; }
+body.reporting .dock { position: static; }
+.log > li { scroll-margin-top: 90px; }
+.live-report .report-section { scroll-margin-top: 90px; }
+.live-report { padding-top: 6px; }
 
 .thread { display: grid; gap: 18px; min-width: 0; }
 .log { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
@@ -502,6 +521,14 @@ details.more[open] summary .ico { transform: rotate(180deg); }
   .stages li { border: 0; padding: 2px 0; grid-template-columns: 20px auto auto; gap: 6px; flex: none; font-size: 12.5px; }
   .stages li:not(.active):not(.done) { display: none; }
   .stages li.done:not(:last-of-type) .lbl { display: none; }
+  .stages.nav { gap: 6px; }
+  .stages.nav li { display: block !important; padding: 0; }
+  .stages.nav li .lbl { display: inline !important; }
+  .stages.nav a { display: block; margin: 0; padding: 6px 12px; border: 1px solid var(--rule); border-radius: 999px; background: var(--white); font-size: 12.5px; white-space: nowrap; }
+  .stages.nav a .n, .stages.nav a .count { display: none; }
+  .stages.nav a.on { background: var(--cobalt); border-color: var(--cobalt); color: var(--white); box-shadow: none; }
+  .stages.nav ~ .meter-line { display: none; }
+  .log > li, .live-report .report-section { scroll-margin-top: 130px; }
   .task-head, .connect-hero { grid-template-columns: 1fr; }
   .chart-cols { grid-template-columns: 1fr; }
 }
