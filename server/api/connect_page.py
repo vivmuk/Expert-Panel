@@ -10,10 +10,9 @@ from .keiki_connect import (
     IMESSAGE_DISPLAY,
     TITLE,
     fetch_line,
-    keiki_badge,
     mcp_connection,
 )
-from .pages import connect_pill, page_head, shell
+from .pages import built_on_section, connect_pill, page_head, shell
 
 MARKS = (
     ("#cursor-setup", "/img/marks/cursor.svg", "Cursor cube, from the Cursor brand guidelines", "Cursor"),
@@ -85,7 +84,7 @@ def render_connect(origin):
 </div>
 <p class="kicker">Works with</p>
 <div class="marks">{tiles}</div>
-<p class="credits-line">Partners: {keiki_badge()} <span>Keiki runs AI Partner on messaging channels. <a href="#keiki">Set it up</a>.</span></p>
+{built_on_section()}
 <p class="foot-small">Trademarks belong to their owners. No endorsement is implied. Grok Bot is shown as a text wordmark until an official logo file is available.</p>
 <p class="muted">The web chat stays open. The MCP server at <code>{escape(origin)}/mcp</code> and the API at <code>{escape(origin)}/v1</code> need a bearer key; without one they answer 401.</p>
 <div class="setup-grid">{"".join(cards)}</div>

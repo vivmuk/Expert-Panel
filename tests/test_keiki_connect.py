@@ -70,7 +70,29 @@ def test_no_channel_is_called_live_unless_listed(client, monkeypatch):
 def test_keiki_is_credited_in_the_footer_and_on_connect(client):
     assert 'href="https://onkeiki.com"' in client.get("/catalog").get_data(as_text=True).split('<footer class="site-foot">', 1)[1]
     connect = client.get("/connect").get_data(as_text=True)
-    assert 'class="credits-line">Partners: <a class="keiki-badge" href="https://onkeiki.com"' in connect
+    assert 'href="https://onkeiki.com" target="_blank" rel="noopener noreferrer">Keiki</a>' in connect
+    assert "Partners:" not in connect
+
+
+def test_built_on_credits_in_the_footer_and_on_connect(client):
+    links = (
+        "https://maritime.sh",
+        "https://supermemory.ai",
+        "https://onkeiki.com",
+        "https://venice.ai",
+        "https://exa.ai",
+        "https://railway.com",
+    )
+    chat = client.get("/chat").get_data(as_text=True)
+    footer = chat.split('<p class="built-on">', 1)[1].split("</p>", 1)[0]
+    assert footer.startswith("Built on ")
+    connect = client.get("/connect").get_data(as_text=True)
+    section = connect.split('class="built-on-section"', 1)[1].split("</section>", 1)[0]
+    for href in links:
+        for block in (footer, section):
+            tag = block.split(f'href="{href}"', 1)[1].split(">", 1)[0]
+            assert 'target="_blank"' in tag
+            assert 'rel="noopener noreferrer"' in tag
 
 
 def test_keiki_md_is_an_agent_playbook(client):
