@@ -42,6 +42,9 @@ def test_home_page_has_the_chats_pill_under_the_connect_pill(client):
         assert f"/img/marks/channels/{mark}.svg" in html
         assert client.get(f"/img/marks/channels/{mark}.svg").status_code == 200
     assert client.get("/img/marks/keiki.svg").status_code == 200
+    assert 'href="sms:+17796251378?&amp;body=K-XSWGQX"' in html and "Text AI Partner on iMessage" in html
+    assert 'data-copy-text="K-XSWGQX"' in html and 'data-copy-text="+17796251378"' in html and "+1 (779) 625-1378" in html
+    assert 'href="mailto:keiki-2w002869@agentmail.to"' in html and "Email AI Partner" in html
     assert '<dialog class="keiki-dialog" id="keiki-dialog"' in html
     assert "{{secret.AI_PARTNER_API_KEY}}" in html and f"{ORIGIN}/mcp" in html
     assert "Coming soon" in html and "/keiki.js" in html
@@ -69,7 +72,8 @@ def test_keiki_md_is_an_agent_playbook(client):
     assert response.status_code == 200 and response.mimetype == "text/markdown"
     text = response.get_data(as_text=True)
     assert "HOST" not in text and "DEPLOYMENT" not in text
-    assert f'curl -sS -X POST "{ORIGIN}/api/signup"' in text
+    assert f'curl -sS -X POST "{ORIGIN}/api/signup"' in text and "USER_EMAIL" in text
+    assert "`K-XSWGQX` to +1 (779) 625-1378, or email keiki-2w002869@agentmail.to" in text
     body = json.loads(text.split("```json\n", 1)[1].split("\n```", 1)[0])
     assert body["agent"]["features"] == {"sandbox": True, "mcp": True}
     assert body["mcp_connections"][0]["endpoint"] == f"{ORIGIN}/mcp"

@@ -9,6 +9,7 @@ Docs: https://onkeiki.com/docs/external-harness.md
 
 import hashlib
 import hmac
+import json
 import logging
 import os
 import threading
@@ -111,3 +112,34 @@ def keiki_turn():
         return jsonify({"error": "bad_turn"}), 400
     threading.Thread(target=run_turn, args=(payload, token), daemon=True).start()
     return jsonify({"ok": True}), 202
+
+
+SELF_CHECK_SINK = "https://httpbin.org/anything/ai-partner-keiki-self-check"
+
+
+def self_check(url):
+    """POST two turns signed with our own secret to `url` and log only the status codes.
+
+    The turn carries no messages, so the engine never runs; its /complete goes to a public echo
+    sink with a dummy token. Nothing reaches Keiki or a real conversation.
+    """
+    agent = os.environ.get("KEIKI_AGENT_ID", "")
+    statuses = {}
+    for kind, extra in (("keiki.arrival", {}), ("keiki.turn", {"messages": [], "keiki": {"turnUrl": SELF_CHECK_SINK}})):
+        raw = json.dumps({"type": kind, "agentId": agent, "turnId": "self-check", "conversationId": "self-check", **extra}).encode()
+        ts = int(time.time())
+        signature = hmac.new(_secret().encode(), f"{ts}.".encode() + raw, hashlib.sha256).hexdigest()
+        headers = {"Content-Type": "application/json", "Keiki-Signature": f"t={ts},v1={signature}", "Keiki-Turn-Token": "self-check"}
+        try:
+            statuses[kind] = requests.post(url, data=raw, headers=headers, timeout=20).status_code
+        except requests.RequestException as exc:
+            statuses[kind] = type(exc).__name__
+    logger.info("keiki self-check %s: %s", url, statuses)
+    return statuses
+
+
+def start_self_check(url, delay=60):
+    """Run self_check once, after the new deployment has had time to take traffic."""
+    timer = threading.Timer(delay, self_check, args=(url,))
+    timer.daemon = True
+    timer.start()

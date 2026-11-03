@@ -16,6 +16,12 @@ bp = Blueprint("keiki_connect", __name__)
 
 KEIKI_URL = "https://onkeiki.com"
 TITLE = "Put AI Partner in your chats"
+IMESSAGE_NUMBER = "+17796251378"
+IMESSAGE_DISPLAY = "+1 (779) 625-1378"
+IMESSAGE_CODE = "K-XSWGQX"
+EMAIL = "keiki-2w002869@agentmail.to"
+SMS_HREF = f"sms:{IMESSAGE_NUMBER}?&body={IMESSAGE_CODE}"
+MAILTO_HREF = f"mailto:{EMAIL}"
 CHANNELS = (
     ("imessage", "iMessage", "imessage"),
     ("whatsapp", "WhatsApp", "whatsapp"),
@@ -68,6 +74,20 @@ def keiki_badge():
     )
 
 
+def _mini_copy(text, shown, label):
+    return (
+        f'<button type="button" class="mini-copy" data-copy-text="{escape(text)}" aria-label="Copy {escape(label)}">'
+        f'{escape(shown)}{icon("copy")}<span class="copied" aria-live="polite"></span></button>'
+    )
+
+
+def chat_actions():
+    return f"""<span class="chat-actions">
+      <span class="chat-action-group"><a class="chat-action" href="{escape(SMS_HREF)}">{_mark("imessage", 16)}Text AI Partner on iMessage</a><span class="desk-only chat-code">text {_mini_copy(IMESSAGE_CODE, IMESSAGE_CODE, "the code")} to {_mini_copy(IMESSAGE_NUMBER, IMESSAGE_DISPLAY, "the number")}</span></span>
+      <a class="chat-action" href="{escape(MAILTO_HREF)}">{_mark("agentmail", 16)}Email AI Partner</a>
+    </span>"""
+
+
 def channel_pill(origin):
     line = fetch_line(origin).rstrip(".")
     names = ", ".join(name for _, name, _ in CHANNELS)
@@ -75,7 +95,7 @@ def channel_pill(origin):
     return f"""<div class="pill-row">
   <div class="connect-pill channel-pill gb spot">
     <span class="pill-marks channel-marks" role="img" aria-label="{escape(names)}">{marks}</span>
-    <span class="pill-copy"><span class="pill-title"><b>{escape(TITLE)}</b>{keiki_badge()}</span><code>{escape(line)}</code></span>
+    <span class="pill-copy"><span class="pill-title"><b>{escape(TITLE)}</b>{keiki_badge()}</span><code>{escape(line)}</code>{chat_actions()}</span>
     <button type="button" class="pill-open" data-open-dialog="keiki-dialog" aria-haspopup="dialog" aria-label="{escape(TITLE)}: open the setup">{icon("arrow-right", "ico pill-go")}</button>
   </div>
   <button type="button" class="copy-btn" data-copy-text="{escape(line)}." aria-label="Copy the Keiki setup line">{icon("copy")}<span class="copied" aria-live="polite"></span></button>
@@ -106,8 +126,9 @@ def channel_dialog(origin):
   <p class="dialog-kicker">{keiki_badge()}</p>
   <h2 id="keiki-title">{escape(TITLE)}</h2>
   <p class="muted">Keiki runs your agent on the messaging channels your Keiki account offers. Add AI Partner to that agent as an MCP tool, and anyone who messages it can run an engagement. Your key stays in your Keiki account.</p>
+  <div class="try-ours"><p><b>Try ours now.</b> On our free shared iMessage line, text the code <code>{IMESSAGE_CODE}</code> to <a href="{escape(SMS_HREF)}">{IMESSAGE_DISPLAY}</a>. Or email <a href="{escape(MAILTO_HREF)}">{EMAIL}</a>.</p></div>
   {_channel_list()}
-  <p class="foot-small">A channel is marked Live once we have run AI Partner on it end to end. Your Keiki dashboard shows which channels your account can connect.</p>
+  <p class="foot-small">A channel is marked Live once we have verified our agent on it. For any other channel, bring your own Keiki agent with the steps below; your Keiki dashboard shows which channels your account can connect.</p>
   <div class="agent-line"><span class="lbl">Let your coding agent do it</span>
     <div class="pill-row"><code>{escape(line)}</code><button type="button" class="copy-btn" data-copy-text="{escape(line)}" aria-label="Copy the setup line">{icon("copy")}<span class="copied" aria-live="polite"></span></button></div>
   </div>
@@ -123,7 +144,7 @@ def channel_dialog(origin):
     <li><b>Connect a channel and message it.</b> Pick a channel for the agent in Keiki, then send it a business problem.</li>
   </ol>
   <p class="foot-small">Keiki is invite-only, and its agents need a Keiki plan to call MCP tools. See <a href="https://onkeiki.com/setup.md" rel="noopener">Keiki's setup guide</a>.</p>
-  <div class="keiki-soon"><span class="soon">Coming soon</span><p><b>Bring your own Keiki agent.</b> Keiki pushes signed turns to an endpoint for your account and AI Partner runs the whole turn.</p></div>
+  <div class="keiki-soon"><span class="soon">Coming soon</span><p><b>Push mode for your account.</b> Keiki pushes signed turns to an endpoint for your AI Partner key and AI Partner runs the whole turn.</p></div>
   <p class="foot-small"><a href="/connect#keiki">All setups on Connect</a> · <a href="/keiki.md">keiki.md</a></p>
 </div></dialog>"""
 
@@ -131,6 +152,8 @@ def channel_dialog(origin):
 _PLAYBOOK = """# Put AI Partner in your chats with Keiki
 
 AI Partner is integrated with Keiki (https://onkeiki.com). Use this playbook when someone wants to reach AI Partner from a messaging channel. You build them a Keiki agent that uses AI Partner's MCP server as a tool. Anyone who messages that agent can run an AI Partner engagement: research, 20 AI experts, a debate, the judge's Top 5, a work chart and the harness kit.
+
+To try AI Partner first, without any setup: on our free shared iMessage line, text the code `OUR_IMESSAGE_CODE` to OUR_IMESSAGE_NUMBER, or email OUR_EMAIL. This playbook is for bringing their own Keiki agent, on any channel their Keiki organization offers.
 
 The person's AI Partner key stays in their own Keiki organization's secrets. Keiki sends it to `https://HOST/mcp` as a bearer token. Nothing else is shared.
 
@@ -202,7 +225,7 @@ Channels: <how to reach it, such as the number to text|none yet>
 
 ## Coming soon
 
-Bring your own Keiki agent: Keiki pushes signed turns to an endpoint for your account, and AI Partner runs the whole turn.
+Push mode for your account: Keiki pushes signed turns to an endpoint for your AI Partner key, and AI Partner runs the whole turn.
 
 ## Sources
 
@@ -224,6 +247,7 @@ def deployment(origin):
 def render_keiki_md(origin):
     origin = origin.rstrip("/")
     body = _PLAYBOOK.replace("DEPLOYMENT", json.dumps(deployment(origin), indent=2))
+    body = body.replace("OUR_IMESSAGE_CODE", IMESSAGE_CODE).replace("OUR_IMESSAGE_NUMBER", IMESSAGE_DISPLAY).replace("OUR_EMAIL", EMAIL)
     return body.replace("https://HOST", origin)
 
 

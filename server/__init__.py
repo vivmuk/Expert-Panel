@@ -64,6 +64,11 @@ def create_app():
 
     register_blueprints(app)
 
+    if os.environ.get("KEIKI_SELF_CHECK_URL") and os.environ.get("KEIKI_HARNESS_SIGNING_SECRET"):
+        from .api.keiki import start_self_check
+
+        start_self_check(os.environ["KEIKI_SELF_CHECK_URL"])
+
     @app.get("/health")
     def health():
         from .buildinfo import commit_sha, fingerprint

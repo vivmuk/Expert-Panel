@@ -106,3 +106,30 @@ def test_cancellation_accepted(client):
     raw = json.dumps({"type": "keiki.turn.cancelled", "turnId": "t", "agentId": "agent-1"}).encode()
     r = client.post("/keiki/turn", data=raw, content_type="application/json", headers={"Keiki-Signature": _sign(raw)})
     assert r.status_code == 202
+
+
+def test_self_check_signs_turns_the_route_accepts(monkeypatch, client):
+    from server.api import keiki
+
+    sent = []
+
+    class Done:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+    def fake_post(url, data=None, json=None, headers=None, timeout=None):
+        if url.startswith(keiki.SELF_CHECK_SINK):
+            sent.append((url, json))
+            return Done()
+        return client.post("/keiki/turn", data=data, headers=headers)
+
+    monkeypatch.setattr(keiki.requests, "post", fake_post)
+    monkeypatch.setattr(keiki, "_engine", lambda *a: pytest.fail("the self-check must not run the engine"))
+    assert keiki.self_check("https://host.example/keiki/turn") == {"keiki.arrival": 202, "keiki.turn": 202}
+    for _ in range(50):
+        if sent:
+            break
+        time.sleep(0.02)
+    assert sent == [(keiki.SELF_CHECK_SINK + "/complete", {"status": "completed"})]
