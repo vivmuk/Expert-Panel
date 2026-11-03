@@ -339,8 +339,9 @@ def post_chat():
     if code:
         return _refuse(incoming, code, limit_message, 429)
     incoming = {**incoming, "chat_id": chat_id}
+    scoped_recall, scoped_remember = _memory_for(raw)
     try:
-        result = handle_turn(incoming, message, complete_with_venice, recall, remember, exa_search)
+        result = handle_turn(incoming, message, complete_with_venice, scoped_recall, scoped_remember, exa_search)
     except Exception as exc:
         state = exc.state if isinstance(exc, TurnFailed) else load_state(incoming)
         logger.exception("chat turn failed at phase %s", state.get("phase"))
@@ -365,6 +366,20 @@ def post_chat():
     code = (result.get("error") or {}).get("code")
     status = {"tamper": 400, "budget": 429, "not_configured": 503}.get(code, 200)
     return jsonify(result), status
+
+
+def _memory_for(raw):
+    """Web chat sends a browser visitor id. Invalid ids are ignored inside chatmemory."""
+    visitor_id = raw.get("visitor_id") if isinstance(raw.get("visitor_id"), str) else None
+    has_history = raw.get("has_history") is True
+
+    def scoped_recall(chat_id, query):
+        return recall(chat_id, query, visitor_id=visitor_id, has_history=has_history)
+
+    def scoped_remember(chat_id, content):
+        return remember(chat_id, content, visitor_id=visitor_id)
+
+    return scoped_recall, scoped_remember
 
 
 def _refuse(incoming, code, reply, status):

@@ -100,12 +100,17 @@ def _str(value, limit):
     return cut.rstrip(",;:") + "…"
 
 
-def _chat_id(value):
+def safe_id(value):
+    """Letters, digits, underscore, and hyphen only. Empty when nothing usable remains."""
     if isinstance(value, str):
         safe = re.sub(r"[^A-Za-z0-9_-]", "", value)[:40]
         if safe:
             return safe
-    return uuid.uuid4().hex[:16]
+    return ""
+
+
+def _chat_id(value):
+    return safe_id(value) or uuid.uuid4().hex[:16]
 
 
 def fresh_state(chat_id):
