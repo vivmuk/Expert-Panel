@@ -9,6 +9,7 @@ import uuid
 
 from flask import Blueprint, Response, jsonify, request, send_file
 
+from .. import mcpjobs
 from ..artifacts import ArtifactError, generate_artifact
 from ..catalog import groups
 from ..chatjob import handle_turn
@@ -26,10 +27,32 @@ logger = logging.getLogger(__name__)
 
 PROTOCOL = "2025-03-26"
 
+_JOB = {
+    "job_id": {"type": "string", "description": "The job_id from start_job. The server keeps the state; use this from chat agents."},
+    "state": {"type": "object", "description": "The full job state, for clients that carry it themselves."},
+}
+
+
+def _job_tool(name, description, extra=None, required=()):
+    return {
+        "name": name,
+        "description": description + " Pass job_id, or the full state.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {**(extra or {}), **_JOB},
+            "required": list(required),
+            "additionalProperties": False,
+        },
+    }
+
+
 TOOLS = [
     {
         "name": "start_job",
-        "description": "Start a strategy engagement from the team's first message. Returns the reply and the job state to send on the next call.",
+        "description": (
+            "Start a strategy engagement from the team's first message. Returns the reply, a job_id for the next calls, "
+            "and the job state. Relay the reply to the user."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {"message": {"type": "string"}},
@@ -37,67 +60,27 @@ TOOLS = [
             "additionalProperties": False,
         },
     },
-    {
-        "name": "chat_turn",
-        "description": "Continue a strategy engagement. Pass the state returned by the previous call.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "message": {"type": "string"},
-                "state": {"type": "object"},
-            },
-            "required": ["message", "state"],
-            "additionalProperties": False,
-        },
-    },
-    {
-        "name": "get_work_chart",
-        "description": "Return the work chart stored in the job state.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"state": {"type": "object"}},
-            "required": ["state"],
-            "additionalProperties": False,
-        },
-    },
-    {
-        "name": "get_kit",
-        "description": "Build the harness kit from the job state and return a download URL.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"state": {"type": "object"}},
-            "required": ["state"],
-            "additionalProperties": False,
-        },
-    },
+    _job_tool(
+        "chat_turn",
+        "Continue a strategy engagement with the user's next message. Relay each reply. While the result has next set, "
+        "call chat_turn again with an empty message. With job_id the result omits the state.",
+        {"message": {"type": "string"}},
+        ("message",),
+    ),
+    _job_tool("get_work_chart", "Return the work chart from the job."),
+    _job_tool("get_kit", "Build the harness kit from the job and return a download URL."),
     {
         "name": "list_artifacts",
         "description": "List every engagement artifact type, grouped by the thesis task map.",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
-    {
-        "name": "generate_artifact",
-        "description": "Write one catalog artifact from the job state. Returns markdown and the updated state.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "artifact_id": {"type": "string"},
-                "state": {"type": "object"},
-            },
-            "required": ["artifact_id", "state"],
-            "additionalProperties": False,
-        },
-    },
-    {
-        "name": "get_skill_pack",
-        "description": "Build the skill pack from the job state and return a download URL.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"state": {"type": "object"}},
-            "required": ["state"],
-            "additionalProperties": False,
-        },
-    },
+    _job_tool(
+        "generate_artifact",
+        "Write one catalog artifact from the job. Returns markdown, and the updated state unless you passed job_id.",
+        {"artifact_id": {"type": "string"}},
+        ("artifact_id",),
+    ),
+    _job_tool("get_skill_pack", "Build the skill pack from the job and return a download URL."),
 ]
 
 
@@ -109,36 +92,50 @@ def _turn(message, state):
     return handle_turn(state or {}, message or "", complete_with_venice, recall, remember, exa_search)
 
 
+def _owner():
+    header = request.headers.get("Authorization", "")
+    return hashlib.sha256(header[7:].strip().encode()).hexdigest()
+
+
+def _kept(result, job_id):
+    """Store the state under job_id and answer without it, so the client never carries the state."""
+    mcpjobs.save(_owner(), job_id, result.get("state") or {})
+    return _ok({**{k: v for k, v in result.items() if k != "state"}, "job_id": job_id})
+
+
 def _tool(name, arguments):
     arguments = arguments or {}
+    job_id = arguments.get("job_id")
+    state = arguments.get("state") or {}
+    if job_id:
+        state = mcpjobs.load(_owner(), job_id)
+        if state is None:
+            return _err("Unknown or expired job_id. Call start_job again.")
     if name == "start_job":
         result = _turn(arguments.get("message") or "", {})
-        return _ok(result)
+        job_id = mcpjobs.new_id()
+        mcpjobs.save(_owner(), job_id, result.get("state") or {})
+        return _ok({**result, "job_id": job_id})
     if name == "chat_turn":
-        result = _turn(arguments.get("message") or "", arguments.get("state") or {})
-        return _ok(result)
+        result = _turn(arguments.get("message") or "", state)
+        return _kept(result, job_id) if job_id else _ok(result)
     if name == "get_work_chart":
-        state = arguments.get("state") or {}
         chart = state.get("chart") if isinstance(state, dict) else None
         if not chart:
             return _err("The work chart is not ready yet.")
         return _ok({"chart": chart})
     if name == "get_kit":
-        return _zip(arguments.get("state") or {}, build_kit_zip)
+        return _zip(state, build_kit_zip)
     if name == "get_skill_pack":
-        return _zip(arguments.get("state") or {}, build_pack_zip)
+        return _zip(state, build_pack_zip)
     if name == "list_artifacts":
         return _ok({"groups": groups()})
     if name == "generate_artifact":
         try:
-            result = generate_artifact(
-                arguments.get("state") or {},
-                arguments.get("artifact_id") or "",
-                complete_with_venice,
-            )
+            result = generate_artifact(state, arguments.get("artifact_id") or "", complete_with_venice)
         except ArtifactError as exc:
             return _err(str(exc))
-        return _ok(result)
+        return _kept(result, job_id) if job_id else _ok(result)
     return _err(f"Unknown tool {name}.")
 
 
