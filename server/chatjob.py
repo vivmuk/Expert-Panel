@@ -1,5 +1,6 @@
 import logging
 import re
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
@@ -627,8 +628,35 @@ def memory_text(state):
     )
 
 
+_chat_guard = threading.Lock()
+_chat_locks = {}
+_MAX_CHAT_LOCKS = 2000
+
+
+def _chat_lock(chat_id):
+    """One lock per chat, so two tabs cannot both spend the same call."""
+    with _chat_guard:
+        lock = _chat_locks.get(chat_id)
+        if lock is None:
+            if len(_chat_locks) >= _MAX_CHAT_LOCKS:
+                _chat_locks.pop(next(iter(_chat_locks)), None)
+            lock = threading.RLock()
+            _chat_locks[chat_id] = lock
+        return lock
+
+
 def handle_turn(raw_state, message, complete, recall=None, remember=None, search=None):
-    """Advance one job. `complete(name, messages, schema, max_tokens)` calls the model."""
+    """Advance one job. `complete(name, messages, schema, max_tokens)` calls the model.
+
+    Turns on the same chat_id run one at a time. The lock is re-entrant because a
+    finished job starts the next one by calling this again.
+    """
+    raw = raw_state if isinstance(raw_state, dict) else {}
+    with _chat_lock(load_state(raw)["chat_id"]):
+        return _turn_locked(raw_state, message, complete, recall, remember, search)
+
+
+def _turn_locked(raw_state, message, complete, recall=None, remember=None, search=None):
     from .budget import BudgetUnavailable, TamperedState, reconcile_calls
 
     if search is None:

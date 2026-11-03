@@ -44,6 +44,7 @@ _global = []
 _starts = {}
 
 DAILY_LIMIT_REPLY = "This network has started its engagements for today. Continue an open one, or come back tomorrow."
+RATE_REPLY = "This chat is sending messages too fast. Wait a few minutes and try again."
 
 
 def client_ip_header():
@@ -142,12 +143,30 @@ def complete_with_venice(name, messages, schema, max_tokens):
 
 
 def _body():
-    raw = request.get_json(force=True, silent=True)
-    if raw is None:
+    """A JSON object, {} when the body is empty, or None when the body is not an object."""
+    raw_bytes = request.get_data(cache=True)
+    if not raw_bytes.strip():
         return {}
+    raw = request.get_json(force=True, silent=True)
     if not isinstance(raw, dict):
         return None
     return raw
+
+
+def spend_block(raw):
+    """Shared gate for a model call. Returns (code, message, chat_id).
+
+    code is None when the call may proceed. chat_id is the id the caller must
+    pass into the job, so the daily cap and the call budget name one engagement.
+    A missing id counts as a new engagement.
+    """
+    ip = client_ip()
+    if not allow_in_this_process(ip):
+        return "rate", RATE_REPLY, None
+    chat_id = load_state(raw if isinstance(raw, dict) else {})["chat_id"]
+    if not admit_engagement(ip, chat_id):
+        return "daily_limit", DAILY_LIMIT_REPLY, None
+    return None, None, chat_id
 
 
 def _bad(message):
@@ -261,8 +280,10 @@ def post_root_chat():
         return _bad("Send a JSON object.")
     if "state" in raw or "uploads" in raw:
         return post_chat()
+    if not signing_secrets():
+        return jsonify({"response": NOT_CONFIGURED_REPLY}), 503
     if not allow_in_this_process(client_ip()):
-        return jsonify({"response": "This chat is sending messages too fast. Wait a few minutes and try again."}), 429
+        return jsonify({"response": RATE_REPLY}), 429
     message = raw.get("message")
     if not isinstance(message, str) or not message.strip():
         return _bad("message is required")
@@ -314,11 +335,10 @@ def post_chat():
         incoming["uploads"] = take_uploads(raw.get("uploads"), incoming.get("uploads") or [])
     if not signing_secrets():
         return _refuse(incoming, "not_configured", NOT_CONFIGURED_REPLY, 503)
-    if not allow_in_this_process(client_ip()):
-        return _refuse(incoming, "rate", "This chat is sending messages too fast. Wait a few minutes and try again.", 429)
-    incoming = {**incoming, "chat_id": load_state(incoming)["chat_id"]}
-    if not admit_engagement(client_ip(), incoming["chat_id"]):
-        return _refuse(incoming, "daily_limit", DAILY_LIMIT_REPLY, 429)
+    code, limit_message, chat_id = spend_block(incoming)
+    if code:
+        return _refuse(incoming, code, limit_message, 429)
+    incoming = {**incoming, "chat_id": chat_id}
     try:
         result = handle_turn(incoming, message, complete_with_venice, recall, remember, exa_search)
     except Exception as exc:
@@ -400,9 +420,11 @@ def chat_artifact():
     artifact_id = raw.get("artifact_id")
     if not isinstance(artifact_id, str) or not artifact_id.strip():
         return _bad("artifact_id is required")
-    if not allow_in_this_process(client_ip()):
-        return jsonify({"error": {"code": "rate", "message": "This chat is sending messages too fast. Wait a few minutes and try again."}}), 429
     incoming = raw.get("state") if isinstance(raw.get("state"), dict) else {}
+    code, message, chat_id = spend_block(incoming)
+    if code:
+        return jsonify({"error": {"code": code, "message": message}}), 429
+    incoming = {**incoming, "chat_id": chat_id}
     try:
         result = generate_artifact(incoming, artifact_id.strip(), complete_with_venice)
     except ArtifactError as exc:

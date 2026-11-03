@@ -108,8 +108,11 @@ def _transcribe(blob, mime):
         timeout=60,
     )
     if response.status_code >= 400:
-        raise VeniceError(f"HTTP {response.status_code} from /audio/transcriptions", response.status_code, response.text[:200])
-    payload = response.json()
+        raise VeniceError(f"HTTP {response.status_code} from /audio/transcriptions", response.status_code)
+    try:
+        payload = response.json()
+    except ValueError:
+        raise VeniceError("Transcription was not JSON", response.status_code) from None
     return " ".join(str(payload.get("text") or "").split())[:500]
 
 
@@ -127,7 +130,7 @@ def _speak(text):
         timeout=60,
     )
     if response.status_code >= 400:
-        raise VeniceError(f"HTTP {response.status_code} from /audio/speech", response.status_code, response.text[:200])
+        raise VeniceError(f"HTTP {response.status_code} from /audio/speech", response.status_code)
     return response.content
 
 
