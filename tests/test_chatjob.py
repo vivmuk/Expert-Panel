@@ -294,7 +294,7 @@ def test_recall_and_remember_are_off_without_a_key(monkeypatch):
 
 def test_recall_posts_to_the_chat_namespace(monkeypatch):
     monkeypatch.setenv("SUPERMEMORY_API_KEY", "test-memory-key")
-    seen = {}
+    seen = []
 
     class Dummy:
         def raise_for_status(self):
@@ -304,18 +304,20 @@ def test_recall_posts_to_the_chat_namespace(monkeypatch):
             return {"results": [{"memory": "known payer mix"}]}
 
     def post(url, headers, json, timeout):
-        seen["url"] = url
-        seen["auth"] = headers["Authorization"]
-        seen["json"] = json
-        seen["timeout"] = timeout
+        seen.append({"url": url, "auth": headers["Authorization"], "json": json, "timeout": timeout})
         return Dummy()
 
     monkeypatch.setattr("server.chatmemory.requests.post", post)
+    assert recall("abc_123", "Germany") == ""
+    assert seen == []
+    remember("abc_123", "hello")
     assert recall("abc_123", "Germany") == "known payer mix"
-    assert seen["url"] == "https://api.supermemory.ai/ns/chat-abc_123/search"
-    assert seen["auth"] == "Bearer test-memory-key"
-    assert seen["json"]["query"] == "Germany"
-    assert seen["timeout"] <= 5
+    assert seen[0]["url"] == "https://api.supermemory.ai/ns/chat-abc_123/document"
+    assert seen[0]["json"]["id"] == "chat-abc_123"
+    assert seen[1]["url"] == "https://api.supermemory.ai/ns/chat-abc_123/search"
+    assert seen[1]["auth"] == "Bearer test-memory-key"
+    assert seen[1]["json"]["query"] == "Germany"
+    assert seen[1]["timeout"] <= 5
 
 
 @pytest.fixture

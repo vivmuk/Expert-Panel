@@ -3,6 +3,8 @@
   var script = document.currentScript || document.querySelector('script[src="/chat.js"]');
   var ENDPOINT = (script && script.getAttribute("data-endpoint")) || "/api/chat";
   var STORE = "ai-partner-chat-v2";
+  var VISITOR_KEY = "ai-partner-visitor";
+  var HISTORY_KEY = "ai-partner-has-history";
   var AUTO = ["research", "synthesize", "panel", "debate", "judge", "red_team", "blueprint", "skills"];
   var ICONS = {};
   try { ICONS = JSON.parse(document.getElementById("chat-icons").textContent); } catch (e) { ICONS = {}; }
@@ -571,15 +573,54 @@
     dock.parentElement.insertBefore(typing, dock);
   }
 
+  function randomHex() {
+    var bytes = new Uint8Array(16);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+    else for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    var out = "";
+    for (var i = 0; i < bytes.length; i++) out += (bytes[i] + 256).toString(16).slice(1);
+    return out;
+  }
+
+  function visitorId() {
+    var existing = "";
+    try { existing = localStorage.getItem(VISITOR_KEY) || ""; } catch (e) { existing = ""; }
+    if (existing) return existing;
+    var id = (window.crypto && typeof window.crypto.randomUUID === "function") ? window.crypto.randomUUID() : randomHex();
+    try { localStorage.setItem(VISITOR_KEY, id); } catch (e2) { /* private mode: still send it this turn */ }
+    return id;
+  }
+
+  function hasHistory() {
+    try { return localStorage.getItem(HISTORY_KEY) === "1"; } catch (e) { return false; }
+  }
+
+  function markHistory() {
+    try { localStorage.setItem(HISTORY_KEY, "1"); } catch (e) { /* ignore */ }
+  }
+
+  function wroteMemory(s) {
+    if (!s) return false;
+    if (s.phase === "done" || s.chart || s.pack) return true;
+    return Array.isArray(s.top5) && s.top5.length > 0;
+  }
+
   function post(message) {
     return fetch(ENDPOINT, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: message, state: state || {}, uploads: message ? takeUploads() : [] })
+      body: JSON.stringify({
+        message: message,
+        state: state || {},
+        uploads: message ? takeUploads() : [],
+        visitor_id: visitorId(),
+        has_history: hasHistory()
+      })
     }).then(read);
   }
 
   function handle(data) {
     if (data.state) state = data.state;
+    if (wroteMemory(state)) markHistory();
     var err = data.error;
     if (!data.ok || err) {
       var code = err && err.code;
@@ -753,6 +794,8 @@
     var saved = JSON.parse(localStorage.getItem(STORE) || "null");
     if (saved && Array.isArray(saved.items)) { state = saved.state || null; items = saved.items; }
   } catch (e) { state = null; items = []; }
+  if (wroteMemory(state)) markHistory();
+  visitorId();
   if (!items.length) items = [{ role: "assistant", text: welcome() }];
   var paused = state && AUTO.indexOf(state.phase) >= 0;
   var lastItem = items[items.length - 1];
