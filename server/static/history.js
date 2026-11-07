@@ -1,15 +1,29 @@
-/* Same-browser project book. No network. Loaded before chat.js and by node tests. */
+/* Same-browser project book. No network. Loaded before chat.js and by node tests.
+
+A project state and its transcript are stored whole. This file does not shorten
+strings, lists, or nested fields. The whole record must fit in MAX_BYTES.
+A larger record, a value JSON cannot store, or a dangerous key is refused.
+The previous value of KEY stays as it was. Unreadable or newer-schema text
+also stays until the user keeps a copy and starts fresh.
+*/
 (function (root) {
   "use strict";
   var SCHEMA = 3;
   var KEY = "ai-partner-chat-v2";
+  var HELD_KEY = "ai-partner-chat-v2-held";
   var MAX_PROJECTS = 12;
-  var MAX_ITEMS = 200;
-  var MAX_TEXT = 8000;
+  var MAX_BYTES = 2000000;
   var ID_RE = /^[A-Za-z0-9_-]{8,40}$/;
-  var ROLES = { user: 1, assistant: 1, error: 1, card: 1 };
-  var ASKS = { maturity: 1, size: 1 };
   var AUTO = { research: 1, synthesize: 1, panel: 1, debate: 1, judge: 1, red_team: 1, blueprint: 1, skills: 1 };
+  var DANGEROUS = Object.create(null);
+  DANGEROUS.__proto__ = 1;
+  DANGEROUS.constructor = 1;
+  DANGEROUS.prototype = 1;
+  var NOT_SAVED = "Not saved. This browser refused the write. The last saved copy was not replaced. This project is still open in this tab.";
+  var TOO_BIG = "Not saved. This browser record is over " + MAX_BYTES + " characters. The last saved copy was not replaced. This project is still open in this tab.";
+  var UNSAFE = "Not saved. This project has a value this browser cannot store safely. The last saved copy was not replaced. This project is still open in this tab.";
+  var CONFLICT = "Another tab saved a newer copy. Reload this tab to see it. This tab did not replace that copy.";
+  var HELD = "Saved projects in this browser could not be opened. They were not replaced. Choose Keep a copy and start fresh to store a new list. Until then, what you do in this tab is not written over them.";
 
   function newId(rng) {
     var roll = rng || Math.random;
@@ -37,119 +51,95 @@
     return problem.length > 80 ? problem.slice(0, 77) + "..." : problem;
   }
 
-  function plain(value, depth) {
-    if (depth > 5) return null;
-    if (value == null || typeof value === "boolean") return value;
-    if (typeof value === "number") return isFinite(value) ? value : null;
-    if (typeof value === "string") return value.slice(0, 4000);
+  function unsupported(value, seen) {
+    if (value === null) return false;
+    var kind = typeof value;
+    if (kind === "string" || kind === "boolean") return false;
+    if (kind === "number") return !isFinite(value);
+    if (kind !== "object") return true;
+    if (seen.indexOf(value) >= 0) return true;
+    seen.push(value);
+    var names = Object.getOwnPropertyNames(value);
     if (Array.isArray(value)) {
-      var list = [];
-      for (var i = 0; i < value.length && list.length < 40; i++) list.push(plain(value[i], depth + 1));
-      return list;
+      for (var i = 0; i < value.length; i++) if (unsupported(value[i], seen)) return true;
+      return false;
     }
-    if (typeof value === "object") {
-      var out = {};
-      var keys = Object.keys(value);
-      for (var k = 0; k < keys.length && k < 40; k++) {
-        if (keys[k] === "html" || keys[k] === "srcdoc") continue;
-        out[keys[k]] = plain(value[keys[k]], depth + 1);
-      }
-      return out;
+    for (var n = 0; n < names.length; n++) {
+      if (DANGEROUS[names[n]]) return true;
+      if (unsupported(value[names[n]], seen)) return true;
     }
-    return null;
+    return false;
   }
 
-  function sanitizeItem(item) {
-    if (!item || typeof item !== "object" || !ROLES[item.role]) return null;
-    var out = { role: item.role };
-    if (typeof item.text === "string" && item.text) out.text = item.text.slice(0, MAX_TEXT);
-    if (ASKS[item.ask]) out.ask = item.ask;
-    if (item.role === "error") {
-      if (item.retry) out.retry = true;
-      if (item.resume) out.resume = true;
-      if (item.fresh) out.fresh = true;
-    }
-    if (item.role === "card") {
-      var card = plain(item.card, 0);
-      if (!card || typeof card.kind !== "string" || !card.kind) return null;
-      out.card = card;
-    }
-    if (item.role !== "card" && !out.text) return null;
-    return out;
-  }
-
-  function sanitizeItems(items) {
-    if (!Array.isArray(items)) return [];
-    var out = [];
-    for (var i = 0; i < items.length && out.length < MAX_ITEMS; i++) {
-      var clean = sanitizeItem(items[i]);
-      if (clean) out.push(clean);
-    }
-    return out;
-  }
-
-  function sanitizeState(state) {
-    if (!state || typeof state !== "object" || Array.isArray(state)) return null;
-    var copy = plain(state, 0);
-    if (!copy) return null;
+  function cloneJson(value) {
+    if (unsupported(value, [])) return null;
     try {
-      if (JSON.stringify(copy).length > 400000) return null;
+      var text = JSON.stringify(value);
+      if (typeof text !== "string") return null;
+      return JSON.parse(text);
     } catch (e) {
       return null;
     }
-    return copy;
   }
 
-  function oneProject(raw, rng, stamp) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    var items = sanitizeItems(raw.items);
-    var state = sanitizeState(raw.state);
-    if (!state && !items.length) return null;
-    var id = typeof raw.id === "string" && ID_RE.test(raw.id) ? raw.id : newId(rng);
-    var updated = typeof raw.updated === "number" && isFinite(raw.updated) ? raw.updated : stamp || 0;
-    return { id: id, title: titleOf(state, items), updated: updated, state: state, items: items };
+  function projectUsable(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+    if (typeof raw.id !== "string" || !ID_RE.test(raw.id)) return false;
+    if (raw.state != null && (typeof raw.state !== "object" || Array.isArray(raw.state))) return false;
+    if (raw.items != null && !Array.isArray(raw.items)) return false;
+    return !unsupported(raw, []);
   }
 
-  function unread(notice) {
-    return { book: blank(), notice: notice, write: false };
+  function blockedResult(raw, notice) {
+    return { book: blank(), notice: notice || HELD, write: false, blocked: true, raw: raw };
   }
 
   function read(raw, rng, stamp) {
-    if (raw == null || raw === "") return { book: blank(), notice: "", write: false };
+    if (raw == null || raw === "") return { book: blank(), notice: "", write: false, blocked: false, raw: raw == null ? null : raw };
     var parsed;
     try {
       parsed = JSON.parse(raw);
     } catch (e) {
-      return unread("Saved projects could not be read. They were left in place.");
+      return blockedResult(raw, "Saved projects could not be read. They were not replaced. Choose Keep a copy and start fresh to store a new list.");
     }
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return unread("Saved projects could not be read. They were left in place.");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return blockedResult(raw);
     if (parsed.schema == null && Array.isArray(parsed.items)) {
-      var migrated = oneProject({ id: parsed.state && parsed.state.chat_id, state: parsed.state, items: parsed.items, updated: stamp || 0 }, rng, stamp);
-      var book = blank();
-      if (migrated) {
-        book.projects = [migrated];
-        book.selected = migrated.id;
-      }
-      return { book: book, notice: "", write: true };
+      if (unsupported(parsed, [])) return blockedResult(raw);
+      var legacyId = parsed.state && typeof parsed.state.chat_id === "string" && ID_RE.test(parsed.state.chat_id) ? parsed.state.chat_id : newId(rng);
+      var legacy = {
+        id: legacyId,
+        title: titleOf(parsed.state, parsed.items),
+        updated: stamp || 0,
+        state: parsed.state && typeof parsed.state === "object" && !Array.isArray(parsed.state) ? parsed.state : null,
+        items: parsed.items
+      };
+      return {
+        book: { schema: SCHEMA, selected: legacy.id, projects: [legacy] },
+        notice: "",
+        write: true,
+        blocked: false,
+        raw: raw
+      };
     }
-    if (parsed.schema !== SCHEMA) return unread("Saved projects use a format this page does not open. They were left in place.");
-    if (!Array.isArray(parsed.projects)) return unread("Saved projects could not be read. They were left in place.");
+    if (parsed.schema !== SCHEMA || !Array.isArray(parsed.projects)) return blockedResult(raw, "Saved projects use a format this page does not open. They were not replaced. Choose Keep a copy and start fresh to store a new list.");
     var projects = [];
     var seen = {};
-    var skipped = 0;
     for (var i = 0; i < parsed.projects.length; i++) {
-      var project = oneProject(parsed.projects[i], rng, stamp);
-      if (!project || seen[project.id]) {
-        skipped += 1;
-        continue;
-      }
+      var project = parsed.projects[i];
+      if (!projectUsable(project) || seen[project.id]) return blockedResult(raw);
       seen[project.id] = true;
+      project.title = titleOf(project.state, project.items);
       projects.push(project);
     }
-    projects.sort(function (a, b) { return b.updated - a.updated; });
+    projects.sort(function (a, b) { return (b.updated || 0) - (a.updated || 0); });
     var selected = typeof parsed.selected === "string" && seen[parsed.selected] ? parsed.selected : (projects[0] ? projects[0].id : null);
-    var notice = skipped ? "Some saved entries were skipped because they had no usable content. The rest were kept." : "";
-    return { book: { schema: SCHEMA, selected: selected, projects: projects }, notice: notice, write: false };
+    return {
+      book: { schema: SCHEMA, selected: selected, projects: projects },
+      notice: "",
+      write: false,
+      blocked: false,
+      raw: raw
+    };
   }
 
   function find(book, id) {
@@ -185,22 +175,81 @@
   }
 
   function touch(book, id, state, items, stamp) {
+    var nextState = state == null ? null : cloneJson(state);
+    var nextItems = items == null ? [] : cloneJson(items);
+    if (state != null && nextState == null) return { ok: false, book: book, notice: UNSAFE };
+    if (items != null && nextItems == null) return { ok: false, book: book, notice: UNSAFE };
+    if (nextState && unsupported(nextState, [])) return { ok: false, book: book, notice: UNSAFE };
+    if (unsupported(nextItems, [])) return { ok: false, book: book, notice: UNSAFE };
     var projects = book.projects.map(function (project) {
       if (project.id !== id) return project;
-      var nextItems = sanitizeItems(items);
-      var nextState = sanitizeState(state);
-      return { id: project.id, title: titleOf(nextState, nextItems), updated: stamp || 0, state: nextState, items: nextItems };
+      var next = {};
+      Object.keys(project).forEach(function (key) { next[key] = project[key]; });
+      next.state = nextState;
+      next.items = nextItems;
+      next.updated = stamp || 0;
+      next.title = titleOf(nextState, nextItems);
+      return next;
     });
-    return { schema: SCHEMA, selected: book.selected, projects: projects };
+    return { ok: true, book: { schema: SCHEMA, selected: book.selected, projects: projects }, notice: "" };
   }
 
-  function write(storage, book) {
+  function payload(book) {
+    return JSON.stringify({ schema: SCHEMA, selected: book.selected, projects: book.projects });
+  }
+
+  function readCurrent(storage) {
     try {
-      storage.setItem(KEY, JSON.stringify({ schema: SCHEMA, selected: book.selected, projects: book.projects }));
-      return { ok: true, notice: "" };
+      return { ok: true, value: storage.getItem(KEY) };
     } catch (e) {
-      return { ok: false, notice: "This browser could not store the project. It is still open in this tab." };
+      return { ok: false };
     }
+  }
+
+  function write(storage, book, seen) {
+    if (!seen || !Object.prototype.hasOwnProperty.call(seen, "raw")) {
+      return { ok: false, persisted: false, notice: "Not saved. This tab has no record of what was stored. Reload. Nothing was replaced." };
+    }
+    if (seen.blocked) return { ok: false, persisted: false, notice: HELD };
+    var current = readCurrent(storage);
+    if (!current.ok) return { ok: false, persisted: false, notice: NOT_SAVED };
+    if (current.value !== seen.raw) return { ok: false, persisted: false, conflict: true, notice: CONFLICT };
+    if (unsupported(book, [])) return { ok: false, persisted: false, notice: UNSAFE };
+    var body;
+    try {
+      body = payload(book);
+    } catch (e) {
+      return { ok: false, persisted: false, notice: UNSAFE };
+    }
+    if (body.length > MAX_BYTES) return { ok: false, persisted: false, notice: TOO_BIG };
+    try {
+      storage.setItem(KEY, body);
+    } catch (e) {
+      return { ok: false, persisted: false, notice: NOT_SAVED };
+    }
+    return { ok: true, persisted: true, raw: body, notice: "" };
+  }
+
+  function holdAside(storage, seen) {
+    if (!seen || !seen.blocked) return { ok: false, persisted: false, notice: "There is no unreadable copy to keep." };
+    var current = readCurrent(storage);
+    if (!current.ok) return { ok: false, persisted: false, notice: NOT_SAVED };
+    if (current.value !== seen.raw) return { ok: false, persisted: false, conflict: true, notice: CONFLICT };
+    var held;
+    try {
+      held = storage.getItem(HELD_KEY);
+    } catch (e) {
+      return { ok: false, persisted: false, notice: NOT_SAVED };
+    }
+    if (held && held !== seen.raw) {
+      return { ok: false, persisted: false, notice: "An older unreadable copy is already kept. This tab did not replace either copy." };
+    }
+    try {
+      if (seen.raw != null) storage.setItem(HELD_KEY, seen.raw);
+    } catch (e) {
+      return { ok: false, persisted: false, notice: "Not saved. This browser could not keep a copy of the unreadable data. The original was not replaced." };
+    }
+    return { ok: true, persisted: false, notice: "A copy of the unreadable data is kept in this browser." };
   }
 
   function shouldApply(request, current) {
@@ -235,9 +284,12 @@
   root.AIPartnerHistory = {
     SCHEMA: SCHEMA,
     KEY: KEY,
+    HELD_KEY: HELD_KEY,
     MAX_PROJECTS: MAX_PROJECTS,
+    MAX_BYTES: MAX_BYTES,
     read: read,
     write: write,
+    holdAside: holdAside,
     startNew: startNew,
     select: select,
     remove: remove,

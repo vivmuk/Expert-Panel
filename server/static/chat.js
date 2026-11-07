@@ -80,6 +80,7 @@
   var docs = {};
   var H = window.AIPartnerHistory;
   var book = H.blank();
+  var seen = { raw: null, blocked: false };
   var generation = 0;
   var controller = null;
   var historyNote = "";
@@ -142,6 +143,18 @@
     try { return new URL(safe).host.replace(/^www\./, ""); } catch (e) { return ""; }
   }
 
+  function list(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  function objects(value) {
+    return list(value).filter(function (item) { return !!item && typeof item === "object"; });
+  }
+
+  function texts(value) {
+    return list(value).filter(function (item) { return typeof item === "string" && item; });
+  }
+
   function owner(raw) {
     var v = String(raw || "Human").toLowerCase();
     var cls = v.indexOf("agent") >= 0 ? "agent" : v.indexOf("hybrid") >= 0 ? "hybrid" : "human";
@@ -159,28 +172,30 @@
 
   /* ---------- cards ---------- */
   function researchCard(card) {
-    var queries = h("div", { class: "queries" }, (card.queries || []).map(function (q) { return h("span", { class: "pill", text: q }); }));
-    var sources = h("ul", { class: "sources" }, (card.sources || []).map(function (s) {
+    var queries = texts(card.queries);
+    var sources = objects(card.sources);
+    var queryRow = h("div", { class: "queries" }, queries.map(function (q) { return h("span", { class: "pill", text: q }); }));
+    var sourceList = h("ul", { class: "sources" }, sources.map(function (s) {
       var href = safeUrl(s.url);
       var label = h("span", {}, [h("small", { text: host(s.url) || "source" }), h("b", { text: s.title || "" })]);
       return h("li", {}, [href ? h("a", { href: href, target: "_blank", rel: "noopener" }, [label]) : label]);
     }));
-    return cardShell("search", "Research", (card.sources || []).length + " sources", [
-      h("p", { class: "sub", text: (card.queries || []).length + " parallel web searches. Every source URL is kept." }), queries, sources
+    return cardShell("search", "Research", sources.length + " sources", [
+      h("p", { class: "sub", text: queries.length + " parallel web searches. Every source URL is kept." }), queryRow, sourceList
     ]);
   }
 
   function briefCard() {
     var brief = (state && state.brief) || {};
-    return cardShell("file-search", "Cited research brief", (brief.citations || []).length + " citations", [
+    return cardShell("file-search", "Cited research brief", list(brief.citations).length + " citations", [
       h("p", { class: "brief-text", text: brief.summary || "" })
     ]);
   }
 
   function expertsCard(card) {
-    var grid = h("div", { class: "expert-grid" }, (card.items || []).map(function (e, i) {
+    var grid = h("div", { class: "expert-grid" }, objects(card.items).map(function (e, i) {
       return h("div", { class: "expert-card", style: "--i:" + i }, [
-        h("header", {}, [avatar(e.name), h("div", {}, [h("b", { text: e.name }), h("small", { text: e.role })])]),
+        h("header", {}, [avatar(e.name || ""), h("div", {}, [h("b", { text: e.name || "" }), h("small", { text: e.role || "" })])]),
         h("p", { text: e.insight || e.lens || "" })
       ]);
     }));
@@ -188,24 +203,24 @@
   }
 
   function debateCard(card) {
-    var list = h("ol", { class: "debate-list" }, (card.items || []).map(function (d, i) {
-      var stance = String(d.stance || "").toLowerCase();
-      return h("li", { style: "--i:" + i }, [avatar(d.name), h("div", {}, [
+    var list = h("ol", { class: "debate-list" }, objects(card.items).map(function (d, i) {
+      var stance = typeof d.stance === "string" ? d.stance.toLowerCase() : "";
+      return h("li", { style: "--i:" + i }, [avatar(d.name || ""), h("div", {}, [
         h("p", { class: "who" }, [
-          h("b", { text: d.name }),
+          h("b", { text: d.name || "" }),
           d.responding_to ? h("span", { class: "to", text: "to " + d.responding_to }) : null,
           stance ? h("span", { class: "stance " + stance, text: stance }) : null
         ]),
-        h("p", { text: d.statement })
+        h("p", { text: d.statement || "" })
       ])]);
     }));
     return cardShell("messages-square", "Debate, round " + card.round, "part " + card.part + " of 2", [list]);
   }
 
   function top5Card(card) {
-    var list = h("ol", { class: "top5" }, (card.items || []).map(function (t, i) {
-      var backers = (t.backers || []).map(function (b) { return h("span", { class: "pill", text: b }); });
-      var dissent = (t.dissenters || []).map(function (d) { return h("li", {}, [h("b", { text: d.name + ". " }), d.why || ""]); });
+    var list = h("ol", { class: "top5" }, objects(card.items).map(function (t, i) {
+      var backers = texts(t.backers).map(function (b) { return h("span", { class: "pill", text: b }); });
+      var dissent = objects(t.dissenters).map(function (d) { return h("li", {}, [h("b", { text: (d.name || "") + ". " }), d.why || ""]); });
       return h("li", { style: "--i:" + i }, [
         h("span", { class: "rank", text: String(i + 1) }),
         h("div", {}, [
@@ -231,15 +246,15 @@
     var attacks = (state && state.attacks) || {};
     return cardShell("shield-check", "Red team", "adversarial pass", [
       h("p", {}, [h("b", { text: "Top risk. " }), attacks.top_risk || ""]),
-      h("ul", { class: "risk-list" }, (attacks.attacks || []).map(function (a) {
-        return h("li", {}, [h("b", { text: a.threat }), h("span", { text: (a.why ? a.why + " " : "") + "Mitigation: " + (a.mitigation || "") })]);
+      h("ul", { class: "risk-list" }, objects(attacks.attacks).map(function (a) {
+        return h("li", {}, [h("b", { text: a.threat || "" }), h("span", { text: (a.why ? a.why + " " : "") + "Mitigation: " + (a.mitigation || "") })]);
       }))
     ]);
   }
 
   function steps(rows) {
-    return h("ol", { class: "steps-list" }, (rows || []).map(function (s) {
-      return h("li", {}, [owner(s.owner), h("b", { text: s.step }), h("span", { class: "task", text: s.task })]);
+    return h("ol", { class: "steps-list" }, objects(rows).map(function (s) {
+      return h("li", {}, [owner(s.owner), h("b", { text: s.step || "" }), h("span", { class: "task", text: s.task || "" })]);
     }));
   }
 
@@ -256,8 +271,8 @@
   function doneCard() {
     var s = state || {};
     var stats = [
-      [(s.sources || []).length, "sources"], [(s.experts || []).length, "AI experts"], [(s.debate || []).length, "debate turns"],
-      [(s.top5 || []).length, "top moves"], [s.maturity ? s.maturity + "/4" : "—", "AI maturity"]
+      [list(s.sources).length, "sources"], [list(s.experts).length, "AI experts"], [list(s.debate).length, "debate turns"],
+      [list(s.top5).length, "top moves"], [s.maturity ? s.maturity + "/4" : "—", "AI maturity"]
     ].map(function (r) { return h("div", { class: "stat" }, [h("strong", { text: String(r[0]) }), h("span", { text: r[1] })]); });
     doneStatus = h("p", { class: "status-line", role: "status", text: "Building the full report and the deliverables." });
     loadView();
@@ -430,7 +445,16 @@
   }
 
   function renderItem(item, index) {
-    if (item.role === "user") return h("li", { class: "msg me" }, [h("div", { class: "bubble", text: item.text })]);
+    try {
+      return renderKnownItem(item, index);
+    } catch (e) {
+      return h("li", { class: "msg" }, [avatarImg(), h("div", { class: "bubble", text: "This saved card could not be shown." })]);
+    }
+  }
+
+  function renderKnownItem(item, index) {
+    if (!item || typeof item !== "object") return null;
+    if (item.role === "user") return h("li", { class: "msg me" }, [h("div", { class: "bubble", text: typeof item.text === "string" ? item.text : "" })]);
     if (item.role === "card") {
       var card = renderCard(item.card);
       return card ? h("li", { class: "msg card-msg" }, [avatarImg(), h("div", { class: "body" }, [card])]) : null;
@@ -441,14 +465,14 @@
     var extra = null;
     if (last && item.ask === "maturity" && phase === "ask_maturity") extra = quick("maturity");
     if (last && item.ask === "size" && phase === "ask_size") extra = quick("size");
-    return h("li", { class: "msg" }, [avatarImg(), h("div", {}, [h("div", { class: "bubble", text: item.text }), extra])]);
+    return h("li", { class: "msg" }, [avatarImg(), h("div", {}, [h("div", { class: "bubble", text: typeof item.text === "string" ? item.text : "" }), extra])]);
   }
 
   function errorCard(item, index) {
     var last = index === items.length - 1;
     var canRetry = last && item.retry;
     return h("div", { class: "error-card" }, [
-      h("p", {}, [ico("triangle-alert"), " ", item.text]),
+      h("p", {}, [ico("triangle-alert"), " ", typeof item.text === "string" ? item.text : ""]),
       canRetry || (last && item.fresh) ? h("div", { class: "downloads" }, [
         canRetry ? h("button", { type: "button", class: "btn small primary", onclick: retry }, [ico("refresh-cw"), item.resume ? "Continue" : "Retry"]) : null,
         last && item.fresh ? h("button", { type: "button", class: "btn small ghost", onclick: fresh }, [ico("rotate-ccw"), "New engagement"]) : null
@@ -794,16 +818,25 @@
     if (note) note.textContent = historyNote;
   }
 
-  function save() {
-    if (!book.selected) return;
-    book = H.touch(book, book.selected, state, items, Date.now());
-    var meaningful = book.projects.some(function (project) {
-      return (project.items || []).some(function (item) { return item.role === "user"; }) || (project.state && project.state.problem);
-    });
-    if (!meaningful) return;
-    var result = H.write(localStorage, book);
+  function persist() {
+    var result = H.write(localStorage, book, seen);
+    if (result.ok) { seen.raw = result.raw; historyNote = ""; }
     if (!result.ok) setNote(result.notice);
     paintProjects();
+    return result;
+  }
+
+  function save() {
+    if (seen.blocked) { setNote(historyNote); paintProjects(); return { ok: false, persisted: false }; }
+    if (!book.selected) return { ok: true, persisted: false };
+    var touched = H.touch(book, book.selected, state, items, Date.now());
+    if (!touched.ok) { setNote(touched.notice); paintProjects(); return touched; }
+    var meaningful = touched.book.projects.some(function (project) {
+      return (project.items || []).some(function (item) { return item.role === "user"; }) || (project.state && project.state.problem);
+    });
+    if (!meaningful) return { ok: true, persisted: false };
+    book = touched.book;
+    return persist();
   }
 
   function welcome() { return document.getElementById("welcome").textContent; }
@@ -841,10 +874,11 @@
   }
 
   function fresh() {
-    stopFlight();
-    save();
+    if (seen.blocked) { setNote(historyNote); paintProjects(); return; }
     var started = H.startNew(book, Math.random, Date.now());
     if (!started.ok) { setNote(started.notice); paintProjects(); return; }
+    stopFlight();
+    save();
     book = started.book;
     blankView();
     paint();
@@ -860,7 +894,9 @@
     var keep = book.projects.some(function (project) {
       return (project.items || []).some(function (item) { return item.role === "user"; }) || (project.state && project.state.problem);
     });
-    bar.hidden = !keep;
+    bar.hidden = !keep && !historyNote;
+    var recover = document.getElementById("recover-storage");
+    if (recover) recover.hidden = !seen.blocked;
     select.textContent = "";
     book.projects.forEach(function (project) {
       var option = document.createElement("option");
@@ -933,13 +969,32 @@
   });
   document.getElementById("fresh").addEventListener("click", fresh);
   document.getElementById("remove-project").addEventListener("click", function () {
+    if (seen.blocked) { setNote(historyNote); paintProjects(); return; }
     if (!book.selected) return;
-    stopFlight();
+    var next = H.remove(book, book.selected);
     var title = (H.find(book, book.selected) || {}).title || "this project";
-    book = H.remove(book, book.selected);
-    var result = H.write(localStorage, book);
-    if (!result.ok) setNote(result.notice);
-    else setNote("Removed \"" + title + "\" from this browser.");
+    var previous = book;
+    book = next;
+    var result = persist();
+    if (!result.ok) { book = previous; setNote(result.notice); paintProjects(); return; }
+    stopFlight();
+    setNote("Removed \"" + title + "\" from this browser.");
+    var project = H.find(book, book.selected);
+    if (project) showProject(project);
+    else blankView();
+    paint();
+  });
+  document.getElementById("recover-storage").addEventListener("click", function () {
+    var kept = H.holdAside(localStorage, seen);
+    if (!kept.ok) { setNote(kept.notice); paintProjects(); return; }
+    seen.blocked = false;
+    historyNote = kept.notice;
+    if (!book.projects.length) {
+      var started = H.startNew(book, Math.random, Date.now());
+      if (started.ok) book = started.book;
+    }
+    var written = persist();
+    setNote(written.ok ? "A copy of the unreadable data is kept in this browser. This list is the new one." : written.notice);
     var project = H.find(book, book.selected);
     if (project) showProject(project);
     else blankView();
@@ -956,18 +1011,29 @@
 
   /* ---------- boot ---------- */
   try {
-    var loaded = H.read(localStorage.getItem(STORE), Math.random, Date.now());
-    book = loaded.book;
-    historyNote = loaded.notice || "";
-    if (loaded.write) {
-      var migrated = H.write(localStorage, book);
-      if (!migrated.ok) historyNote = migrated.notice;
-    }
+    seen.raw = localStorage.getItem(STORE);
   } catch (e) {
-    book = H.blank();
-    historyNote = "Saved projects could not be read. They were left in place.";
+    seen.raw = null;
+    seen.blocked = true;
+    historyNote = "Saved projects could not be read. They were not replaced.";
   }
-  if (!book.projects.length) book = H.startNew(book, Math.random, Date.now()).book;
+  if (!seen.blocked) {
+    try {
+      var loaded = H.read(seen.raw, Math.random, Date.now());
+      book = loaded.book;
+      seen.blocked = !!loaded.blocked;
+      historyNote = loaded.notice || "";
+      if (loaded.write && !loaded.blocked) {
+        var migrated = persist();
+        if (!migrated.ok) historyNote = migrated.notice;
+      }
+    } catch (e) {
+      book = H.blank();
+      seen.blocked = true;
+      historyNote = "Saved projects could not be read. They were not replaced.";
+    }
+  }
+  if (!book.projects.length && !seen.blocked) book = H.startNew(book, Math.random, Date.now()).book;
   showProject(H.find(book, book.selected));
   if (wroteMemory(state)) markHistory();
   visitorId();

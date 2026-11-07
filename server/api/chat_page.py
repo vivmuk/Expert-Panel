@@ -60,6 +60,7 @@ def render_page(welcome, origin=""):
     <select id="projects"></select>
     <button type="button" class="btn small ghost" id="fresh">{icon("rotate-ccw")}New</button>
     <button type="button" class="btn small ghost" id="remove-project">Remove</button>
+    <button type="button" class="btn small ghost" id="recover-storage" hidden>Keep a copy and start fresh</button>
     <p id="history-note" class="history-note" role="status"></p>
   </div>
   <section class="session" id="session" hidden aria-label="Engagement">

@@ -19,6 +19,7 @@ def test_chat_page_exposes_the_project_list():
     page = client.get("/chat").get_data(as_text=True)
     assert 'id="projects"' in page
     assert 'id="history-note"' in page
+    assert 'id="recover-storage"' in page
     assert 'src="/history.js"' in page
     script = client.get("/history.js")
     assert script.status_code == 200
