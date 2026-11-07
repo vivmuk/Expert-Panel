@@ -214,6 +214,11 @@ def chat_js():
     return send_from_directory(_STATIC, "chat.js")
 
 
+@bp.get("/history.js")
+def history_js():
+    return send_from_directory(_STATIC, "history.js")
+
+
 @bp.get("/onboard.js")
 def onboard_js():
     return send_from_directory(_STATIC, "onboard.js")

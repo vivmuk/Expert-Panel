@@ -78,6 +78,12 @@
   var booted = false;
   var doneStatus = null;
   var docs = {};
+  var H = window.AIPartnerHistory;
+  var book = H.blank();
+  var seen = { raw: null, blocked: false };
+  var generation = 0;
+  var controller = null;
+  var historyNote = "";
 
   function ico(name) {
     var span = document.createElement("span");
@@ -127,8 +133,26 @@
     ]);
   }
 
+  function safeUrl(url) {
+    return /^https?:\/\//i.test(String(url || "")) ? String(url) : "";
+  }
+
   function host(url) {
-    try { return new URL(url).host.replace(/^www\./, ""); } catch (e) { return url; }
+    var safe = safeUrl(url);
+    if (!safe) return "";
+    try { return new URL(safe).host.replace(/^www\./, ""); } catch (e) { return ""; }
+  }
+
+  function list(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  function objects(value) {
+    return list(value).filter(function (item) { return !!item && typeof item === "object"; });
+  }
+
+  function texts(value) {
+    return list(value).filter(function (item) { return typeof item === "string" && item; });
   }
 
   function owner(raw) {
@@ -148,26 +172,30 @@
 
   /* ---------- cards ---------- */
   function researchCard(card) {
-    var queries = h("div", { class: "queries" }, (card.queries || []).map(function (q) { return h("span", { class: "pill", text: q }); }));
-    var sources = h("ul", { class: "sources" }, (card.sources || []).map(function (s) {
-      return h("li", {}, [h("a", { href: s.url, target: "_blank", rel: "noopener" }, [h("small", { text: host(s.url) }), h("b", { text: s.title })])]);
+    var queries = texts(card.queries);
+    var sources = objects(card.sources);
+    var queryRow = h("div", { class: "queries" }, queries.map(function (q) { return h("span", { class: "pill", text: q }); }));
+    var sourceList = h("ul", { class: "sources" }, sources.map(function (s) {
+      var href = safeUrl(s.url);
+      var label = h("span", {}, [h("small", { text: host(s.url) || "source" }), h("b", { text: s.title || "" })]);
+      return h("li", {}, [href ? h("a", { href: href, target: "_blank", rel: "noopener" }, [label]) : label]);
     }));
-    return cardShell("search", "Research", (card.sources || []).length + " sources", [
-      h("p", { class: "sub", text: (card.queries || []).length + " parallel web searches. Every source URL is kept." }), queries, sources
+    return cardShell("search", "Research", sources.length + " sources", [
+      h("p", { class: "sub", text: queries.length + " parallel web searches. Every source URL is kept." }), queryRow, sourceList
     ]);
   }
 
   function briefCard() {
     var brief = (state && state.brief) || {};
-    return cardShell("file-search", "Cited research brief", (brief.citations || []).length + " citations", [
+    return cardShell("file-search", "Cited research brief", list(brief.citations).length + " citations", [
       h("p", { class: "brief-text", text: brief.summary || "" })
     ]);
   }
 
   function expertsCard(card) {
-    var grid = h("div", { class: "expert-grid" }, (card.items || []).map(function (e, i) {
+    var grid = h("div", { class: "expert-grid" }, objects(card.items).map(function (e, i) {
       return h("div", { class: "expert-card", style: "--i:" + i }, [
-        h("header", {}, [avatar(e.name), h("div", {}, [h("b", { text: e.name }), h("small", { text: e.role })])]),
+        h("header", {}, [avatar(e.name || ""), h("div", {}, [h("b", { text: e.name || "" }), h("small", { text: e.role || "" })])]),
         h("p", { text: e.insight || e.lens || "" })
       ]);
     }));
@@ -175,24 +203,24 @@
   }
 
   function debateCard(card) {
-    var list = h("ol", { class: "debate-list" }, (card.items || []).map(function (d, i) {
-      var stance = String(d.stance || "").toLowerCase();
-      return h("li", { style: "--i:" + i }, [avatar(d.name), h("div", {}, [
+    var list = h("ol", { class: "debate-list" }, objects(card.items).map(function (d, i) {
+      var stance = typeof d.stance === "string" ? d.stance.toLowerCase() : "";
+      return h("li", { style: "--i:" + i }, [avatar(d.name || ""), h("div", {}, [
         h("p", { class: "who" }, [
-          h("b", { text: d.name }),
+          h("b", { text: d.name || "" }),
           d.responding_to ? h("span", { class: "to", text: "to " + d.responding_to }) : null,
           stance ? h("span", { class: "stance " + stance, text: stance }) : null
         ]),
-        h("p", { text: d.statement })
+        h("p", { text: d.statement || "" })
       ])]);
     }));
     return cardShell("messages-square", "Debate, round " + card.round, "part " + card.part + " of 2", [list]);
   }
 
   function top5Card(card) {
-    var list = h("ol", { class: "top5" }, (card.items || []).map(function (t, i) {
-      var backers = (t.backers || []).map(function (b) { return h("span", { class: "pill", text: b }); });
-      var dissent = (t.dissenters || []).map(function (d) { return h("li", {}, [h("b", { text: d.name + ". " }), d.why || ""]); });
+    var list = h("ol", { class: "top5" }, objects(card.items).map(function (t, i) {
+      var backers = texts(t.backers).map(function (b) { return h("span", { class: "pill", text: b }); });
+      var dissent = objects(t.dissenters).map(function (d) { return h("li", {}, [h("b", { text: (d.name || "") + ". " }), d.why || ""]); });
       return h("li", { style: "--i:" + i }, [
         h("span", { class: "rank", text: String(i + 1) }),
         h("div", {}, [
@@ -200,7 +228,7 @@
           h("p", { text: t.detail }),
           h("div", { class: "levels" }, [
             level("Confidence", t.confidence), level("Impact", t.impact), level("Effort", t.effort, "effort"),
-            t.citation_url ? h("a", { class: "cite", href: t.citation_url, target: "_blank", rel: "noopener" }, [ico("link"), "Source"]) : null
+            safeUrl(t.citation_url) ? h("a", { class: "cite", href: safeUrl(t.citation_url), target: "_blank", rel: "noopener" }, [ico("link"), "Source"]) : null
           ]),
           backers.length ? h("div", { class: "backers" }, [h("span", { text: "Backed by" })].concat(backers)) : null,
           dissent.length ? h("details", { class: "more" }, [h("summary", {}, ["Dissent", ico("chevron-down")]), h("ul", { class: "risk-list" }, dissent)]) : null
@@ -218,15 +246,15 @@
     var attacks = (state && state.attacks) || {};
     return cardShell("shield-check", "Red team", "adversarial pass", [
       h("p", {}, [h("b", { text: "Top risk. " }), attacks.top_risk || ""]),
-      h("ul", { class: "risk-list" }, (attacks.attacks || []).map(function (a) {
-        return h("li", {}, [h("b", { text: a.threat }), h("span", { text: (a.why ? a.why + " " : "") + "Mitigation: " + (a.mitigation || "") })]);
+      h("ul", { class: "risk-list" }, objects(attacks.attacks).map(function (a) {
+        return h("li", {}, [h("b", { text: a.threat || "" }), h("span", { text: (a.why ? a.why + " " : "") + "Mitigation: " + (a.mitigation || "") })]);
       }))
     ]);
   }
 
   function steps(rows) {
-    return h("ol", { class: "steps-list" }, (rows || []).map(function (s) {
-      return h("li", {}, [owner(s.owner), h("b", { text: s.step }), h("span", { class: "task", text: s.task })]);
+    return h("ol", { class: "steps-list" }, objects(rows).map(function (s) {
+      return h("li", {}, [owner(s.owner), h("b", { text: s.step || "" }), h("span", { class: "task", text: s.task || "" })]);
     }));
   }
 
@@ -243,8 +271,8 @@
   function doneCard() {
     var s = state || {};
     var stats = [
-      [(s.sources || []).length, "sources"], [(s.experts || []).length, "AI experts"], [(s.debate || []).length, "debate turns"],
-      [(s.top5 || []).length, "top moves"], [s.maturity ? s.maturity + "/4" : "—", "AI maturity"]
+      [list(s.sources).length, "sources"], [list(s.experts).length, "AI experts"], [list(s.debate).length, "debate turns"],
+      [list(s.top5).length, "top moves"], [s.maturity ? s.maturity + "/4" : "—", "AI maturity"]
     ].map(function (r) { return h("div", { class: "stat" }, [h("strong", { text: String(r[0]) }), h("span", { text: r[1] })]); });
     doneStatus = h("p", { class: "status-line", role: "status", text: "Building the full report and the deliverables." });
     loadView();
@@ -267,9 +295,11 @@
     if (viewing || reportNode || !state || state.phase !== "done") return;
     viewing = true;
     var jump = booted;
+    var ticket = { epoch: generation, projectId: book.selected };
     fetch("/api/chat/view", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: state }) })
       .then(read).then(function (data) {
         viewing = false;
+        if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return;
         if (!data.ok || !data.report) throw new Error("no report");
         docs = {};
         (data.deliverables || []).concat(data.catalog || []).forEach(function (d) { docs[d.id] = d; });
@@ -368,14 +398,16 @@
   }
 
   function generate(item, button, status) {
-    if (button.disabled) return;
+    if (button.disabled || running) return;
     button.disabled = true;
+    var ticket = { epoch: generation, projectId: book.selected };
     status.textContent = "Writing " + item.title + ". This takes about 20 seconds.";
     fetch("/api/chat/artifact", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ state: state || {}, artifact_id: item.id })
     }).then(read).then(function (data) {
       button.disabled = false;
+      if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return;
       if (!data.ok) { status.textContent = (data.error && data.error.message) || "The artifact was not written. Try again."; return; }
       if (data.state) { state = data.state; save(); }
       status.textContent = "";
@@ -413,7 +445,16 @@
   }
 
   function renderItem(item, index) {
-    if (item.role === "user") return h("li", { class: "msg me" }, [h("div", { class: "bubble", text: item.text })]);
+    try {
+      return renderKnownItem(item, index);
+    } catch (e) {
+      return h("li", { class: "msg" }, [avatarImg(), h("div", { class: "bubble", text: "This saved card could not be shown." })]);
+    }
+  }
+
+  function renderKnownItem(item, index) {
+    if (!item || typeof item !== "object") return null;
+    if (item.role === "user") return h("li", { class: "msg me" }, [h("div", { class: "bubble", text: typeof item.text === "string" ? item.text : "" })]);
     if (item.role === "card") {
       var card = renderCard(item.card);
       return card ? h("li", { class: "msg card-msg" }, [avatarImg(), h("div", { class: "body" }, [card])]) : null;
@@ -424,14 +465,14 @@
     var extra = null;
     if (last && item.ask === "maturity" && phase === "ask_maturity") extra = quick("maturity");
     if (last && item.ask === "size" && phase === "ask_size") extra = quick("size");
-    return h("li", { class: "msg" }, [avatarImg(), h("div", {}, [h("div", { class: "bubble", text: item.text }), extra])]);
+    return h("li", { class: "msg" }, [avatarImg(), h("div", {}, [h("div", { class: "bubble", text: typeof item.text === "string" ? item.text : "" }), extra])]);
   }
 
   function errorCard(item, index) {
     var last = index === items.length - 1;
     var canRetry = last && item.retry;
     return h("div", { class: "error-card" }, [
-      h("p", {}, [ico("triangle-alert"), " ", item.text]),
+      h("p", {}, [ico("triangle-alert"), " ", typeof item.text === "string" ? item.text : ""]),
       canRetry || (last && item.fresh) ? h("div", { class: "downloads" }, [
         canRetry ? h("button", { type: "button", class: "btn small primary", onclick: retry }, [ico("refresh-cw"), item.resume ? "Continue" : "Retry"]) : null,
         last && item.fresh ? h("button", { type: "button", class: "btn small ghost", onclick: fresh }, [ico("rotate-ccw"), "New engagement"]) : null
@@ -445,6 +486,10 @@
     var runlog = null;
     var seen = {};
     items.forEach(function (item, i) {
+      if (!readableItem(item)) {
+        log.appendChild(h("li", { class: "msg" }, [avatarImg(), h("div", { class: "bubble", text: "One saved entry could not be shown." })]));
+        return;
+      }
       var kind = item.role === "card" && item.card ? item.card.kind : null;
       if (showReport && kind === "done") {
         log.appendChild(h("li", { class: "msg report-msg", id: "stage-6" }, [reportNode]));
@@ -483,7 +528,7 @@
   }
 
   function stageIndex(phase) {
-    if (!phase || phase.indexOf("ask_") === 0 && phase !== "ask_size") return 0;
+    if (typeof phase !== "string" || !phase || phase.indexOf("ask_") === 0 && phase !== "ask_size") return 0;
     if (phase === "research" || phase === "synthesize") return 1;
     if (phase === "panel") return 2;
     if (phase === "debate") return 3;
@@ -527,11 +572,22 @@
       pct = Math.round((current + part) / STAGES.length * 100);
     }
     meter.style.setProperty("--v", pct + "%");
-    railTitle.textContent = s.problem ? (s.problem.length > 110 ? s.problem.slice(0, 107) + "…" : s.problem) : "New engagement";
+    var problemText = typeof s.problem === "string" ? s.problem : "";
+    railTitle.textContent = problemText ? (problemText.length > 110 ? problemText.slice(0, 107) + "…" : problemText) : "New engagement";
+  }
+
+  function readableItem(item) {
+    return !!(item && typeof item === "object" && typeof item.role === "string");
   }
 
   function paint() {
-    var started = items.some(function (i) { return i.role === "user"; });
+    var broken = items.filter(function (item) { return !readableItem(item); }).length;
+    if (broken && !historyNote) {
+      historyNote = broken + (broken === 1 ? " saved entry could not be shown. " : " saved entries could not be shown. ") + "The stored copy was not changed.";
+    }
+    paintProjects();
+    paintArtifacts();
+    var started = items.some(function (i) { return readableItem(i) && i.role === "user"; });
     document.body.classList.toggle("chatting", started);
     session.hidden = !started;
     hero.hidden = started;
@@ -605,9 +661,9 @@
     return Array.isArray(s.top5) && s.top5.length > 0;
   }
 
-  function post(message) {
+  function post(message, ticket) {
     return fetch(ENDPOINT, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", signal: ticket.signal, headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: message,
         state: state || {},
@@ -615,10 +671,14 @@
         visitor_id: visitorId(),
         has_history: hasHistory()
       })
-    }).then(read);
+    }).then(read).then(function (data) {
+      if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return { ignored: true };
+      return data;
+    });
   }
 
   function handle(data) {
+    if (!data || data.ignored) return null;
     if (data.state) state = data.state;
     if (wroteMemory(state)) markHistory();
     var err = data.error;
@@ -646,11 +706,15 @@
 
   function run(message) {
     if (running) return Promise.resolve();
+    if (controller) controller.abort();
+    generation += 1;
+    var ticket = { epoch: generation, projectId: book.selected, signal: (controller = new AbortController()).signal };
     lastMessage = message;
     setBusy(true, message ? null : state && state.phase);
     var guard = 0;
     function step(msg) {
-      return post(msg).then(function (data) {
+      return post(msg, ticket).then(function (data) {
+        if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return;
         var next = handle(data);
         if (next && guard < 20) {
           guard += 1;
@@ -660,9 +724,12 @@
         }
       });
     }
-    return step(message).catch(function () {
+    return step(message).catch(function (err) {
+      if (err && err.name === "AbortError") return;
+      if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return;
       append({ role: "error", text: "The connection dropped. Your earlier answers are still here.", retry: true });
     }).then(function () {
+      if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return;
       setBusy(false);
       paint();
       if (window.matchMedia("(pointer: fine)").matches) box.focus();
@@ -672,7 +739,7 @@
   function retry() {
     if (running) return;
     var phase = state && state.phase;
-    items = items.filter(function (i, idx) { return !(i.role === "error" && idx === items.length - 1); });
+    items = items.filter(function (i, idx) { return !(readableItem(i) && i.role === "error" && idx === items.length - 1); });
     paintLog();
     run(AUTO.indexOf(phase) >= 0 ? "" : lastMessage);
   }
@@ -680,10 +747,17 @@
   function submit(text) {
     text = String(text || "").trim();
     if (!text || running) return;
+    if (!book.selected) book = H.startNew(book, Math.random, Date.now()).book;
     if (state && state.phase === "done" && text.length > 15) {
+      var kept = save();
+      if (!kept || kept.ok === false) return;
+      var started = H.startNew(book, Math.random, Date.now());
+      if (!started.ok) { setNote(started.notice); return; }
+      book = started.book;
       state = null;
       reportNode = null;
       docs = {};
+      viewing = false;
       items = [{ role: "assistant", text: welcome() }];
     }
     append({ role: "user", text: text });
@@ -752,23 +826,144 @@
   }
 
   /* ---------- persistence ---------- */
+  function setNote(text) {
+    historyNote = text || "";
+    var note = document.getElementById("history-note");
+    if (note) note.textContent = historyNote;
+  }
+
+  function persist() {
+    var result = H.write(localStorage, book, seen);
+    if (result.ok) { seen.raw = result.raw; historyNote = ""; }
+    if (!result.ok) setNote(result.notice);
+    paintProjects();
+    return result;
+  }
+
   function save() {
-    try { localStorage.setItem(STORE, JSON.stringify({ state: state, items: items })); } catch (e) { /* storage full or blocked */ }
+    if (seen.blocked) { setNote(historyNote); paintProjects(); return { ok: false, persisted: false }; }
+    if (!book.selected) return { ok: true, persisted: false };
+    var touched = H.touch(book, book.selected, state, items, Date.now());
+    if (!touched.ok) { setNote(touched.notice); paintProjects(); return touched; }
+    var meaningful = touched.book.projects.some(function (project) {
+      return (project.items || []).some(function (item) { return readableItem(item) && item.role === "user"; }) || (project.state && project.state.problem);
+    });
+    if (!meaningful) return { ok: true, persisted: false };
+    book = touched.book;
+    return persist();
   }
 
   function welcome() { return document.getElementById("welcome").textContent; }
 
-  function fresh() {
-    try { localStorage.removeItem(STORE); } catch (e) { /* ignore */ }
+  function blankView() {
     state = null;
     reportNode = null;
     docs = {};
+    viewing = false;
     items = [{ role: "assistant", text: welcome() }];
     uploads = [];
     paintFiles();
+  }
+
+  function showProject(project) {
+    reportNode = null;
+    docs = {};
+    viewing = false;
+    state = project && project.state ? JSON.parse(JSON.stringify(project.state)) : null;
+    items = project && project.items && project.items.length ? JSON.parse(JSON.stringify(project.items)) : [];
+    if (!items.length) items = [{ role: "assistant", text: welcome() }];
+    var last = items[items.length - 1];
+    if (H.bootAction(state) === "pause" && !(last && last.resume)) {
+      items.push({ role: "error", text: "The engagement paused while the agents were working. Continue from where it stopped.", retry: true, resume: true });
+    }
+    uploads = [];
+    paintFiles();
     paint();
+  }
+
+  function stopFlight() {
+    generation += 1;
+    if (controller) controller.abort();
+    if (running) setBusy(false);
+  }
+
+  function fresh() {
+    if (seen.blocked) { setNote(historyNote); paintProjects(); return; }
+    var saved = save();
+    if (!saved || saved.ok === false) { paint(); return; }
+    var started = H.startNew(book, Math.random, Date.now());
+    if (!started.ok) { setNote(started.notice); paintProjects(); return; }
+    stopFlight();
+    book = started.book;
+    blankView();
+    paint();
+    save();
     window.scrollTo(0, 0);
     box.focus();
+  }
+
+  function paintProjects() {
+    var bar = document.getElementById("project-bar");
+    var select = document.getElementById("projects");
+    if (!bar || !select) return;
+    var keep = book.projects.some(function (project) {
+      return (project.items || []).some(function (item) { return item && item.role === "user"; }) || (project.state && project.state.problem);
+    });
+    bar.hidden = !keep && !historyNote;
+    var recover = document.getElementById("recover-storage");
+    if (recover) recover.hidden = !seen.blocked;
+    select.textContent = "";
+    book.projects.forEach(function (project) {
+      var option = document.createElement("option");
+      option.value = project.id;
+      option.textContent = project.title || "New engagement";
+      if (project.id === book.selected) option.selected = true;
+      select.appendChild(option);
+    });
+    setNote(historyNote);
+  }
+
+  function paintArtifacts() {
+    var box = document.getElementById("project-files");
+    if (!box) return;
+    var started = items.some(function (item) { return readableItem(item) && item.role === "user"; });
+    var index = H.artifactIndex(state);
+    var any = started && (index.saved.length || index.regenerable.length);
+    box.hidden = !any;
+    box.textContent = "";
+    if (!any) return;
+    box.appendChild(h("p", { class: "saved-note", text: index.note }));
+    index.regenerable.forEach(function (row) {
+      var button = h("button", { type: "button", class: "btn small" + (row.ready ? "" : " ghost") }, [row.label]);
+      if (!row.ready) {
+        button.disabled = false;
+        button.addEventListener("click", function () {
+          setNote(row.label + " is rebuilt from this project's saved answers. This project is not ready for that file yet.");
+        });
+      } else {
+        button.addEventListener("click", function () {
+          var spec = DOWNLOADS[row.id];
+          download(spec[0], spec[1], { set textContent(value) { if (value) setNote(value); } });
+        });
+      }
+      box.appendChild(button);
+    });
+    index.saved.forEach(function (row) {
+      box.appendChild(h("button", { type: "button", class: "btn small ghost", onclick: function () { showSaved(row.id); } }, ["Saved text: " + row.label]));
+    });
+  }
+
+  function showSaved(id) {
+    var text = state && state.artifacts && state.artifacts[id];
+    var box = document.getElementById("project-files");
+    if (!box) return;
+    var existing = document.getElementById("saved-text");
+    if (existing) existing.remove();
+    if (typeof text !== "string" || !text.trim()) {
+      setNote("That artifact is not saved in this browser yet.");
+      return;
+    }
+    box.appendChild(h("pre", { id: "saved-text", class: "saved-text", text: text }));
   }
 
   /* ---------- composer ---------- */
@@ -788,23 +983,79 @@
     chip.addEventListener("click", function () { submit(chip.getAttribute("data-example")); });
   });
   document.getElementById("fresh").addEventListener("click", fresh);
+  document.getElementById("remove-project").addEventListener("click", function () {
+    if (seen.blocked) { setNote(historyNote); paintProjects(); return; }
+    if (!book.selected) return;
+    var next = H.remove(book, book.selected);
+    var title = (H.find(book, book.selected) || {}).title || "this project";
+    var previous = book;
+    book = next;
+    var result = persist();
+    if (!result.ok) { book = previous; setNote(result.notice); paintProjects(); return; }
+    stopFlight();
+    setNote("Removed \"" + title + "\" from this browser.");
+    var project = H.find(book, book.selected);
+    if (project) showProject(project);
+    else blankView();
+    paint();
+  });
+  document.getElementById("recover-storage").addEventListener("click", function () {
+    var kept = H.holdAside(localStorage, seen);
+    if (!kept.ok) { setNote(kept.notice); paintProjects(); return; }
+    seen.blocked = false;
+    historyNote = kept.notice;
+    if (!book.projects.length) {
+      var started = H.startNew(book, Math.random, Date.now());
+      if (started.ok) book = started.book;
+    }
+    var written = persist();
+    setNote(written.ok ? "A copy of the unreadable data is kept in this browser. This list is the new one." : written.notice);
+    var project = H.find(book, book.selected);
+    if (project) showProject(project);
+    else blankView();
+    paint();
+  });
+  document.getElementById("projects").addEventListener("change", function (ev) {
+    var id = ev.target.value;
+    if (id === book.selected) return;
+    var saved = save();
+    if (!saved || saved.ok === false) { paint(); return; }
+    stopFlight();
+    book = H.select(book, id);
+    showProject(H.find(book, book.selected));
+    save();
+  });
 
   /* ---------- boot ---------- */
   try {
-    var saved = JSON.parse(localStorage.getItem(STORE) || "null");
-    if (saved && Array.isArray(saved.items)) { state = saved.state || null; items = saved.items; }
-  } catch (e) { state = null; items = []; }
+    seen.raw = localStorage.getItem(STORE);
+  } catch (e) {
+    seen.raw = null;
+    seen.blocked = true;
+    historyNote = "Saved projects could not be read. They were not replaced.";
+  }
+  if (!seen.blocked) {
+    try {
+      var loaded = H.read(seen.raw, Math.random, Date.now());
+      book = loaded.book;
+      seen.blocked = !!loaded.blocked;
+      historyNote = loaded.notice || "";
+      if (loaded.write && !loaded.blocked) {
+        var migrated = persist();
+        if (!migrated.ok) historyNote = migrated.notice;
+      }
+    } catch (e) {
+      book = H.blank();
+      seen.blocked = true;
+      historyNote = "Saved projects could not be read. They were not replaced.";
+    }
+  }
+  if (!book.projects.length && !seen.blocked) book = H.startNew(book, Math.random, Date.now()).book;
+  showProject(H.find(book, book.selected));
   if (wroteMemory(state)) markHistory();
   visitorId();
-  if (!items.length) items = [{ role: "assistant", text: welcome() }];
-  var paused = state && AUTO.indexOf(state.phase) >= 0;
-  var lastItem = items[items.length - 1];
-  if (paused && !(lastItem && lastItem.role === "error")) {
-    items.push({ role: "error", text: "The engagement paused while the agents were working. Continue from where it stopped.", retry: true, resume: true });
-  }
-  paint();
   booted = true;
-  if (!items.some(function (i) { return i.role === "user"; }) && window.matchMedia("(pointer: fine)").matches) box.focus();
+  if (!items.some(function (i) { return readableItem(i) && i.role === "user"; }) && window.matchMedia("(pointer: fine)").matches) box.focus();
   var tick = 0;
   var placeholders = Array.prototype.map.call(document.querySelectorAll("[data-example]"), function (c) { return c.getAttribute("data-example"); });
   setInterval(function () {

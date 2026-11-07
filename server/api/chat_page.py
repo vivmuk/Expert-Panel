@@ -55,16 +55,22 @@ def render_page(welcome, origin=""):
       {channel_pill(origin)}
     </div>
   </section>
+  <div class="project-bar" id="project-bar" hidden>
+    <label class="sr-only" for="projects">Saved projects in this browser</label>
+    <select id="projects"></select>
+    <button type="button" class="btn small ghost" id="fresh">{icon("rotate-ccw")}New</button>
+    <button type="button" class="btn small ghost" id="remove-project">Remove</button>
+    <button type="button" class="btn small ghost" id="recover-storage" hidden>Keep a copy and start fresh</button>
+    <p id="history-note" class="history-note" role="status"></p>
+  </div>
   <section class="session" id="session" hidden aria-label="Engagement">
     <aside class="rail" aria-label="Progress">
       <div class="rail-head"><p class="kicker">Engagement</p><h2 id="rail-title">New engagement</h2></div>
       <ol class="stages" id="stages"></ol>
       <div class="meter-line" aria-hidden="true"><i id="meter"></i></div>
-      <div class="rail-actions">
-        <button type="button" class="btn small ghost" id="fresh">{icon("rotate-ccw")}New engagement</button>
-      </div>
     </aside>
     <div class="thread">
+      <div class="project-files" id="project-files" hidden></div>
       <ol class="log" id="log" aria-live="polite"></ol>
       <div class="typing" id="typing" hidden role="status"><span class="dotty" aria-hidden="true"><i></i><i></i><i></i></span><span class="shimmer" id="typing-text">Working</span><span class="elapsed" id="elapsed"></span></div>
       <div class="dock" id="dock"></div>
@@ -77,6 +83,7 @@ def render_page(welcome, origin=""):
 <script id="welcome" type="text/plain">{welcome}</script>
 <script id="chat-icons" type="application/json">{icons}</script>
 <script src="/report.js" defer></script>
+<script src="/history.js" defer></script>
 <script src="/chat.js" data-endpoint="/api/chat" defer></script>
 <script src="/onboard.js" defer></script>
 <script src="/keiki.js" defer></script>

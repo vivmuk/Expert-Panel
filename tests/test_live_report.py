@@ -99,7 +99,7 @@ def test_catalog_artifact_markdown_becomes_a_styled_page():
 def test_chat_page_loads_the_report_renderer(client):
     page = client.get("/chat").get_data(as_text=True)
     assert '<link rel="stylesheet" href="/report.css">' in page
-    assert re.search(r'<script src="/report.js" defer></script>\s*<script src="/chat.js"', page)
+    assert re.search(r'<script src="/report.js" defer></script>\s*<script src="/history.js" defer></script>\s*<script src="/chat.js"', page)
 
 
 def test_demo_report_uses_the_same_swimlanes_and_expand_all(client):
