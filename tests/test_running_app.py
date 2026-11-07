@@ -134,6 +134,31 @@ def _exa(mode):
     )
 
 
+_DISCONNECTS = (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
+
+
+def _settle_stub(stub):
+    """Join handler threads twice, then return unexpected errors.
+
+    The first join waits for handlers already accepted. The second join waits
+    for a handler that was appended while the first join was still running.
+    handle_error runs before a handler thread exits, so the error list is
+    complete when join returns.
+    """
+    threads = getattr(stub, "_threads", None)
+    if threads is not None:
+        threads.join()
+        threads.join()
+    found = list(stub.thread_errors)
+    stub.thread_errors.clear()
+    return [exc for exc in found if not isinstance(exc, _DISCONNECTS)]
+
+
+def _assert_stub_settled(stub):
+    unexpected = _settle_stub(stub)
+    assert unexpected == [], [(type(exc).__name__, str(exc)) for exc in unexpected]
+
+
 @pytest.fixture(scope="module")
 def live():
     stub = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
@@ -192,7 +217,10 @@ def live():
     finally:
         httpd.shutdown()
         stub.shutdown()
-        Config.VENICE_BASE_URL = old_base
+        try:
+            _assert_stub_settled(stub)
+        finally:
+            Config.VENICE_BASE_URL = old_base
         venice_client._default_client = None
         for key, value in saved.items():
             if value is None:
@@ -209,12 +237,37 @@ def _reset(live):
     live["stub"].exa_mode = "ok"
     live["stub"].delay = 0
     live["stub"].errors.clear()
-    live["stub"].thread_errors.clear()
+    _assert_stub_settled(live["stub"])
     yield
-    allowed = (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
-    unexpected = [exc for exc in live["stub"].thread_errors if not isinstance(exc, allowed)]
-    live["stub"].thread_errors.clear()
-    assert unexpected == [], [(type(exc).__name__, str(exc)) for exc in unexpected]
+    _assert_stub_settled(live["stub"])
+
+
+def test_late_stub_error_is_visible_after_handlers_finish(live):
+    """An error recorded only after the caller releases the handler is still returned by the drain."""
+    from socketserver import _Threads
+
+    stub = live["stub"]
+    vars(stub).setdefault("_threads", _Threads())
+    entered = threading.Event()
+    release = threading.Event()
+
+    def late():
+        entered.set()
+        release.wait()
+        stub.thread_errors.append(RuntimeError("late handler"))
+
+    worker = threading.Thread(target=late)
+    stub._threads.append(worker)
+    worker.start()
+    try:
+        assert entered.wait(5)
+        assert not any(isinstance(exc, RuntimeError) for exc in stub.thread_errors)
+        release.set()
+        unexpected = _settle_stub(stub)
+        assert [str(exc) for exc in unexpected] == ["late handler"]
+    finally:
+        release.set()
+        _settle_stub(stub)
 
 
 def _post(live, path, payload, **kwargs):
