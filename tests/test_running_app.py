@@ -68,6 +68,11 @@ def _answer(raw):
 class _Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
+    def handle(self):
+        # One request per thread. HTTP/1.1 keep-alive would block in readline, and joining that thread would wait forever.
+        self.close_connection = True
+        self.handle_one_request()
+
     def do_POST(self):
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length) if length else b""
@@ -79,6 +84,10 @@ class _Handler(BaseHTTPRequestHandler):
             venice_mode = server.venice_mode
             exa_mode = server.exa_mode
             delay = server.delay
+        if self.path.endswith("/hold"):
+            server.hold_entered.set()
+            server.hold_release.wait()
+            raise RuntimeError("late handler")
         if delay and not self.path.endswith("/augment/search"):
             _PAUSE(delay)
         if self.path.endswith("/audio/speech") or self.path.endswith("/audio/transcriptions"):
@@ -138,12 +147,12 @@ _DISCONNECTS = (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
 
 
 def _settle_stub(stub):
-    """Join handler threads twice, then return unexpected errors.
+    """Join handler threads the mix-in actually tracked, then return unexpected errors.
 
-    The first join waits for handlers already accepted. The second join waits
-    for a handler that was appended while the first join was still running.
-    handle_error runs before a handler thread exits, so the error list is
-    complete when join returns.
+    Python 3.12 ThreadingHTTPServer.daemon_threads is True, and _Threads.append
+    drops daemon threads. The fixture sets daemon_threads False before serve so
+    real request threads are recorded. Joining does nothing for handlers that
+    were never appended.
     """
     threads = getattr(stub, "_threads", None)
     if threads is not None:
@@ -162,17 +171,19 @@ def _assert_stub_settled(stub):
 @pytest.fixture(scope="module")
 def live():
     stub = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+    # Class default is True on Python 3.12, which leaves real handlers out of _threads.
+    stub.daemon_threads = False
     stub.thread_errors = []
+    stub.hold_entered = threading.Event()
+    stub.hold_release = threading.Event()
 
     def handle_error(request, client_address):
         import sys
 
         exc = sys.exc_info()[1]
         stub.thread_errors.append(exc)
-        # The timeout and retry tests close the socket while this stub is still writing.
-        if isinstance(exc, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
-            return
-        ThreadingHTTPServer.handle_error(stub, request, client_address)
+        # Disconnects are expected when a client gives up. Anything else stays in
+        # thread_errors and fails _assert_stub_settled with the exception text.
 
     stub.handle_error = handle_error
     stub.lock = threading.Lock()
@@ -216,7 +227,9 @@ def live():
         yield {"origin": origin, "stub": stub}
     finally:
         httpd.shutdown()
+        httpd.server_close()
         stub.shutdown()
+        stub.server_close()
         try:
             _assert_stub_settled(stub)
         finally:
@@ -242,31 +255,34 @@ def _reset(live):
     _assert_stub_settled(live["stub"])
 
 
-def test_late_stub_error_is_visible_after_handlers_finish(live):
-    """An error recorded only after the caller releases the handler is still returned by the drain."""
-    from socketserver import _Threads
-
+def test_real_http_handler_is_tracked_and_joined(live):
+    """A real POST to the stub, not a hand-built thread, must be in _threads and joined."""
     stub = live["stub"]
-    vars(stub).setdefault("_threads", _Threads())
-    entered = threading.Event()
-    release = threading.Event()
+    assert stub.daemon_threads is False
+    stub.hold_entered.clear()
+    stub.hold_release.clear()
+    url = f"http://127.0.0.1:{stub.server_address[1]}/hold"
 
-    def late():
-        entered.set()
-        release.wait()
-        stub.thread_errors.append(RuntimeError("late handler"))
+    def post_hold():
+        try:
+            requests.post(url, data=b"x", timeout=10)
+        except requests.exceptions.RequestException:
+            return
 
-    worker = threading.Thread(target=late)
-    stub._threads.append(worker)
-    worker.start()
+    client = threading.Thread(target=post_hold)
+    client.start()
     try:
-        assert entered.wait(5)
+        assert stub.hold_entered.wait(5)
+        alive = [thread for thread in list(stub._threads) if thread.is_alive()]
+        assert alive, "ThreadingHTTPServer did not record the request thread"
+        assert all(thread.daemon is False for thread in alive)
         assert not any(isinstance(exc, RuntimeError) for exc in stub.thread_errors)
-        release.set()
+        stub.hold_release.set()
         unexpected = _settle_stub(stub)
         assert [str(exc) for exc in unexpected] == ["late handler"]
     finally:
-        release.set()
+        stub.hold_release.set()
+        client.join(5)
         _settle_stub(stub)
 
 
