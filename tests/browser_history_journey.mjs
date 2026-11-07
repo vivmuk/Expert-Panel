@@ -172,8 +172,10 @@ function longItems() {
 function book(selected, projects) {
   return { schema: 3, selected, projects };
 }
-function researchProject(updated) {
-  return { id: researchId, updated, state: researchState(), items: longItems() };
+function researchProject(updated, chatId) {
+  const state = researchState();
+  if (chatId) state.chat_id = chatId;
+  return { id: researchId, updated, state, items: longItems() };
 }
 function clinicProject(updated) {
   return {
@@ -402,7 +404,7 @@ const late = await evaluate(`(() => {
 note("late-switch", late);
 
 await request("POST", "/__test/reset", {});
-const dozen = [researchProject(50)];
+const dozen = [researchProject(50, "cappause0000001")];
 for (let i = 0; i < 11; i++) {
   const id = "d00000000000000" + i.toString(16);
   dozen.push({
@@ -449,7 +451,7 @@ const created = JSON.parse(await new Promise((resolve, reject) => {
 const firstWs = ws;
 await connect(created.webSocketDebuggerUrl);
 await installHooks();
-await waitForValue(() => evaluate("!!document.getElementById('fresh')"), (ready) => ready);
+await waitForValue(() => evaluate("document.getElementById('projects').options.length"), (count) => count >= 1);
 const pageB = ws;
 ws = firstWs;
 await evaluate(`document.getElementById("box").focus()`);
@@ -464,6 +466,77 @@ const tabs = await evaluate(`(() => ({
   raw: localStorage.getItem("ai-partner-chat-v2")
 }))()`);
 note("two-tabs", { note: tabs.note, kept: tabs.raw.indexOf("hello from tab a") >= 0 });
+
+ws = firstWs;
+const keepId = "eeeeeeeeeeeeeeee";
+const otherId = "ffffffffffffffff";
+const keepBook = book(keepId, [
+  {
+    id: keepId,
+    updated: 5,
+    state: { chat_id: "keepview0000001", phase: "ask_context", problem: "Keep this problem visible" },
+    items: [{ role: "user", text: "Keep this transcript line" }, { role: "assistant", text: "Still on screen" }]
+  },
+  {
+    id: otherId,
+    updated: 4,
+    state: { chat_id: "otherview000001", phase: "ask_context", problem: "Other project" },
+    items: [{ role: "user", text: "Other project line" }]
+  }
+]);
+await storeAndReload(keepBook);
+const beforeRefusal = await stored();
+await evaluate(`(() => {
+  AIPartnerHistory.touch = function (book) {
+    return { ok: false, book: book, notice: "Not saved. This project has a value this browser cannot store safely. The last saved copy was not replaced. This project is still open in this tab." };
+  };
+  document.getElementById("fresh").click();
+})()`);
+const refusedNew = await evaluate(`(() => ({
+  note: document.getElementById("history-note").textContent,
+  selected: document.getElementById("projects").value,
+  log: document.getElementById("log").textContent,
+  rail: document.getElementById("rail-title").textContent,
+  raw: localStorage.getItem("ai-partner-chat-v2")
+}))()`);
+note("refused-new", { note: refusedNew.note, selected: refusedNew.selected, keptLog: refusedNew.log.indexOf("Keep this transcript line") >= 0, raw: refusedNew.raw === beforeRefusal });
+
+await reload();
+await evaluate(`(() => {
+  window.__setItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = function () { throw new Error("quota"); };
+  const select = document.getElementById("projects");
+  select.value = ${JSON.stringify(otherId)};
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+})()`);
+const refusedSelect = await evaluate(`(() => ({
+  note: document.getElementById("history-note").textContent,
+  selected: document.getElementById("projects").value,
+  log: document.getElementById("log").textContent,
+  rail: document.getElementById("rail-title").textContent,
+  raw: localStorage.getItem("ai-partner-chat-v2")
+}))()`);
+note("refused-select", { note: refusedSelect.note, selected: refusedSelect.selected, keptLog: refusedSelect.log.indexOf("Keep this transcript line") >= 0, raw: refusedSelect.raw === beforeRefusal });
+
+const malformed = JSON.stringify({
+  schema: 3,
+  selected: "mmmmmmmmmmmmmmmm",
+  projects: [{
+    id: "mmmmmmmmmmmmmmmm",
+    updated: 1,
+    state: { problem: "Malformed entries stay", phase: "ask_context", chat_id: "malformeditem01" },
+    items: [{ role: "user", text: "Keep this transcript line" }, null, { nope: true }, "wrong-shape", { role: "assistant", text: "Still here" }]
+  }]
+});
+await evaluate(`localStorage.setItem = window.__setItem`);
+await storeAndReload(malformed);
+const holes = await evaluate(`(() => ({
+  errors: window.__errors.slice(),
+  log: document.getElementById("log").textContent,
+  note: document.getElementById("history-note").textContent,
+  raw: localStorage.getItem("ai-partner-chat-v2")
+}))()`);
+note("malformed-items", { errors: holes.errors, note: holes.note, kept: holes.log.indexOf("Keep this transcript line") >= 0 && holes.log.indexOf("Still here") >= 0, warning: holes.log.indexOf("could not be shown") >= 0, raw: holes.raw === malformed });
 
 chrome.kill();
 ws.close();
@@ -505,5 +578,15 @@ if (refused.count !== 12 || refused.selected !== researchId) failed.push("cap sw
 if (applied !== researchId) failed.push("cap aborted");
 if (!tabs.note.includes("Another tab")) failed.push("tab conflict note");
 if (!tabs.raw.includes("hello from tab a")) failed.push("tab overwrite");
+if (refusedNew.selected !== keepId || refusedNew.log.indexOf("Keep this transcript line") < 0) failed.push("refused new view");
+if (!refusedNew.note.includes("Not saved")) failed.push("refused new note");
+if (refusedNew.raw !== beforeRefusal) failed.push("refused new bytes");
+if (refusedSelect.selected !== keepId || refusedSelect.log.indexOf("Keep this transcript line") < 0) failed.push("refused select view");
+if (!refusedSelect.note.includes("Not saved")) failed.push("refused select note");
+if (refusedSelect.raw !== beforeRefusal) failed.push("refused select bytes");
+if (holes.errors.length) failed.push("malformed crash " + holes.errors.join(";"));
+if (holes.log.indexOf("Keep this transcript line") < 0 || holes.log.indexOf("Still here") < 0) failed.push("malformed pruned");
+if (holes.log.indexOf("could not be shown") < 0 && holes.note.indexOf("could not be shown") < 0) failed.push("malformed warning");
+if (holes.raw !== malformed) failed.push("malformed bytes");
 if (failed.length) fail(failed);
 console.log("browser journey ok");

@@ -486,6 +486,10 @@
     var runlog = null;
     var seen = {};
     items.forEach(function (item, i) {
+      if (!readableItem(item)) {
+        log.appendChild(h("li", { class: "msg" }, [avatarImg(), h("div", { class: "bubble", text: "One saved entry could not be shown." })]));
+        return;
+      }
       var kind = item.role === "card" && item.card ? item.card.kind : null;
       if (showReport && kind === "done") {
         log.appendChild(h("li", { class: "msg report-msg", id: "stage-6" }, [reportNode]));
@@ -524,7 +528,7 @@
   }
 
   function stageIndex(phase) {
-    if (!phase || phase.indexOf("ask_") === 0 && phase !== "ask_size") return 0;
+    if (typeof phase !== "string" || !phase || phase.indexOf("ask_") === 0 && phase !== "ask_size") return 0;
     if (phase === "research" || phase === "synthesize") return 1;
     if (phase === "panel") return 2;
     if (phase === "debate") return 3;
@@ -568,13 +572,22 @@
       pct = Math.round((current + part) / STAGES.length * 100);
     }
     meter.style.setProperty("--v", pct + "%");
-    railTitle.textContent = s.problem ? (s.problem.length > 110 ? s.problem.slice(0, 107) + "…" : s.problem) : "New engagement";
+    var problemText = typeof s.problem === "string" ? s.problem : "";
+    railTitle.textContent = problemText ? (problemText.length > 110 ? problemText.slice(0, 107) + "…" : problemText) : "New engagement";
+  }
+
+  function readableItem(item) {
+    return !!(item && typeof item === "object" && typeof item.role === "string");
   }
 
   function paint() {
+    var broken = items.filter(function (item) { return !readableItem(item); }).length;
+    if (broken && !historyNote) {
+      historyNote = broken + (broken === 1 ? " saved entry could not be shown. " : " saved entries could not be shown. ") + "The stored copy was not changed.";
+    }
     paintProjects();
     paintArtifacts();
-    var started = items.some(function (i) { return i.role === "user"; });
+    var started = items.some(function (i) { return readableItem(i) && i.role === "user"; });
     document.body.classList.toggle("chatting", started);
     session.hidden = !started;
     hero.hidden = started;
@@ -726,7 +739,7 @@
   function retry() {
     if (running) return;
     var phase = state && state.phase;
-    items = items.filter(function (i, idx) { return !(i.role === "error" && idx === items.length - 1); });
+    items = items.filter(function (i, idx) { return !(readableItem(i) && i.role === "error" && idx === items.length - 1); });
     paintLog();
     run(AUTO.indexOf(phase) >= 0 ? "" : lastMessage);
   }
@@ -736,7 +749,8 @@
     if (!text || running) return;
     if (!book.selected) book = H.startNew(book, Math.random, Date.now()).book;
     if (state && state.phase === "done" && text.length > 15) {
-      save();
+      var kept = save();
+      if (!kept || kept.ok === false) return;
       var started = H.startNew(book, Math.random, Date.now());
       if (!started.ok) { setNote(started.notice); return; }
       book = started.book;
@@ -832,7 +846,7 @@
     var touched = H.touch(book, book.selected, state, items, Date.now());
     if (!touched.ok) { setNote(touched.notice); paintProjects(); return touched; }
     var meaningful = touched.book.projects.some(function (project) {
-      return (project.items || []).some(function (item) { return item.role === "user"; }) || (project.state && project.state.problem);
+      return (project.items || []).some(function (item) { return readableItem(item) && item.role === "user"; }) || (project.state && project.state.problem);
     });
     if (!meaningful) return { ok: true, persisted: false };
     book = touched.book;
@@ -875,10 +889,11 @@
 
   function fresh() {
     if (seen.blocked) { setNote(historyNote); paintProjects(); return; }
+    var saved = save();
+    if (!saved || saved.ok === false) { paint(); return; }
     var started = H.startNew(book, Math.random, Date.now());
     if (!started.ok) { setNote(started.notice); paintProjects(); return; }
     stopFlight();
-    save();
     book = started.book;
     blankView();
     paint();
@@ -892,7 +907,7 @@
     var select = document.getElementById("projects");
     if (!bar || !select) return;
     var keep = book.projects.some(function (project) {
-      return (project.items || []).some(function (item) { return item.role === "user"; }) || (project.state && project.state.problem);
+      return (project.items || []).some(function (item) { return item && item.role === "user"; }) || (project.state && project.state.problem);
     });
     bar.hidden = !keep && !historyNote;
     var recover = document.getElementById("recover-storage");
@@ -911,7 +926,7 @@
   function paintArtifacts() {
     var box = document.getElementById("project-files");
     if (!box) return;
-    var started = items.some(function (item) { return item.role === "user"; });
+    var started = items.some(function (item) { return readableItem(item) && item.role === "user"; });
     var index = H.artifactIndex(state);
     var any = started && (index.saved.length || index.regenerable.length);
     box.hidden = !any;
@@ -1002,8 +1017,10 @@
   });
   document.getElementById("projects").addEventListener("change", function (ev) {
     var id = ev.target.value;
+    if (id === book.selected) return;
+    var saved = save();
+    if (!saved || saved.ok === false) { paint(); return; }
     stopFlight();
-    save();
     book = H.select(book, id);
     showProject(H.find(book, book.selected));
     save();
@@ -1038,7 +1055,7 @@
   if (wroteMemory(state)) markHistory();
   visitorId();
   booted = true;
-  if (!items.some(function (i) { return i.role === "user"; }) && window.matchMedia("(pointer: fine)").matches) box.focus();
+  if (!items.some(function (i) { return readableItem(i) && i.role === "user"; }) && window.matchMedia("(pointer: fine)").matches) box.focus();
   var tick = 0;
   var placeholders = Array.prototype.map.call(document.querySelectorAll("[data-example]"), function (c) { return c.getAttribute("data-example"); });
   setInterval(function () {

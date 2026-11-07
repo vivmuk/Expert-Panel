@@ -257,4 +257,22 @@ assert.strictEqual(index.regenerable.find((row) => row.id === "kit").ready, true
 assert.strictEqual(index.regenerable.find((row) => row.id === "report").ready, true);
 assert.match(index.note, /24 hours/);
 
+const holeRaw = JSON.stringify({
+  schema: 3,
+  selected: "nullitemproject1",
+  projects: [{
+    id: "nullitemproject1",
+    updated: 1,
+    state: { problem: "Keep", phase: "ask_context" },
+    items: [{ role: "user", text: "Keep this transcript line" }, null, { nope: true }, "wrong-shape", { role: "assistant", text: "Still here" }]
+  }]
+});
+const hole = H.read(holeRaw, rng, 1);
+assert.strictEqual(hole.blocked, false);
+assert.strictEqual(hole.write, false);
+assert.strictEqual(JSON.stringify(hole.book.projects[0].items), JSON.stringify([
+  { role: "user", text: "Keep this transcript line" }, null, { nope: true }, "wrong-shape", { role: "assistant", text: "Still here" }
+]));
+assert.strictEqual(H.startNew(hole.book, rng, 2).ok, true);
+
 console.log("history ok");
