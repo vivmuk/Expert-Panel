@@ -1,0 +1,9 @@
+time	decision	evidence	note
+2026-11-07T03:10:00Z	Baseline pytest on master 80e769f087b2 before edits, isolated prefix /tmp/ai-partner-pydeps because python3-venv ensurepip is missing	/opt/cursor/artifacts/baseline-pytest.txt	168 passed, 1 skipped (openai import)
+2026-11-07T03:15:00Z	Block non-local sockets in tests, then re-run the suite before auth edits	/opt/cursor/artifacts/after-network-guard-pytest.txt	168 passed, 1 skipped
+2026-11-07T03:20:00Z	New legacy-auth tests fail on the ungated routes; Keiki intake characterization passes on that same code	/opt/cursor/artifacts/red-new-tests.txt	6 failed, 4 passed. POST /api/runs returned 202 without a key. limit=foo returned 500.
+2026-11-07T03:25:00Z	Partner key gates runs, engagements, and brand writes before DB or provider work. Pagination rejects bad types and clamps limit at 200. Shared store is documented, not isolated.	/opt/cursor/artifacts/green-new-tests.txt	11 passed in tests/test_legacy_boundary.py, tests/test_keiki_intake.py, and the Vercel store test
+2026-11-07T03:25:00Z	Do not parse "do not run" or echo tokens. Characterization test keeps that path starting research.	tests/test_keiki_intake.py	A later boolean flag is in docs/backlog.md. Email roundtrip is reported, not observed. iMessage unverified. Spend unknown.
+2026-11-07T03:25:00Z	Leave server/static/deck untouched. Corrections listed for a new file.	docs/report/deck-corrections.md	No website copy edit. Connect "coming soon" for customer push accounts was not treated as a false claim.
+2026-11-07T03:40:00Z	Full suite after the gate, network block, and docs.	/opt/cursor/artifacts/full-suite-after-fix.txt	178 passed, 1 skipped (openai import). No provider calls.
+2026-11-07T03:45:00Z	GET smoke on both hosts. Builds match 9da936ce5605. Legacy routes not gated in production yet.	/opt/cursor/artifacts/smoke-public-get.txt	Railway engagements 503, Maritime engagements 200, both runs 404. Open pages passed. --expect-gated was not used.

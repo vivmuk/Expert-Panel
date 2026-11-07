@@ -13,6 +13,7 @@ from flask import Blueprint, jsonify, request, send_from_directory
 from ..config import Config
 from ..venice.client import get_client
 from ..venice.models import get_catalog
+from .access import require_partner_key
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("branding", __name__)
@@ -130,6 +131,9 @@ def assets():
 
 @bp.post("/branding/ensure")
 def ensure():
+    denied = require_partner_key()
+    if denied:
+        return denied
     started = _ensure_missing_async()
     return jsonify({"started": started})
 
@@ -137,6 +141,9 @@ def ensure():
 @bp.post("/branding/generate")
 def regenerate():
     """Force-regenerate one slot (or all) — used by the Settings Brand Studio."""
+    denied = require_partner_key()
+    if denied:
+        return denied
     data = request.get_json(force=True, silent=True) or {}
     slot = data.get("slot")
     slots = [slot] if slot in SLOTS else list(SLOTS)

@@ -403,6 +403,7 @@ def test_rate_limit_is_per_ip(client):
 def test_vercel_skips_sqlite_and_blocks_engagements(monkeypatch, tmp_path):
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("AI_PARTNER_API_KEYS", "partner-test-key")
     target = tmp_path / "data"
     monkeypatch.setattr(Config, "DATA_DIR", str(target))
     monkeypatch.setattr("server.api.chat.complete_with_venice", fake_model([]))
@@ -412,7 +413,9 @@ def test_vercel_skips_sqlite_and_blocks_engagements(monkeypatch, tmp_path):
     http = app.test_client()
     res = http.post("/api/chat", json={"message": "Pricing for a B2B analytics product", "state": {}})
     assert res.status_code == 200
-    blocked = http.get("/api/engagements")
+    denied = http.get("/api/engagements")
+    assert denied.status_code == 401
+    blocked = http.get("/api/engagements", headers={"Authorization": "Bearer partner-test-key"})
     assert blocked.status_code == 503
     assert blocked.get_json()["error"]["code"] == "no_store"
     assert not target.exists()

@@ -45,6 +45,10 @@ Confirm the variable is set without printing it:
 test -n "$AI_PARTNER_API_KEY" && printf 'AI_PARTNER_API_KEY is set\\n'
 ```
 
+The public engagement is `POST /api/chat` and the page at `/chat`. It does not use this key. `/v1/*` and `/mcp` do.
+
+`/api/runs`, `/api/engagements`, and `POST /api/branding/ensure` and `POST /api/branding/generate` also require the key. Any valid partner key can list, read, rename, and delete every row in that one SQLite database, and can read or cancel runs held in that process. The key is not a client id. This does not isolate one caller's engagements from another's.
+
 ## 2. Add guidance (skills)
 
 Install the AI Partner skill pack once for this agent. The repo ships three skills in the agent-skills format: `run-engagement`, `read-top5`, and `build-harness`.
