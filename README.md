@@ -45,7 +45,20 @@ flags (web search, X search, reasoning) with graceful fallbacks.
 
 Pre-run estimates (`POST /api/estimate`), a confirm dialog above $2, a live cost
 ticker during runs, per-engagement totals, and a circuit breaker that aborts any
-run exceeding 3× its estimate.
+run exceeding 3× its estimate. The $2 confirm dialog is in the React launcher.
+The 3× circuit breaker runs inside `POST /api/runs`. `POST /api/estimate` and
+`GET /api/models` are separate routes and are not behind the partner key.
+`/chat` uses a different set: 16 signed model calls per chat,
+5 new chat ids per IP per day (`AI_PARTNER_DAILY_ENGAGEMENTS`), and 20 turns
+per 10 minutes per IP with a 200-turn process cap. The counters live in the
+one gunicorn process and reset on restart.
+
+`POST /api/runs`, run read, answer, and cancel, `/api/engagements` list, read,
+rename, and delete, and `POST /api/branding/ensure` and `POST /api/branding/generate`
+require `Authorization: Bearer` with a partner key (`AI_PARTNER_API_KEYS` or a
+signed `ap_` key). The check runs before the database or a provider call. Every
+valid key sees the same SQLite engagement store. The key does not partition
+rows by caller. `/chat` stays open without a key.
 
 ## Try the demo
 

@@ -6,6 +6,7 @@ from flask import Blueprint, Response, jsonify, request
 
 from ..pipeline.events import REGISTRY, sse_format
 from ..pipeline.runner import start_run
+from .access import require_partner_key
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("runs", __name__)
@@ -15,6 +16,9 @@ HEARTBEAT_SECONDS = 15
 
 @bp.post("/runs")
 def create_run():
+    denied = require_partner_key()
+    if denied:
+        return denied
     payload = request.get_json(force=True, silent=True) or {}
     try:
         run, engagement_id, estimate = start_run(payload)
@@ -28,6 +32,9 @@ def create_run():
 
 @bp.get("/runs/<run_id>")
 def get_run(run_id):
+    denied = require_partner_key()
+    if denied:
+        return denied
     run = REGISTRY.get(run_id)
     if not run:
         return jsonify({"error": {"code": "not_found", "message": "Run not found"}}), 404
@@ -45,6 +52,9 @@ def get_run(run_id):
 
 @bp.get("/runs/<run_id>/events")
 def stream_events(run_id):
+    denied = require_partner_key()
+    if denied:
+        return denied
     run = REGISTRY.get(run_id)
     if not run:
         return jsonify({"error": {"code": "not_found", "message": "Run not found"}}), 404
@@ -85,6 +95,9 @@ def stream_events(run_id):
 
 @bp.post("/runs/<run_id>/answers")
 def provide_answers(run_id):
+    denied = require_partner_key()
+    if denied:
+        return denied
     run = REGISTRY.get(run_id)
     if not run:
         return jsonify({"error": {"code": "not_found", "message": "Run not found"}}), 404
@@ -95,6 +108,9 @@ def provide_answers(run_id):
 
 @bp.post("/runs/<run_id>/cancel")
 def cancel(run_id):
+    denied = require_partner_key()
+    if denied:
+        return denied
     run = REGISTRY.get(run_id)
     if not run:
         return jsonify({"error": {"code": "not_found", "message": "Run not found"}}), 404

@@ -17,6 +17,8 @@ def test_get_started_uses_the_request_host(monkeypatch):
     assert "https://ai-partner.up.railway.app/signup" in text
     assert "https://ai-partner.up.railway.app/mcp" in text
     assert "https://HOST" not in text
+    assert "The key is not a client id." in text
+    assert "does not isolate one caller's engagements" in text
     assert "claude mcp add --transport http ai-partner --scope user" in text
     assert "list_artifacts" in text and "start_job" in text
     assert "### Grok Bot" in text
