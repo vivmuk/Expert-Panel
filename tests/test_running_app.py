@@ -121,9 +121,14 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _send(self, status, body):
         data = body.encode()
+        # HTTP/1.1 otherwise keeps the socket. The next Venice retry then hits a
+        # socket this one-request handler already finished, and the stub records
+        # no hit for that attempt.
+        self.close_connection = True
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(data)
 
