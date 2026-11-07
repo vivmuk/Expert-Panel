@@ -19,3 +19,5 @@ jobs:
         env:
           VENICE_API_KEY: test-not-a-real-key
           SUPERMEMORY_API_KEY: ""
+      - name: Run browser-history checks
+        run: node tests/test_history.js

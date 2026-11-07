@@ -2,8 +2,8 @@
 
 Order is the delivery order. Dates are not estimates. Nothing below this line is in the hardening PR except the first row, which is this PR.
 
-1. **Legacy auth, validation, CI, smoke, and these docs.** Partner key before any legacy run, store, or brand-write work. Pagination rejects non-integers and out-of-range values and still clamps a large limit to 200. Shared-store access is documented. Done when `pytest` is green and `scripts/smoke_public_get.py` passes on the open pages.
-2. **Same-browser project history.** More than one saved job in `ai-partner-chat-v2`, with intake (`problem`, team, tools, maturity) and the artifact ids already on that job. Reload shows the list and reopens one job. No server account.
+1. **Legacy auth, validation, CI, smoke, and these docs.** Shipped on master as `a8e5ec5`. Partner key before any legacy run, store, or brand-write work. Shared-store access is documented there.
+2. **Same-browser project history.** This PR. Multiple projects in `ai-partner-chat-v2`, reopen intake and job state, rebuild downloads from that state. No server account and no use of `/api/engagements`.
 3. **Artifact versions** for the report, deck, and kit on a saved job.
 4. **Outcome milestones** on the work chart.
 5. **Approval gates** before a chart step counts as accepted.

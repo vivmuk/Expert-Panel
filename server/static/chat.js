@@ -78,6 +78,11 @@
   var booted = false;
   var doneStatus = null;
   var docs = {};
+  var H = window.AIPartnerHistory;
+  var book = H.blank();
+  var generation = 0;
+  var controller = null;
+  var historyNote = "";
 
   function ico(name) {
     var span = document.createElement("span");
@@ -127,8 +132,14 @@
     ]);
   }
 
+  function safeUrl(url) {
+    return /^https?:\/\//i.test(String(url || "")) ? String(url) : "";
+  }
+
   function host(url) {
-    try { return new URL(url).host.replace(/^www\./, ""); } catch (e) { return url; }
+    var safe = safeUrl(url);
+    if (!safe) return "";
+    try { return new URL(safe).host.replace(/^www\./, ""); } catch (e) { return ""; }
   }
 
   function owner(raw) {
@@ -150,7 +161,9 @@
   function researchCard(card) {
     var queries = h("div", { class: "queries" }, (card.queries || []).map(function (q) { return h("span", { class: "pill", text: q }); }));
     var sources = h("ul", { class: "sources" }, (card.sources || []).map(function (s) {
-      return h("li", {}, [h("a", { href: s.url, target: "_blank", rel: "noopener" }, [h("small", { text: host(s.url) }), h("b", { text: s.title })])]);
+      var href = safeUrl(s.url);
+      var label = h("span", {}, [h("small", { text: host(s.url) || "source" }), h("b", { text: s.title || "" })]);
+      return h("li", {}, [href ? h("a", { href: href, target: "_blank", rel: "noopener" }, [label]) : label]);
     }));
     return cardShell("search", "Research", (card.sources || []).length + " sources", [
       h("p", { class: "sub", text: (card.queries || []).length + " parallel web searches. Every source URL is kept." }), queries, sources
@@ -200,7 +213,7 @@
           h("p", { text: t.detail }),
           h("div", { class: "levels" }, [
             level("Confidence", t.confidence), level("Impact", t.impact), level("Effort", t.effort, "effort"),
-            t.citation_url ? h("a", { class: "cite", href: t.citation_url, target: "_blank", rel: "noopener" }, [ico("link"), "Source"]) : null
+            safeUrl(t.citation_url) ? h("a", { class: "cite", href: safeUrl(t.citation_url), target: "_blank", rel: "noopener" }, [ico("link"), "Source"]) : null
           ]),
           backers.length ? h("div", { class: "backers" }, [h("span", { text: "Backed by" })].concat(backers)) : null,
           dissent.length ? h("details", { class: "more" }, [h("summary", {}, ["Dissent", ico("chevron-down")]), h("ul", { class: "risk-list" }, dissent)]) : null
@@ -267,9 +280,11 @@
     if (viewing || reportNode || !state || state.phase !== "done") return;
     viewing = true;
     var jump = booted;
+    var ticket = { epoch: generation, projectId: book.selected };
     fetch("/api/chat/view", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: state }) })
       .then(read).then(function (data) {
         viewing = false;
+        if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return;
         if (!data.ok || !data.report) throw new Error("no report");
         docs = {};
         (data.deliverables || []).concat(data.catalog || []).forEach(function (d) { docs[d.id] = d; });
@@ -368,14 +383,16 @@
   }
 
   function generate(item, button, status) {
-    if (button.disabled) return;
+    if (button.disabled || running) return;
     button.disabled = true;
+    var ticket = { epoch: generation, projectId: book.selected };
     status.textContent = "Writing " + item.title + ". This takes about 20 seconds.";
     fetch("/api/chat/artifact", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ state: state || {}, artifact_id: item.id })
     }).then(read).then(function (data) {
       button.disabled = false;
+      if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return;
       if (!data.ok) { status.textContent = (data.error && data.error.message) || "The artifact was not written. Try again."; return; }
       if (data.state) { state = data.state; save(); }
       status.textContent = "";
@@ -531,6 +548,8 @@
   }
 
   function paint() {
+    paintProjects();
+    paintArtifacts();
     var started = items.some(function (i) { return i.role === "user"; });
     document.body.classList.toggle("chatting", started);
     session.hidden = !started;
@@ -605,9 +624,9 @@
     return Array.isArray(s.top5) && s.top5.length > 0;
   }
 
-  function post(message) {
+  function post(message, ticket) {
     return fetch(ENDPOINT, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", signal: ticket.signal, headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: message,
         state: state || {},
@@ -615,10 +634,14 @@
         visitor_id: visitorId(),
         has_history: hasHistory()
       })
-    }).then(read);
+    }).then(read).then(function (data) {
+      if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return { ignored: true };
+      return data;
+    });
   }
 
   function handle(data) {
+    if (!data || data.ignored) return null;
     if (data.state) state = data.state;
     if (wroteMemory(state)) markHistory();
     var err = data.error;
@@ -646,11 +669,15 @@
 
   function run(message) {
     if (running) return Promise.resolve();
+    if (controller) controller.abort();
+    generation += 1;
+    var ticket = { epoch: generation, projectId: book.selected, signal: (controller = new AbortController()).signal };
     lastMessage = message;
     setBusy(true, message ? null : state && state.phase);
     var guard = 0;
     function step(msg) {
-      return post(msg).then(function (data) {
+      return post(msg, ticket).then(function (data) {
+        if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return;
         var next = handle(data);
         if (next && guard < 20) {
           guard += 1;
@@ -660,9 +687,12 @@
         }
       });
     }
-    return step(message).catch(function () {
+    return step(message).catch(function (err) {
+      if (err && err.name === "AbortError") return;
+      if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return;
       append({ role: "error", text: "The connection dropped. Your earlier answers are still here.", retry: true });
     }).then(function () {
+      if (!H.shouldApply(ticket, { epoch: generation, projectId: book.selected })) return;
       setBusy(false);
       paint();
       if (window.matchMedia("(pointer: fine)").matches) box.focus();
@@ -680,10 +710,16 @@
   function submit(text) {
     text = String(text || "").trim();
     if (!text || running) return;
+    if (!book.selected) book = H.startNew(book, Math.random, Date.now()).book;
     if (state && state.phase === "done" && text.length > 15) {
+      save();
+      var started = H.startNew(book, Math.random, Date.now());
+      if (!started.ok) { setNote(started.notice); return; }
+      book = started.book;
       state = null;
       reportNode = null;
       docs = {};
+      viewing = false;
       items = [{ role: "assistant", text: welcome() }];
     }
     append({ role: "user", text: text });
@@ -752,23 +788,131 @@
   }
 
   /* ---------- persistence ---------- */
+  function setNote(text) {
+    historyNote = text || "";
+    var note = document.getElementById("history-note");
+    if (note) note.textContent = historyNote;
+  }
+
   function save() {
-    try { localStorage.setItem(STORE, JSON.stringify({ state: state, items: items })); } catch (e) { /* storage full or blocked */ }
+    if (!book.selected) return;
+    book = H.touch(book, book.selected, state, items, Date.now());
+    var meaningful = book.projects.some(function (project) {
+      return (project.items || []).some(function (item) { return item.role === "user"; }) || (project.state && project.state.problem);
+    });
+    if (!meaningful) return;
+    var result = H.write(localStorage, book);
+    if (!result.ok) setNote(result.notice);
+    paintProjects();
   }
 
   function welcome() { return document.getElementById("welcome").textContent; }
 
-  function fresh() {
-    try { localStorage.removeItem(STORE); } catch (e) { /* ignore */ }
+  function blankView() {
     state = null;
     reportNode = null;
     docs = {};
+    viewing = false;
     items = [{ role: "assistant", text: welcome() }];
     uploads = [];
     paintFiles();
+  }
+
+  function showProject(project) {
+    reportNode = null;
+    docs = {};
+    viewing = false;
+    state = project && project.state ? JSON.parse(JSON.stringify(project.state)) : null;
+    items = project && project.items && project.items.length ? JSON.parse(JSON.stringify(project.items)) : [];
+    if (!items.length) items = [{ role: "assistant", text: welcome() }];
+    var last = items[items.length - 1];
+    if (H.bootAction(state) === "pause" && !(last && last.resume)) {
+      items.push({ role: "error", text: "The engagement paused while the agents were working. Continue from where it stopped.", retry: true, resume: true });
+    }
+    uploads = [];
+    paintFiles();
     paint();
+  }
+
+  function stopFlight() {
+    generation += 1;
+    if (controller) controller.abort();
+    if (running) setBusy(false);
+  }
+
+  function fresh() {
+    stopFlight();
+    save();
+    var started = H.startNew(book, Math.random, Date.now());
+    if (!started.ok) { setNote(started.notice); paintProjects(); return; }
+    book = started.book;
+    blankView();
+    paint();
+    save();
     window.scrollTo(0, 0);
     box.focus();
+  }
+
+  function paintProjects() {
+    var bar = document.getElementById("project-bar");
+    var select = document.getElementById("projects");
+    if (!bar || !select) return;
+    var keep = book.projects.some(function (project) {
+      return (project.items || []).some(function (item) { return item.role === "user"; }) || (project.state && project.state.problem);
+    });
+    bar.hidden = !keep;
+    select.textContent = "";
+    book.projects.forEach(function (project) {
+      var option = document.createElement("option");
+      option.value = project.id;
+      option.textContent = project.title || "New engagement";
+      if (project.id === book.selected) option.selected = true;
+      select.appendChild(option);
+    });
+    setNote(historyNote);
+  }
+
+  function paintArtifacts() {
+    var box = document.getElementById("project-files");
+    if (!box) return;
+    var started = items.some(function (item) { return item.role === "user"; });
+    var index = H.artifactIndex(state);
+    var any = started && (index.saved.length || index.regenerable.length);
+    box.hidden = !any;
+    box.textContent = "";
+    if (!any) return;
+    box.appendChild(h("p", { class: "saved-note", text: index.note }));
+    index.regenerable.forEach(function (row) {
+      var button = h("button", { type: "button", class: "btn small" + (row.ready ? "" : " ghost") }, [row.label]);
+      if (!row.ready) {
+        button.disabled = false;
+        button.addEventListener("click", function () {
+          setNote(row.label + " is rebuilt from this project's saved answers. This project is not ready for that file yet.");
+        });
+      } else {
+        button.addEventListener("click", function () {
+          var spec = DOWNLOADS[row.id];
+          download(spec[0], spec[1], { set textContent(value) { if (value) setNote(value); } });
+        });
+      }
+      box.appendChild(button);
+    });
+    index.saved.forEach(function (row) {
+      box.appendChild(h("button", { type: "button", class: "btn small ghost", onclick: function () { showSaved(row.id); } }, ["Saved text: " + row.label]));
+    });
+  }
+
+  function showSaved(id) {
+    var text = state && state.artifacts && state.artifacts[id];
+    var box = document.getElementById("project-files");
+    if (!box) return;
+    var existing = document.getElementById("saved-text");
+    if (existing) existing.remove();
+    if (typeof text !== "string" || !text.trim()) {
+      setNote("That artifact is not saved in this browser yet.");
+      return;
+    }
+    box.appendChild(h("pre", { id: "saved-text", class: "saved-text", text: text }));
   }
 
   /* ---------- composer ---------- */
@@ -788,21 +932,45 @@
     chip.addEventListener("click", function () { submit(chip.getAttribute("data-example")); });
   });
   document.getElementById("fresh").addEventListener("click", fresh);
+  document.getElementById("remove-project").addEventListener("click", function () {
+    if (!book.selected) return;
+    stopFlight();
+    var title = (H.find(book, book.selected) || {}).title || "this project";
+    book = H.remove(book, book.selected);
+    var result = H.write(localStorage, book);
+    if (!result.ok) setNote(result.notice);
+    else setNote("Removed \"" + title + "\" from this browser.");
+    var project = H.find(book, book.selected);
+    if (project) showProject(project);
+    else blankView();
+    paint();
+  });
+  document.getElementById("projects").addEventListener("change", function (ev) {
+    var id = ev.target.value;
+    stopFlight();
+    save();
+    book = H.select(book, id);
+    showProject(H.find(book, book.selected));
+    save();
+  });
 
   /* ---------- boot ---------- */
   try {
-    var saved = JSON.parse(localStorage.getItem(STORE) || "null");
-    if (saved && Array.isArray(saved.items)) { state = saved.state || null; items = saved.items; }
-  } catch (e) { state = null; items = []; }
+    var loaded = H.read(localStorage.getItem(STORE), Math.random, Date.now());
+    book = loaded.book;
+    historyNote = loaded.notice || "";
+    if (loaded.write) {
+      var migrated = H.write(localStorage, book);
+      if (!migrated.ok) historyNote = migrated.notice;
+    }
+  } catch (e) {
+    book = H.blank();
+    historyNote = "Saved projects could not be read. They were left in place.";
+  }
+  if (!book.projects.length) book = H.startNew(book, Math.random, Date.now()).book;
+  showProject(H.find(book, book.selected));
   if (wroteMemory(state)) markHistory();
   visitorId();
-  if (!items.length) items = [{ role: "assistant", text: welcome() }];
-  var paused = state && AUTO.indexOf(state.phase) >= 0;
-  var lastItem = items[items.length - 1];
-  if (paused && !(lastItem && lastItem.role === "error")) {
-    items.push({ role: "error", text: "The engagement paused while the agents were working. Continue from where it stopped.", retry: true, resume: true });
-  }
-  paint();
   booted = true;
   if (!items.some(function (i) { return i.role === "user"; }) && window.matchMedia("(pointer: fine)").matches) box.focus();
   var tick = 0;

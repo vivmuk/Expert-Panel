@@ -5,7 +5,7 @@ Classes: **live** means a public GET in this hardening run. **mock** means a loc
 | Surface | Class | Evidence |
 |---|---|---|
 | `/chat` page and job (intake, research, 20 experts, debate, judge, chart, kit) | mock, page live | `tests/test_chatjob.py`. `GET /chat` 200 and the free-engagement sentence. No live model call in this run. |
-| Same-browser resume of one job | unverified | `server/static/chat.js` stores one `ai-partner-chat-v2` slot. No browser test. A project list is planned. |
+| Same-browser project list | mock storage, page markup | `server/static/history.js` schema 3. `tests/test_history.js` covers migration, a 12-project cap that deletes nothing, two storage objects, quota failure, and response routing. `GET /chat` includes the list. Not a server history and not per-person isolation on a shared browser. Visual layout is checked separately in the browser when Chrome can run. |
 | `/connect`, `/get-started.md`, `/signup`, `/llms.txt`, `/skills.zip` | live page, mock signup | Public GETs. `tests/test_onboard.py` mints a key locally. Signup was not called on the hosts. |
 | `/v1/*`, `/mcp` | live auth gate, mock model | Public `GET /v1/models` and `GET /mcp` are 401. Model calls are doubled in tests. |
 | Voice transcription and TTS | mock | `server/api/voice.py`, `tests/test_voice_and_demos.py`. Not called on the hosts. |
