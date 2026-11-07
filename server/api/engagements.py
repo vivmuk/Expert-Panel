@@ -16,12 +16,16 @@ def _bad_page():
 
 
 def _page_number(name, default, upper):
+    """ASCII digits only. str.isdigit() is true for superscripts such as ², and int() rejects those."""
     raw = request.args.get(name)
     if raw is None:
         return default
-    if len(raw) > 7 or not raw.isdigit():
+    if len(raw) > 7 or any(ch < "0" or ch > "9" for ch in raw):
         return None
-    value = int(raw)
+    try:
+        value = int(raw, 10)
+    except ValueError:
+        return None
     if name == "limit" and value < 1:
         return None
     if value > upper:

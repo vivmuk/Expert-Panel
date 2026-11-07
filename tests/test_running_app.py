@@ -137,6 +137,19 @@ def _exa(mode):
 @pytest.fixture(scope="module")
 def live():
     stub = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+    stub.thread_errors = []
+
+    def handle_error(request, client_address):
+        import sys
+
+        exc = sys.exc_info()[1]
+        stub.thread_errors.append(exc)
+        # The timeout and retry tests close the socket while this stub is still writing.
+        if isinstance(exc, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
+            return
+        ThreadingHTTPServer.handle_error(stub, request, client_address)
+
+    stub.handle_error = handle_error
     stub.lock = threading.Lock()
     stub.hits = []
     stub.bodies = []
@@ -196,7 +209,12 @@ def _reset(live):
     live["stub"].exa_mode = "ok"
     live["stub"].delay = 0
     live["stub"].errors.clear()
+    live["stub"].thread_errors.clear()
     yield
+    allowed = (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
+    unexpected = [exc for exc in live["stub"].thread_errors if not isinstance(exc, allowed)]
+    live["stub"].thread_errors.clear()
+    assert unexpected == [], [(type(exc).__name__, str(exc)) for exc in unexpected]
 
 
 def _post(live, path, payload, **kwargs):

@@ -28,7 +28,7 @@ An unsigned chat call count is treated as zero. The in-memory high-water mark is
 
 Email delivery on Nov 6, 2026 is a roundtrip reported by AI Partner. This repo run did not observe it. iMessage is unverified. Production spend for that email is unknown. Reply wording is not a spend measurement.
 
-The server has no prose control contract. A message that says "do not run the panel" still starts research once it also contains a team, tools, and a maturity score. Push mode then continues while `next` is set. An echo token in that prose is not copied into the reply. Tests in `tests/test_keiki_intake.py` count model and search calls with doubles. They do not call Keiki, Venice, or Exa.
+The server has no prose control contract. A message that says "do not run the panel" still starts research once it also contains a team, tools, and a maturity score. Push mode then continues while `next` is set. An echo token in that prose is not copied into the reply. `tests/test_keiki_intake.py` counts model and search calls with doubles. `run_turn` is called directly in one test, so that test does not check the signature header. A second test POSTs a signed body to `/keiki/turn` and still uses the local double. Neither test delivers email or iMessage, and neither calls Keiki, Venice, or Exa.
 
 An explicit stop or confirmation flag, if wanted, needs a separate decision. Proposed gate for that later change: a boolean field on `start_job`, `chat_turn`, and the signed turn payload, defaulting to the current continue-while-`next` behavior, and a test where the flag is true, intake is complete, and the model callable stays at zero calls. Do not infer that flag from English sentences.
 
@@ -38,6 +38,7 @@ Same-browser project history. Keep `localStorage` key `ai-partner-chat-v2`, save
 
 ## Release gates
 
-- `python -m pytest tests -q` exits 0. The known skip is the OpenAI SDK import in `tests/test_agents.py`. Provider doubles are not live integration.
-- `scripts/smoke_public_get.py` passes on both public hosts for the open pages. `--expect-gated` is the check that legacy routes return 401, and it applies only after this PR is deployed. This PR does not deploy.
+- `python -m pytest tests -q` exits 0. The known skip is the OpenAI SDK import in `tests/test_agents.py`. Provider doubles are not live integration. The test guard blocks `socket.create_connection`, `socket.socket.connect`, and `requests.Session.request` for non-local hosts. It does not block `connect_ex`, `sendto`, subprocess, or proxies.
+- `scripts/smoke_public_get.py` checks public GET shape. Matching builds on two hosts can both be stale. `--build` requires one id. `--expect-gated` checks only anonymous `GET /api/engagements` and `GET /api/runs/r_does_not_exist`. It is not the key matrix. A pass before deploy is not proof this PR is deployed.
+- GitHub Actions pytest for commit `3603a7b58c552d099026150348bf6ef7df4656b2` succeeded: https://github.com/vivmuk/Expert-Panel/actions/runs/42332995532/job/128283523105. That run does not include later commits.
 - Deck files under `server/static/deck/` stay unchanged. Corrections for a later file are in `docs/report/deck-corrections.md`.

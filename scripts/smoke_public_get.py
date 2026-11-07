@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """GET-only smoke for the public AI Partner hosts.
 
-Fails when a status, redirect, build id, or required snippet does not match.
-It never sends a body. Pass --expect-gated after this PR is deployed to require
-401 on the legacy store and run routes. Until then those two routes are reported
-and do not fail the run.
+Fails when a status, redirect, or required snippet does not match. It never
+sends a body. Two hosts with the same build pass the equality check even when
+that build is older than this PR. Pass --build EXPECTED to require that id.
+
+--expect-gated checks only two anonymous GETs: /api/engagements and
+/api/runs/r_does_not_exist. It does not log in, and it is not the legacy auth
+matrix. A pass without that flag is pre-deploy information, not proof that
+this PR is deployed.
 """
 import argparse
 import json
@@ -26,6 +30,16 @@ TEXT_CHECKS = (
 )
 
 JSON_UNAUTHORIZED = ("/v1/models", "/mcp")
+# Anonymous GETs only. --expect-gated does not cover the signed-key matrix.
+GATED_GETS = ("/api/engagements", "/api/runs/r_does_not_exist")
+
+
+def build_errors(actual, expected):
+    if not expected:
+        return []
+    if actual != expected:
+        return [f"build {actual!r} != expected {expected!r}"]
+    return []
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -143,7 +157,7 @@ def smoke_host(origin, expect_gated):
             failures.append(("/api/catalog", "groups missing"))
 
     observed = {}
-    for path in ("/api/engagements", "/api/runs/r_does_not_exist"):
+    for path in GATED_GETS:
         observed[path] = fetch(origin + path)[0]
         if expect_gated and observed[path] != 401:
             failures.append((path, f"status {observed[path]}, expected 401 after the gate is deployed"))
@@ -153,14 +167,22 @@ def smoke_host(origin, expect_gated):
 def main(argv):
     parser = argparse.ArgumentParser(description="GET-only public smoke")
     parser.add_argument("hosts", nargs="*", default=list(HOSTS))
-    parser.add_argument("--expect-gated", action="store_true")
+    parser.add_argument("--expect-gated", action="store_true", help="Require 401 on the two anonymous legacy GETs. Not a full auth matrix.")
+    parser.add_argument("--build", default="", help="Require this 12-hex build id on every host.")
     args = parser.parse_args(argv)
     builds = {}
     failed = False
+    label = "pre-deploy informational" if not args.expect_gated else "gated anonymous GETs only"
+    print(label)
     for origin in args.hosts:
         build, failures, observed = smoke_host(origin, args.expect_gated)
         builds[origin] = build
-        print(f"{origin} build={build or 'missing'} engagements={observed['/api/engagements']} run={observed['/api/runs/r_does_not_exist']}")
+        for error in build_errors(build, args.build):
+            failures.append(("/health", error))
+        print(
+            f"{origin} build={build or 'missing'} "
+            f"engagements={observed['/api/engagements']} run={observed['/api/runs/r_does_not_exist']}"
+        )
         for path, error in failures:
             failed = True
             print(f"FAIL {origin} {path}: {error}")
