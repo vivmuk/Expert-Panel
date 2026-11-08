@@ -17,5 +17,7 @@ def exa_search(query, limit=4, api_key=None):
         from .spendguard import refuse_paid
 
         refuse_paid()
-    del limit
-    return active.consume("exa").search()
+    from .exposure import describe_exa
+
+    transport, bound = active.consume(describe_exa(query, limit))
+    return transport.search(bound)

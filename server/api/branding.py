@@ -58,7 +58,10 @@ def _generate_slot(slot, prompt=None, model=None):
     if active is None:
         del slot, prompt, model
         refuse_paid()
-    return active.consume("image").image()
+    from ..exposure import describe_image
+
+    transport, bound = active.consume(describe_image(slot, prompt, model))
+    return transport.image(bound)
 
 
 def _ensure_missing_async(slots=None, model=None):

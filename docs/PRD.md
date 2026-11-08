@@ -44,7 +44,7 @@ Emptying the file does not mint another $5. Restoring an earlier valid copy brin
 
 ## Application exposure is in-process only
 
-`server/exposure.py` is an in-process contract with synthetic schedule rows only. It ships no verified price. A caller-supplied unit is rejected. One execution stores a single frozen request snapshot. Replay requires that same request. A send is a locked status check. 5000000 microusd and 3 executions are limits on that object, not a provider invoice and not a production cap. Postgres is not connected. HTTP does not install an authority, so paid entry points still refuse before a socket. Two instances are two ceilings. The legacy `DATA_DIR/engagements.db` file is not this authority.
+`server/exposure.py` is an in-process contract with synthetic schedule rows only. It ships no verified price. A caller-supplied unit is rejected. One execution stores a single frozen request snapshot. A helper call must match one unused line of that snapshot, including the payload, or it does not send. Replay requires that same request. A voided no-send row does not block a later identical request, and its old id does not return a result. A send is a locked status check. Settlement after another execution is uncertain stores uncertainty and keeps the reservation. 5000000 microusd and 3 executions are limits on that object, not a provider invoice and not a production cap. Postgres is not connected. HTTP does not install an authority, so paid entry points still refuse before a socket. Two instances are two ceilings. The legacy `DATA_DIR/engagements.db` file is not this authority.
 
 ## Paid work stays closed
 

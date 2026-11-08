@@ -40,22 +40,28 @@ class UncertainOutcome(Exception):
 class OfflineTransport:
     """Canned results only. These methods must not open a socket."""
 
-    def venice(self):
+    def venice(self, request):
+        del request
         raise UncertainOutcome()
 
-    def search(self):
+    def search(self, request):
+        del request
         raise UncertainOutcome()
 
-    def recall(self):
+    def recall(self, request):
+        del request
         raise UncertainOutcome()
 
-    def remember(self):
+    def remember(self, request):
+        del request
         raise UncertainOutcome()
 
-    def voice(self):
+    def voice(self, request):
+        del request
         raise UncertainOutcome()
 
-    def image(self):
+    def image(self, request):
+        del request
         raise UncertainOutcome()
 
 
@@ -114,9 +120,14 @@ def quote(schedule, requests):
             raise ExposureStop("plan_rejected")
         service = item.get("service")
         model = item.get("model")
+        operation = item.get("operation")
         row = rows.get((service, model))
-        if row is None:
+        if row is None or not isinstance(operation, str) or not operation:
             raise ExposureStop("price_unknown")
+        payload_sha = _payload_hash(item.get("payload"))
+        payload_len = len(item["payload"] if isinstance(item.get("payload"), (bytes, bytearray)) else str(item.get("payload")).encode())
+        if item.get("input_bytes") != payload_len:
+            raise ExposureStop("envelope_rejected")
         bounds = {}
         for key, limit in (
             ("input_bytes", "max_input_bytes"),
@@ -133,9 +144,10 @@ def quote(schedule, requests):
         total += reserved
         snapshot.append({
             "service": service,
+            "operation": operation,
             "model": model,
             "bounds": bounds,
-            "payload_sha256": _payload_hash(item.get("payload")),
+            "payload_sha256": payload_sha,
             "upstream_tries": row["upstream_tries"],
             "repair_tries": row["repair_tries"],
             "unit_microusd": row["unit_microusd"],
@@ -186,11 +198,17 @@ class MemoryAuthority:
                 if not isinstance(execution_id, str) or not execution_id:
                     raise ExposureStop("execution_rejected")
                 named = next((item for item in project["executions"] if item["execution_id"] == execution_id), None)
-                if named is None:
+                if named is None or named["status"] == "void":
                     raise ExposureStop("execution_rejected")
                 if named["fingerprint"] != fingerprint:
                     raise ExposureStop("request_mismatch")
-            found = next((item for item in project["executions"] if item["fingerprint"] == fingerprint), None)
+            found = next(
+                (
+                    item for item in project["executions"]
+                    if item["fingerprint"] == fingerprint and item["status"] != "void"
+                ),
+                None,
+            )
             if found is not None:
                 if found["status"] == "settled":
                     return {
@@ -218,7 +236,7 @@ class MemoryAuthority:
                 "reconciled": False,
                 "reserved_microusd": reserved,
                 "snapshot": snapshot,
-                "remaining": _remaining(snapshot),
+                "used": [],
                 "sends": 0,
                 "result": None,
             }
@@ -241,8 +259,9 @@ class MemoryAuthority:
     def _blocked(self, project):
         return any(item["status"] == "uncertain" and not item["reconciled"] for item in project["executions"])
 
-    def authorize_send(self, project_id, seal, execution_id, capability, service):
-        """One send slot. Status is re-read under the same lock. A dead capability does not send."""
+    def authorize_send(self, project_id, seal, execution_id, capability, actual):
+        """Match this helper call to one unused frozen line, then allow the fake send."""
+        view = _actual(actual)
         with self._lock:
             project = self._project(project_id, seal)
             if self._blocked(project):
@@ -250,13 +269,12 @@ class MemoryAuthority:
             found = self._execution(project, execution_id)
             if found["status"] != "reserved" or found["capability"] != capability:
                 raise SpendClosed("paid_path_blocked")
-            left = found["remaining"].get(service, 0)
-            if left <= 0:
-                found["status"] = "uncertain"
-                found["capability"] = secrets.token_hex(16)
+            index = _match_line(found, view)
+            if index is None:
                 raise SpendClosed("paid_path_blocked")
-            found["remaining"][service] = left - 1
+            found["used"].append(index)
             found["sends"] += 1
+            return json.loads(json.dumps(found["snapshot"][index]))
 
     def mark_uncertain(self, project_id, seal, execution_id):
         with self._lock:
@@ -290,9 +308,15 @@ class MemoryAuthority:
             found = self._execution(project, execution_id)
             if found["status"] != "reserved":
                 raise ExposureStop("attempt_uncertain")
+            if self._blocked(project):
+                found["status"] = "uncertain"
+                found["capability"] = secrets.token_hex(16)
+                found["result"] = None
+                return "uncertain"
             found["status"] = "settled"
             found["capability"] = secrets.token_hex(16)
             found["result"] = result
+            return "settled"
 
     def reconcile(self, project_id, seal, execution_id):
         with self._lock:
@@ -369,11 +393,93 @@ class MemoryAuthority:
         }
 
 
-def _remaining(snapshot):
-    counts = {}
-    for line in snapshot:
-        counts[line["service"]] = counts.get(line["service"], 0) + 1
-    return counts
+def _actual(actual):
+    if not isinstance(actual, dict):
+        raise SpendClosed("paid_path_blocked")
+    payload = actual.get("payload")
+    if isinstance(payload, str):
+        payload = payload.encode()
+    if not isinstance(payload, (bytes, bytearray)) or not payload:
+        raise SpendClosed("paid_path_blocked")
+    if actual.get("input_bytes") != len(payload):
+        raise SpendClosed("paid_path_blocked")
+    return {
+        "service": actual.get("service"),
+        "operation": actual.get("operation"),
+        "model": actual.get("model"),
+        "payload_sha256": hashlib.sha256(bytes(payload)).hexdigest(),
+        "input_bytes": len(payload),
+        "output_tokens": actual.get("output_tokens"),
+        "items": actual.get("items"),
+        "payload": bytes(payload),
+    }
+
+
+def _match_line(execution, view):
+    for index, line in enumerate(execution["snapshot"]):
+        if index in execution["used"]:
+            continue
+        bounds = line["bounds"]
+        if (
+            line["service"] == view["service"]
+            and line["operation"] == view["operation"]
+            and line["model"] == view["model"]
+            and line["payload_sha256"] == view["payload_sha256"]
+            and bounds["input_bytes"] == view["input_bytes"]
+            and bounds["output_tokens"] == view["output_tokens"]
+            and bounds["items"] == view["items"]
+        ):
+            return index
+    return None
+
+
+def _canon(value):
+    return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+
+
+def describe_venice(model, messages, schema, max_tokens, duration_seconds=1, items=1):
+    payload = _canon({"max_tokens": max_tokens, "messages": messages, "model": model, "schema": schema})
+    return _described("venice", "chat", model, payload, max_tokens, duration_seconds, items)
+
+
+def describe_exa(query, limit, duration_seconds=1):
+    payload = _canon({"limit": limit, "query": query})
+    return _described("exa", "search", "offline", payload, 1, duration_seconds, limit)
+
+
+def describe_recall(chat_id, query, visitor_id=None, has_history=False):
+    payload = _canon({"chat_id": chat_id, "has_history": bool(has_history), "query": query, "visitor_id": visitor_id})
+    return _described("memory", "recall", "offline", payload, 1, 1, 1)
+
+
+def describe_remember(chat_id, content, visitor_id=None):
+    payload = _canon({"chat_id": chat_id, "content": content, "visitor_id": visitor_id})
+    return _described("memory", "remember", "offline", payload, 1, 1, 1)
+
+
+def describe_voice(operation, text):
+    payload = text if isinstance(text, (bytes, bytearray)) else _canon({"operation": operation, "text": text})
+    return _described("voice", operation, "offline", payload, 1, 1, 1)
+
+
+def describe_image(slot, prompt, model):
+    payload = _canon({"model": model, "prompt": prompt, "slot": slot})
+    return _described("image", "generate", model, payload, 1, 1, 1)
+
+
+def _described(service, operation, model, payload, output_tokens, duration_seconds, items):
+    if isinstance(payload, str):
+        payload = payload.encode()
+    return {
+        "service": service,
+        "operation": operation,
+        "model": model,
+        "payload": payload,
+        "input_bytes": len(payload),
+        "output_tokens": output_tokens,
+        "duration_seconds": duration_seconds,
+        "items": items,
+    }
 
 
 class _Active:
@@ -385,11 +491,12 @@ class _Active:
         self.capability = capability
         self.transport = transport
 
-    def consume(self, service):
-        self.authority.authorize_send(
-            self.project_id, self.seal, self.execution_id, self.capability, service
+    def consume(self, actual):
+        frozen = self.authority.authorize_send(
+            self.project_id, self.seal, self.execution_id, self.capability, actual
         )
-        return self.transport
+        frozen["payload"] = actual["payload"] if isinstance(actual["payload"], (bytes, bytearray)) else actual["payload"].encode()
+        return self.transport, frozen
 
 
 def _prepare(decision, transport):
@@ -435,7 +542,8 @@ def run_execution(authority, project_id, seal, requests, transport, work, execut
             if not isinstance(result, str):
                 authority.mark_uncertain(project_id, seal, decision["execution_id"])
                 raise ExposureStop("result_unstored")
-            authority.settle(project_id, seal, decision["execution_id"], result)
+            if authority.settle(project_id, seal, decision["execution_id"], result) == "uncertain":
+                raise SpendClosed("phase_uncertain")
             return {
                 "kind": "settled",
                 "execution_id": decision["execution_id"],

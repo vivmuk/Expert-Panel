@@ -22,6 +22,12 @@ from server.exposure import (
     OfflineTransport,
     UncertainOutcome,
     VENICE_UPSTREAM_TRIES,
+    describe_exa,
+    describe_image,
+    describe_recall,
+    describe_remember,
+    describe_venice,
+    describe_voice,
     run_execution,
 )
 from server.spendguard import SpendClosed, run_paid_phase
@@ -34,6 +40,7 @@ class Recording(OfflineTransport):
         self.project = project
         self.fail_at = fail_at
         self.calls = []
+        self.payloads = []
 
     def _touch(self, name):
         state = self.authority.accounted(self.project["project_id"], self.project["seal"])
@@ -42,28 +49,34 @@ class Recording(OfflineTransport):
         if self.fail_at == len(self.calls):
             raise UncertainOutcome()
 
-    def venice(self):
+    def venice(self, request):
         self._touch("venice")
+        self.payloads.append(request["payload"])
         return {"ok": True}
 
-    def search(self):
+    def search(self, request):
         self._touch("exa")
+        self.payloads.append(request["payload"])
         return []
 
-    def recall(self):
+    def recall(self, request):
         self._touch("memory")
+        self.payloads.append(request["payload"])
         return ""
 
-    def remember(self):
+    def remember(self, request):
         self._touch("memory-write")
+        self.payloads.append(request["payload"])
         return None
 
-    def voice(self):
+    def voice(self, request):
         self._touch("voice")
+        self.payloads.append(request["payload"])
         return None
 
-    def image(self):
+    def image(self, request):
         self._touch("image")
+        self.payloads.append(request["payload"])
         return None
 
 
@@ -97,25 +110,27 @@ def _authority():
 
 
 def _req(service, payload, output_tokens=8):
-    return {
-        "service": service,
-        "model": "offline",
-        "input_bytes": 32,
-        "output_tokens": output_tokens,
-        "duration_seconds": 1,
-        "items": 1,
-        "payload": payload,
-    }
+    if service == "venice":
+        return describe_venice("offline", [{"role": "user", "content": payload}], {}, output_tokens)
+    if service == "exa":
+        return describe_exa(payload, 1)
+    if service == "memory":
+        return describe_recall("chat", payload)
+    if service == "voice":
+        return describe_voice("plan", payload)
+    if service == "image":
+        return describe_image("mark", payload, "offline")
+    raise AssertionError(service)
 
 
 def _requests(tag):
     return [
-        _req("venice", f"prompt-{tag}"),
-        _req("exa", f"query-{tag}"),
-        _req("memory", f"recall-{tag}"),
-        _req("memory", f"remember-{tag}"),
-        _req("voice", f"heard-{tag}"),
-        _req("image", f"image-{tag}"),
+        describe_venice("offline", [{"role": "user", "content": f"prompt-{tag}"}], {}, 8),
+        describe_exa(f"query-{tag}", 1),
+        describe_recall("chat", f"recall-{tag}"),
+        describe_remember("chat", f"remember-{tag}"),
+        describe_voice("plan", f"heard-{tag}"),
+        describe_image("mark", f"image-{tag}", "offline"),
     ]
 
 
@@ -124,12 +139,12 @@ def _expected_reserve():
 
 
 def _work():
-    complete_with_venice("name", [{"role": "user", "content": "secret prompt"}], {}, 8)
-    exa_search("secret query")
-    recall("chat", "secret query")
-    remember("chat", "secret body")
-    _planned("secret heard")
-    _generate_slot("mark", prompt="secret image")
+    complete_with_venice("offline", [{"role": "user", "content": "prompt-one"}], {}, 8)
+    exa_search("query-one", 1)
+    recall("chat", "recall-one")
+    remember("chat", "remember-one")
+    _planned("heard-one")
+    _generate_slot("mark", "image-one", "offline")
     return "stored-result-token"
 
 
@@ -143,6 +158,7 @@ def test_synthetic_schedule_bounds_one_execution_and_replay_is_the_same_request(
     assert done["kind"] == "settled"
     assert done["reserved_microusd"] == _expected_reserve()
     assert transport.calls == ["venice", "exa", "memory", "memory-write", "voice", "image"]
+    assert transport.payloads[0] == _requests("one")[0]["payload"]
     state = authority.accounted(project["project_id"], project["seal"])
     assert state["engagement_attempts"] == 1
     assert state["verified_price"] is False
@@ -223,8 +239,8 @@ def test_mutating_the_request_list_cannot_widen_the_reserved_snapshot():
     def work():
         requests[0]["output_tokens"] = 1
         requests.extend(_req("venice", f"extra-{i}") for i in range(100))
-        complete_with_venice("n", [], {}, 1)
-        complete_with_venice("n", [], {}, 1)
+        complete_with_venice("offline", [{"role": "user", "content": "once"}], {}, 8)
+        complete_with_venice("offline", [{"role": "user", "content": "once"}], {}, 8)
         return "ok"
 
     with pytest.raises(SpendClosed) as exc:
@@ -235,18 +251,24 @@ def test_mutating_the_request_list_cannot_widen_the_reserved_snapshot():
     assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 1
 
 
+def _venice_work(text):
+    def work():
+        complete_with_venice("offline", [{"role": "user", "content": text}], {}, 8)
+        return "ok"
+
+    return work
+
+
 def test_fourth_distinct_request_stops_before_transport():
     authority = _authority()
     project = authority.register_project()
 
-    def work():
-        complete_with_venice("n", [], {}, 1)
-        return "ok"
-
     for index in range(MAX_ENGAGEMENT_ATTEMPTS):
         transport = Recording(authority, project)
-        requests = [_req("venice", f"attempt-{index}")]
-        assert run_execution(authority, project["project_id"], project["seal"], requests, transport, work)["kind"] == "settled"
+        text = f"attempt-{index}"
+        assert run_execution(
+            authority, project["project_id"], project["seal"], [_req("venice", text)], transport, _venice_work(text)
+        )["kind"] == "settled"
         assert transport.calls == ["venice"]
     transport = Recording(authority, project)
     with pytest.raises(ExposureStop) as exc:
@@ -256,7 +278,7 @@ def test_fourth_distinct_request_stops_before_transport():
             project["seal"],
             [_req("venice", "attempt-extra")],
             transport,
-            work,
+            _venice_work("attempt-extra"),
         )
     assert exc.value.code == "attempts_exhausted"
     assert transport.calls == []
@@ -300,7 +322,9 @@ def test_uncertain_execution_blocks_a_different_request_until_reconcile(monkeypa
     authority.reconcile(project["project_id"], project["seal"], execution_id)
     assert authority.accounted(project["project_id"], project["seal"])["reserved_microusd"] == reserved
     follow = Recording(authority, project)
-    done = run_execution(authority, project["project_id"], project["seal"], _requests("next"), follow, _work)
+    done = run_execution(
+        authority, project["project_id"], project["seal"], [_req("venice", "next-body")], follow, _venice_work("next-body")
+    )
     assert done["kind"] == "settled"
     assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 2
 
@@ -313,7 +337,7 @@ def test_authorize_fails_after_uncertainty_and_after_settlement():
     authority.mark_uncertain(project["project_id"], project["seal"], first["execution_id"])
     with pytest.raises(SpendClosed):
         authority.authorize_send(
-            project["project_id"], project["seal"], second["execution_id"], second["capability"], "venice"
+            project["project_id"], project["seal"], second["execution_id"], second["capability"], _req("venice", "b")
         )
     assert authority._projects[project["project_id"]]["executions"][1]["sends"] == 0
 
@@ -325,7 +349,7 @@ def test_a_child_context_cannot_send_after_settlement():
 
     def work():
         box["ctx"] = contextvars.copy_context()
-        complete_with_venice("n", [], {}, 1)
+        complete_with_venice("offline", [{"role": "user", "content": "child"}], {}, 8)
         return "ok"
 
     transport = Recording(authority, project)
@@ -345,7 +369,8 @@ def test_a_child_context_cannot_send_after_settlement():
 def test_one_slot_cannot_be_authorized_twice():
     authority = _authority()
     project = authority.register_project()
-    decision = authority.begin(project["project_id"], project["seal"], [_req("venice", "slot")])
+    request = _req("venice", "slot")
+    decision = authority.begin(project["project_id"], project["seal"], [request])
     barrier = threading.Barrier(2)
     outcomes = []
 
@@ -353,7 +378,7 @@ def test_one_slot_cannot_be_authorized_twice():
         barrier.wait()
         try:
             authority.authorize_send(
-                project["project_id"], project["seal"], decision["execution_id"], decision["capability"], "venice"
+                project["project_id"], project["seal"], decision["execution_id"], decision["capability"], request
             )
             outcomes.append("sent")
         except SpendClosed:
@@ -371,7 +396,8 @@ def test_one_slot_cannot_be_authorized_twice():
 def test_uncertainty_racing_a_send_still_blocks_the_next_authorize():
     authority = _authority()
     project = authority.register_project()
-    decision = authority.begin(project["project_id"], project["seal"], [_req("memory", "race")])
+    request = _req("memory", "race")
+    decision = authority.begin(project["project_id"], project["seal"], [request])
     barrier = threading.Barrier(2)
     outcomes = []
 
@@ -383,7 +409,7 @@ def test_uncertainty_racing_a_send_still_blocks_the_next_authorize():
         barrier.wait()
         try:
             authority.authorize_send(
-                project["project_id"], project["seal"], decision["execution_id"], decision["capability"], "memory"
+                project["project_id"], project["seal"], decision["execution_id"], decision["capability"], request
             )
             outcomes.append("sent")
         except SpendClosed:
@@ -398,7 +424,7 @@ def test_uncertainty_racing_a_send_still_blocks_the_next_authorize():
     assert sends in (0, 1)
     with pytest.raises(SpendClosed):
         authority.authorize_send(
-            project["project_id"], project["seal"], decision["execution_id"], decision["capability"], "memory"
+            project["project_id"], project["seal"], decision["execution_id"], decision["capability"], request
         )
 
 
@@ -452,7 +478,7 @@ def test_two_authorities_are_not_one_cap():
     two = second.register_project()
 
     def work():
-        complete_with_venice("n", [], {}, 1)
+        complete_with_venice("offline", [{"role": "user", "content": "a"}], {}, 8)
         return "ok"
 
     assert run_execution(first, one["project_id"], one["seal"], [_req("venice", "a")], Recording(first, one), work)["kind"] == "settled"
@@ -515,6 +541,109 @@ def test_parallel_begins_cannot_both_cross_the_ceiling():
     assert sorted(outcomes) == ["over_cap", "reserved"]
     assert authority.accounted(project["project_id"], project["seal"])["reserved_microusd"] == 3_000_000
     assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 1
+
+
+def test_helper_arguments_must_match_the_reserved_line():
+    authority = _authority()
+    project = authority.register_project()
+    transport = Recording(authority, project)
+    reserved = describe_venice("offline", [{"role": "user", "content": "declared"}], {}, 8)
+
+    def work():
+        complete_with_venice("offline", [{"role": "user", "content": "changed"}], {}, 8)
+        return "ok"
+
+    with pytest.raises(SpendClosed):
+        run_execution(authority, project["project_id"], project["seal"], [reserved], transport, work)
+    assert transport.calls == []
+    assert transport.payloads == []
+    matched = Recording(authority, project)
+
+    def exact():
+        complete_with_venice("offline", [{"role": "user", "content": "declared"}], {}, 8)
+        return "ok"
+
+    done = run_execution(authority, project["project_id"], project["seal"], [reserved], matched, exact)
+    assert done["kind"] == "settled"
+    assert matched.payloads == [reserved["payload"]]
+
+
+def test_a_sibling_that_already_sent_cannot_settle_success_after_uncertainty():
+    authority = _authority()
+    project = authority.register_project()
+    first = _req("venice", "first")
+    second = _req("venice", "second")
+    opened_a = authority.begin(project["project_id"], project["seal"], [first])
+    opened_b = authority.begin(project["project_id"], project["seal"], [second])
+    authority.authorize_send(
+        project["project_id"], project["seal"], opened_b["execution_id"], opened_b["capability"], second
+    )
+    authority.mark_uncertain(project["project_id"], project["seal"], opened_a["execution_id"])
+    assert authority.settle(project["project_id"], project["seal"], opened_b["execution_id"], "success-token") == "uncertain"
+    rows = authority._projects[project["project_id"]]["executions"]
+    assert rows[1]["status"] == "uncertain"
+    assert rows[1]["result"] is None
+    assert rows[1]["reserved_microusd"] == opened_b["reserved_microusd"]
+    with pytest.raises(SpendClosed):
+        authority.authorize_send(
+            project["project_id"], project["seal"], opened_b["execution_id"], opened_b["capability"], second
+        )
+
+
+def test_a_voided_unsent_request_can_start_a_new_execution(monkeypatch):
+    authority = _authority()
+    project = authority.register_project()
+    request = [_req("voice", "same")]
+
+    def explode(decision, transport):
+        raise RuntimeError("init")
+
+    monkeypatch.setattr("server.exposure._prepare", explode)
+    with pytest.raises(RuntimeError):
+        run_execution(authority, project["project_id"], project["seal"], request, Recording(authority, project), _work)
+    voided = authority._projects[project["project_id"]]["executions"][0]
+    assert voided["status"] == "void"
+    monkeypatch.undo()
+    with pytest.raises(ExposureStop) as old:
+        run_execution(
+            authority,
+            project["project_id"],
+            project["seal"],
+            request,
+            Recording(authority, project),
+            _venice_work("same"),
+            execution_id=voided["execution_id"],
+        )
+    assert old.value.code == "execution_rejected"
+    transport = Recording(authority, project)
+    done = run_execution(
+        authority, project["project_id"], project["seal"], request, transport, lambda: _planned("same") or "ok"
+    )
+    assert done["kind"] == "settled"
+    assert done["execution_id"] != voided["execution_id"]
+    assert transport.calls == ["voice"]
+    replay = run_execution(
+        authority, project["project_id"], project["seal"], request, Recording(authority, project), lambda: "nope"
+    )
+    assert replay["kind"] == "reuse"
+    assert replay["result"] == "ok"
+    barrier = threading.Barrier(2)
+    outcomes = []
+
+    def again():
+        barrier.wait()
+        try:
+            outcomes.append(authority.begin(project["project_id"], project["seal"], [_req("voice", "other")])["kind"])
+        except ExposureStop as exc:
+            outcomes.append(exc.code)
+
+    # The settled voice request is a replay. A second distinct request still reserves once under the lock.
+    threads = [threading.Thread(target=again) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(5)
+    assert sorted(outcomes) == ["attempt_uncertain", "reserved"]
 
 
 def test_sqlite_conditional_update_is_the_pending_postgres_shape(tmp_path):

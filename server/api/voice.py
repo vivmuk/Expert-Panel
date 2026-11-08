@@ -62,29 +62,27 @@ def _plan_and_speak(heard):
     return jsonify(payload)
 
 
-def _voice_or_refuse():
-    from ..exposure import current
+def _voice_or_refuse(operation, text):
+    from ..exposure import current, describe_voice
     from ..spendguard import refuse_paid
 
     active = current()
     if active is None:
         refuse_paid()
-    return active.consume("voice").voice()
+    transport, bound = active.consume(describe_voice(operation, text))
+    return transport.voice(bound)
 
 
 def _planned(heard):
-    del heard
-    return _voice_or_refuse()
+    return _voice_or_refuse("plan", heard)
 
 
 def _transcribe(blob, mime):
-    del blob, mime
-    return _voice_or_refuse()
+    return _voice_or_refuse("transcribe", {"blob": blob, "mime": mime})
 
 
 def _speak(text):
-    del text
-    return _voice_or_refuse()
+    return _voice_or_refuse("speak", text)
 
 
 def _seconds(value):

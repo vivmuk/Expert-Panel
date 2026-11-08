@@ -118,8 +118,10 @@ def recall(chat_id, query, visitor_id=None, has_history=False):
         from .spendguard import refuse_paid
 
         refuse_paid()
-    del chat_id, visitor_id, has_history
-    return active.consume("memory").recall()
+    from .exposure import describe_recall
+
+    transport, bound = active.consume(describe_recall(chat_id, query, visitor_id, has_history))
+    return transport.recall(bound)
 
 
 def remember(chat_id, content, visitor_id=None):
@@ -134,5 +136,7 @@ def remember(chat_id, content, visitor_id=None):
         from .spendguard import refuse_paid
 
         refuse_paid()
-    del chat_id, content, visitor_id
-    return active.consume("memory").remember()
+    from .exposure import describe_remember
+
+    transport, bound = active.consume(describe_remember(chat_id, content, visitor_id))
+    return transport.remember(bound)
