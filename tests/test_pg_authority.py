@@ -23,7 +23,15 @@ from server.exposure import (
     VENICE_UPSTREAM_TRIES,
     describe_venice,
 )
-from server.pg_authority import PostgresAuthority, connect_throwaway, drop_schema, install_schema, throwaway_params
+from server.pg_authority import (
+    PostgresAuthority,
+    _AMBIENT_ROUTING,
+    connect_throwaway,
+    drop_schema,
+    install_schema,
+    refuse_ambient_routing,
+    throwaway_params,
+)
 from server.spendguard import SpendClosed
 from tests.test_chatjob import ONE_SHOT
 from tests.test_exposure import Recording, _req, _requests, _schedule, _work
@@ -31,6 +39,37 @@ from tests.test_exposure import Recording, _req, _requests, _schedule, _work
 def assert_throwaway(url):
     throwaway_params(url)
     return url.strip()
+
+
+def harness_env(loopback=None):
+    """Child environment for Postgres tools. Ambient routing is refused first."""
+    refuse_ambient_routing()
+    env = {key: value for key, value in os.environ.items() if key not in _AMBIENT_ROUTING}
+    if loopback is None:
+        return env
+    hostaddr, port = loopback
+    if hostaddr not in {"127.0.0.1", "::1"}:
+        raise RuntimeError("refusing non-loopback harness endpoint")
+    if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+        raise RuntimeError("refusing implicit port")
+    env["PGHOST"] = hostaddr
+    env["PGHOSTADDR"] = hostaddr
+    env["PGPORT"] = str(port)
+    return env
+
+
+def harness_check_call(args, *, loopback=None, **kwargs):
+    if Path(args[0]).name in {"createdb", "pg_ctl"} and loopback is None:
+        raise RuntimeError("refusing database tool without loopback pin")
+    kwargs["env"] = harness_env(loopback)
+    return subprocess.check_call(args, **kwargs)
+
+
+def harness_call(args, *, loopback=None, **kwargs):
+    if Path(args[0]).name in {"createdb", "pg_ctl"} and loopback is None:
+        raise RuntimeError("refusing database tool without loopback pin")
+    kwargs["env"] = harness_env(loopback)
+    return subprocess.call(args, **kwargs)
 
 
 def postgres_bindir():
@@ -118,6 +157,69 @@ def test_ambient_routing_is_rejected_before_connect(monkeypatch):
     assert calls[-1]["hostaddr"] == "127.0.0.1"
     assert calls[-1]["dbname"] == "exposure_test"
     assert calls[-1]["port"] == 55432
+
+
+def test_harness_rejects_ambient_routing_before_tools(monkeypatch, tmp_path):
+    calls = []
+
+    def record(*_args, **_kwargs):
+        calls.append(1)
+        raise AssertionError("tool ran")
+
+    monkeypatch.setattr(subprocess, "check_call", record)
+    monkeypatch.setattr(subprocess, "call", record)
+    monkeypatch.setattr(subprocess, "run", record)
+    monkeypatch.setattr("psycopg.connect", record)
+    for name in _AMBIENT_ROUTING:
+        monkeypatch.delenv(name, raising=False)
+    dsn = "postgresql://exposure@127.0.0.1:1/exposure_test"
+    reader = type("Authority", (), {"_dsn": dsn, "_schema": "exp_" + "ab" * 8})()
+    for name, value in (("PGHOSTADDR", "8.8.8.8"), ("PGSERVICE", "prod")):
+        monkeypatch.setenv(name, value)
+        with pytest.raises(RuntimeError):
+            harness_check_call(["/usr/lib/postgresql/16/bin/initdb", "-D", "unused"])
+        with pytest.raises(RuntimeError):
+            harness_check_call(
+                ["/usr/lib/postgresql/16/bin/createdb", "-h", "127.0.0.1", "-p", "1", "-U", "exposure", "exposure_test"],
+                loopback=("127.0.0.1", 1),
+            )
+        with pytest.raises(RuntimeError):
+            harness_call(["/usr/lib/postgresql/16/bin/pg_ctl", "-D", "unused", "stop", "-m", "fast", "-w"], loopback=("127.0.0.1", 1))
+        with pytest.raises(RuntimeError):
+            _schemas(dsn)
+        with pytest.raises(RuntimeError):
+            _execution_row(reader, "exec")
+        with pytest.raises(RuntimeError):
+            test_postmaster_stop_start_keeps_the_committed_row(tmp_path)
+        monkeypatch.delenv(name)
+    assert calls == []
+
+
+def test_harness_pins_loopback_for_client_tools(monkeypatch):
+    for name in _AMBIENT_ROUTING:
+        monkeypatch.delenv(name, raising=False)
+    seen = {"count": 0}
+
+    def fake_check(args, **kwargs):
+        seen["count"] += 1
+        seen["args"] = args
+        seen["env"] = kwargs["env"]
+        return 0
+
+    monkeypatch.setattr(subprocess, "check_call", fake_check)
+    harness_check_call(
+        ["createdb", "-h", "127.0.0.1", "-p", "55432", "-U", "exposure", "exposure_test"],
+        loopback=("127.0.0.1", 55432),
+    )
+    assert seen["env"]["PGHOST"] == "127.0.0.1"
+    assert seen["env"]["PGHOSTADDR"] == "127.0.0.1"
+    assert seen["env"]["PGPORT"] == "55432"
+    assert "PGSERVICE" not in seen["env"]
+    assert "PGSERVICEFILE" not in seen["env"]
+    assert "PGDATABASE" not in seen["env"]
+    with pytest.raises(RuntimeError):
+        harness_check_call(["createdb", "exposure_test"], loopback=("8.8.8.8", 5432))
+    assert seen["count"] == 1
 
 
 def test_destructive_schema_setup_does_not_connect_for_a_routed_dsn(monkeypatch):
@@ -290,6 +392,7 @@ except ExposureStop as exc:
 
 
 def test_postmaster_stop_start_keeps_the_committed_row(tmp_path):
+    refuse_ambient_routing()
     data = tmp_path / "data"
     log = tmp_path / "server.log"
     bindir = postgres_bindir()
@@ -300,7 +403,8 @@ def test_postmaster_stop_start_keeps_the_committed_row(tmp_path):
     probe.bind(("127.0.0.1", 0))
     port = probe.getsockname()[1]
     probe.close()
-    subprocess.check_call(
+    loopback = ("127.0.0.1", port)
+    harness_check_call(
         [initdb, "-D", str(data), "-U", "exposure", "--auth=trust", "--encoding=UTF8", "--locale=C"],
         stdout=subprocess.DEVNULL,
     )
@@ -308,24 +412,27 @@ def test_postmaster_stop_start_keeps_the_committed_row(tmp_path):
         handle.write(f"\nlisten_addresses = '127.0.0.1'\nport = {port}\nunix_socket_directories = '/tmp'\n")
     with open(data / "pg_hba.conf", "w", encoding="utf-8") as handle:
         handle.write("local all exposure trust\nhost all exposure 127.0.0.1/32 trust\nhost all exposure ::1/128 trust\n")
-    subprocess.check_call([pg_ctl, "-D", str(data), "-l", str(log), "start", "-w"])
+    harness_check_call([pg_ctl, "-D", str(data), "-l", str(log), "start", "-w"], loopback=loopback)
     try:
-        subprocess.check_call([createdb, "-h", "127.0.0.1", "-p", str(port), "-U", "exposure", "exposure_test"])
+        harness_check_call(
+            [createdb, "-h", "127.0.0.1", "-p", str(port), "-U", "exposure", "exposure_test"],
+            loopback=loopback,
+        )
         dsn = assert_throwaway(f"postgresql://exposure@127.0.0.1:{port}/exposure_test")
         schema = "exp_" + __import__("secrets").token_hex(8)
         install_schema(dsn, schema)
         store = PostgresAuthority(dsn, _schedule(), schema)
         project = store.provision_project("pilot-engagement")
         opened = store.begin(project["project_id"], project["seal"], [_req("venice", "restart")])
-        subprocess.check_call([pg_ctl, "-D", str(data), "stop", "-m", "fast", "-w"])
-        subprocess.check_call([pg_ctl, "-D", str(data), "-l", str(log), "start", "-w"])
+        harness_check_call([pg_ctl, "-D", str(data), "stop", "-m", "fast", "-w"], loopback=loopback)
+        harness_check_call([pg_ctl, "-D", str(data), "-l", str(log), "start", "-w"], loopback=loopback)
         revived = PostgresAuthority(dsn, _schedule(), schema)
         state = revived.accounted(project["project_id"], project["seal"])
         assert state["engagement_attempts"] == 1
         assert state["reserved_microusd"] == opened["reserved_microusd"]
         drop_schema(dsn, schema)
     finally:
-        subprocess.call([pg_ctl, "-D", str(data), "stop", "-m", "fast", "-w"])
+        harness_call([pg_ctl, "-D", str(data), "stop", "-m", "fast", "-w"], loopback=loopback)
 
 
 def test_operator_project_is_idempotent_and_the_report_keeps_amounts_apart(authority):
@@ -444,11 +551,10 @@ def test_another_projects_seal_cannot_clear_uncertainty(authority):
 
 
 def _execution_row(authority, execution_id):
-    import psycopg
     from psycopg import sql
     from psycopg.rows import dict_row
 
-    with psycopg.connect(**throwaway_params(authority._dsn), autocommit=True, row_factory=dict_row) as connection:
+    with connect_throwaway(authority._dsn, autocommit=True, row_factory=dict_row) as connection:
         connection.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(authority._schema)))
         row = connection.execute(
             """SELECT status, result, capability, reserved_microusd, sends, reconciled
@@ -465,9 +571,7 @@ def describe_voice_blob(blob):
 
 
 def _schemas(dsn):
-    import psycopg
-
-    with psycopg.connect(dsn, autocommit=True) as connection:
+    with connect_throwaway(dsn, autocommit=True) as connection:
         rows = connection.execute(
             "SELECT nspname FROM pg_namespace WHERE nspname LIKE 'exp_%' ORDER BY nspname"
         ).fetchall()
