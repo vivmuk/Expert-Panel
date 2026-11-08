@@ -14,7 +14,7 @@ import time
 import requests
 
 from ..config import Config
-from .errors import RetryableVeniceError, VeniceError
+from .errors import AmbiguousSend, RetryableVeniceError, VeniceError
 
 logger = logging.getLogger(__name__)
 
@@ -62,18 +62,33 @@ def _extract_json(text):
 
 
 class VeniceClient:
-    def __init__(self, api_key=None, base_url=None, timeout=CHAT_TIMEOUT):
+    def __init__(self, api_key=None, base_url=None, timeout=CHAT_TIMEOUT, journal_path=None):
         self.api_key = api_key or os.environ.get("VENICE_API_KEY", "")
         self.timeout = timeout
         self.base_url = (base_url or Config.VENICE_BASE_URL).rstrip("/")
+        self.journal_path = journal_path
         self._session = requests.Session()
         self._session.headers.update({"Authorization": f"Bearer {self.api_key}"})
 
     # ------------------------------------------------------------------ http
     def _request(self, method, path, *, json_body=None, timeout=None, stream=False, attempts=None):
-        from ..spendguard import require_open_phase
+        from ..spendguard import SpendClosed, claim_send, lose_send, operation_key, release_send
 
-        require_open_phase()
+        if not self.journal_path:
+            raise SpendClosed("currency_bound_unavailable")
+        key = operation_key(method, path, json_body)
+        claim_send(self.journal_path, key)
+        try:
+            response = self._exchange(
+                method, path, json_body=json_body, timeout=timeout, stream=stream, attempts=attempts
+            )
+        except AmbiguousSend:
+            lose_send(self.journal_path, key)
+            raise
+        release_send(self.journal_path, key)
+        return response
+
+    def _exchange(self, method, path, *, json_body=None, timeout=None, stream=False, attempts=None):
         url = f"{self.base_url}{path}"
         attempts = attempts or Attempts()
         last_error = None
@@ -84,24 +99,23 @@ class VeniceClient:
                     method, url, json=json_body, timeout=timeout or self.timeout, stream=stream
                 )
             except (requests.Timeout, requests.ConnectionError) as exc:
-                last_error = RetryableVeniceError(f"{type(exc).__name__} calling {path}")
+                raise AmbiguousSend(f"{type(exc).__name__} calling {path}") from exc
+            if resp.status_code < 400:
+                return resp
+            body = resp.text[:2000]
+            if resp.status_code in RETRY_STATUSES and attempts.left > 0:
+                retry_after = resp.headers.get("Retry-After")
+                last_error = RetryableVeniceError(
+                    f"HTTP {resp.status_code} from {path}", resp.status_code, body
+                )
+                if retry_after:
+                    try:
+                        time.sleep(min(float(retry_after), 30))
+                        continue
+                    except ValueError:
+                        pass
             else:
-                if resp.status_code < 400:
-                    return resp
-                body = resp.text[:2000]
-                if resp.status_code in RETRY_STATUSES and attempts.left > 0:
-                    retry_after = resp.headers.get("Retry-After")
-                    last_error = RetryableVeniceError(
-                        f"HTTP {resp.status_code} from {path}", resp.status_code, body
-                    )
-                    if retry_after:
-                        try:
-                            time.sleep(min(float(retry_after), 30))
-                            continue
-                        except ValueError:
-                            pass
-                else:
-                    raise VeniceError(f"HTTP {resp.status_code} from {path}", resp.status_code, body)
+                raise VeniceError(f"HTTP {resp.status_code} from {path}", resp.status_code, body)
             if attempts.left > 0:
                 time.sleep((2 ** (MAX_ATTEMPTS - attempts.left)) + random.random())
         raise last_error or VeniceError(f"Request to {path} failed")
@@ -174,6 +188,8 @@ class VeniceClient:
             ] + guided
         try:
             return attempt(vp, max_completion_tokens, guided)
+        except AmbiguousSend:
+            raise
         except (VeniceError, json.JSONDecodeError) as exc:
             if (isinstance(exc, VeniceError) and exc.status is not None) or attempts.left <= 0:
                 raise

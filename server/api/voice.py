@@ -1,34 +1,13 @@
 """Voice guide. Audio is not logged."""
-import os
-
-import requests
 from flask import Blueprint, Response, jsonify, request
 
 from ..spendguard import SpendClosed
-from ..venice.client import VeniceClient, VeniceError
-from ..voice_actions import WELCOME, validate_action
+from ..venice.client import VeniceError
 from .chat import allow_in_this_process, client_ip
 
 bp = Blueprint("voice", __name__)
 MAX_BYTES = 2 * 1024 * 1024
 MAX_SECONDS = 30
-
-PLAN_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "action": {"type": "string"},
-        "page": {"type": "string"},
-        "section": {"type": "string"},
-        "text": {"type": "string"},
-        "depth": {"type": "string"},
-        "slug": {"type": "string"},
-        "id": {"type": "string"},
-        "say": {"type": "string"},
-    },
-    "required": ["action", "say"],
-    "additionalProperties": False,
-}
-
 
 @bp.post("/api/voice/turn")
 def turn():
@@ -84,95 +63,24 @@ def _plan_and_speak(heard):
 
 
 def _planned(heard):
-    system = (
-        "Clean filler words and mis-hearings, then pick exactly one action. "
-        "Actions: navigate(page), scroll_to(section), fill_problem(text), set_depth(strategy|full), "
-        "start_engagement, open_demo(slug maritime|keiki|orchid), copy_snippet(id), answer(text). "
-        "Pages: /chat /demos /demos/maritime /demos/keiki /demos/orchid /deck /about /catalog /connect. "
-        "Sections: hero demos catalog connect artifacts steps. "
-        "Put the spoken reply in say. Return JSON only."
-    )
-    from ..spendguard import run_paid_phase
+    from ..spendguard import refuse_paid
 
-    def _call():
-        return VeniceClient().structured(
-            os.environ.get("MODEL_VOICE_CLEAN", "mercury-3"),
-            [{"role": "system", "content": system}, {"role": "user", "content": heard}],
-            "VoiceAction",
-            PLAN_SCHEMA,
-            temperature=0,
-            max_completion_tokens=300,
-        )
-
-    try:
-        data = run_paid_phase(_audio_state("plan:" + heard), _call)
-    except VeniceError:
-        return None
-    return validate_action(data)
-
-
-def _audio_state(kind):
-    import hashlib
-
-    return {
-        "phase": "voice",
-        "chat_id": hashlib.sha256(kind.encode()).hexdigest(),
-        "problem": "",
-        "experts": [],
-        "debate_done": 0,
-        "team": "",
-        "tools": "",
-        "size": "",
-    }
+    del heard
+    refuse_paid()
 
 
 def _transcribe(blob, mime):
-    from ..spendguard import run_paid_phase
+    from ..spendguard import refuse_paid
 
-    key = os.environ.get("VENICE_API_KEY", "")
-    base = os.environ.get("VENICE_BASE_URL", "https://api.venice.ai/api/v1").rstrip("/")
-
-    def _call():
-        return requests.post(
-            base + "/audio/transcriptions",
-            headers={"Authorization": f"Bearer {key}"},
-            files={"file": ("turn.webm", blob, mime)},
-            data={"model": os.environ.get("STT_MODEL", "stt-xai-v1")},
-            timeout=60,
-        )
-
-    response = run_paid_phase(_audio_state("transcribe"), _call)
-    if response.status_code >= 400:
-        raise VeniceError(f"HTTP {response.status_code} from /audio/transcriptions", response.status_code)
-    try:
-        payload = response.json()
-    except ValueError:
-        raise VeniceError("Transcription was not JSON", response.status_code) from None
-    return " ".join(str(payload.get("text") or "").split())[:500]
+    del blob, mime
+    refuse_paid()
 
 
 def _speak(text):
-    from ..spendguard import run_paid_phase
+    from ..spendguard import refuse_paid
 
-    key = os.environ.get("VENICE_API_KEY", "")
-    base = os.environ.get("VENICE_BASE_URL", "https://api.venice.ai/api/v1").rstrip("/")
-
-    def _call():
-        return requests.post(
-            base + "/audio/speech",
-            headers={"Authorization": f"Bearer {key}"},
-            json={
-                "model": os.environ.get("TTS_MODEL", "tts-xai-v1"),
-                "voice": os.environ.get("TTS_VOICE", "carina"),
-                "input": text[:400],
-            },
-            timeout=60,
-        )
-
-    response = run_paid_phase(_audio_state("speak:" + text), _call)
-    if response.status_code >= 400:
-        raise VeniceError(f"HTTP {response.status_code} from /audio/speech", response.status_code)
-    return response.content
+    del text
+    refuse_paid()
 
 
 def _seconds(value):

@@ -1,3 +1,5 @@
+import pytest
+
 import base64
 import io
 import json
@@ -142,20 +144,12 @@ def test_exa_request_matches_the_documented_shape(monkeypatch):
         return Response()
 
     monkeypatch.setattr("server.exa_search.requests.post", post)
-    from server.spendguard import provider_window
+    from server.spendguard import SpendClosed
 
-    with provider_window():
-        found = exa_search("german reimbursement", limit=25)
-    assert seen["url"] == EXA_URL
-    assert seen["url"] == "https://api.venice.ai/api/v1/augment/search"
-    assert seen["headers"]["Authorization"] == "Bearer test-not-a-real-key"
-    assert seen["json"] == {
-        "query": "german reimbursement",
-        "limit": 20,
-        "search_provider": "exa",
-    }
-    assert found[0]["url"] == "https://example.com/gba"
-    assert found[0]["date"] == "2026-01-02"
+    with pytest.raises(SpendClosed) as exc:
+        exa_search("german reimbursement", limit=25)
+    assert exc.value.code == "currency_bound_unavailable"
+    assert seen == {}
 
 
 def test_research_keeps_exa_urls_through_the_skill_pack():

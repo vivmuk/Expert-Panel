@@ -8,7 +8,15 @@ class VeniceError(Exception):
 
 
 class RetryableVeniceError(VeniceError):
-    """Transient failure (429/5xx/timeouts) worth retrying with backoff."""
+    """A received HTTP status that this client may retry inside one call."""
+
+
+class AmbiguousSend(Exception):
+    """The request may have been accepted and no complete response came back.
+
+    This is not a VeniceError. Callers must not start a repair or thinking retry
+    after it.
+    """
 
 
 SPEND_LIMIT_REPLY = (

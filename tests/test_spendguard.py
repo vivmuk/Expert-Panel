@@ -1,14 +1,24 @@
-"""Paid work stays closed unless a calculated reservation can be stored.
+"""Paid routes stay closed. A configured integer is not a bill.
 
-These tests do not call Venice, Exa, or Supermemory. A missing price is not
-treated as free. Two ledger files are two hosts, not one shared cap.
+The transport cases call VeniceClient against a local socket or a stubbed
+session. They do not call a provider.
 """
+import hashlib
+import hmac
+import json
+import os
+import socket
+import subprocess
+import sys
 import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from server.api.chat import complete_with_venice
-from server.spendguard import SpendClosed, phase_key, run_paid_phase
+from server.spendguard import SpendClosed, claim_send
+from server.venice.client import VeniceClient
+from server.venice.errors import AmbiguousSend, VeniceError
 from tests.test_chatjob import ONE_SHOT
 
 
@@ -27,9 +37,6 @@ def provider_spies(monkeypatch):
     monkeypatch.setattr("server.venice.client.requests.Session.request", boom)
     monkeypatch.setattr("server.exa_search.requests.post", boom)
     monkeypatch.setattr("server.chatmemory.requests.post", boom)
-    monkeypatch.setattr("server.api.voice.requests.post", boom)
-    monkeypatch.setattr("server.pipeline.runner.get_catalog", boom)
-    monkeypatch.setattr("server.api.branding.get_catalog", boom)
     return calls
 
 
@@ -39,9 +46,20 @@ def _client():
     return create_app().test_client()
 
 
+def _prices(monkeypatch, tmp_path):
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER", "sqlite")
+    monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER_PATH", str(tmp_path / "spend.db"))
+    monkeypatch.setenv("AI_PARTNER_CALCULATED_CEILING_MICROUSD", "1000000")
+    monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_VENICE_ATTEMPT", "10")
+    monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_EXA", "4")
+    monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_MEMORY", "7")
+    monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_VOICE", "10")
+    monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_IMAGE", "10")
+
+
 def test_unpaid_intake_does_not_call_a_provider(provider_spies):
-    client = _client()
-    res = client.post("/api/chat", json={"message": "We make parts for machines.", "state": {}})
+    res = _client().post("/api/chat", json={"message": "We make parts for machines.", "state": {}})
     body = res.get_json()
     assert res.status_code == 200
     assert body["state"]["phase"] == "ask_context"
@@ -49,280 +67,342 @@ def test_unpaid_intake_does_not_call_a_provider(provider_spies):
     assert provider_spies == []
 
 
-def test_paid_chat_is_closed_before_any_provider_call(provider_spies):
+def test_configured_prices_do_not_open_paid_routes(provider_spies, monkeypatch, tmp_path):
+    _prices(monkeypatch, tmp_path)
+    monkeypatch.setenv("VENICE_API_KEY", "present")
+    monkeypatch.setenv("SUPERMEMORY_API_KEY", "present")
     client = _client()
-    res = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
-    body = res.get_json()
-    assert res.status_code == 403
-    assert body["error"]["code"] == "spend_ledger_unavailable"
-    assert body["next"] is None
-    assert provider_spies == []
-
-
-def test_stateless_maritime_source_is_closed(provider_spies):
-    client = _client()
-    res = client.post("/chat", json={"message": "Hello from a channel", "source": "maritime"})
-    body = res.get_json()
-    assert res.status_code == 403
-    assert body["error"]["code"] == "spend_ledger_unavailable"
-    assert provider_spies == []
-
-
-def test_catalog_artifact_and_exa_and_memory_are_closed(provider_spies, monkeypatch):
-    monkeypatch.setenv("SUPERMEMORY_API_KEY", "present-but-not-used")
-    client = _client()
+    paid = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
+    assert paid.status_code == 403
+    assert paid.get_json()["error"]["code"] == "currency_bound_unavailable"
+    stateless = client.post("/chat", json={"message": "Hello from a channel", "source": "maritime"})
+    assert stateless.status_code == 403
+    assert stateless.get_json()["error"]["code"] == "currency_bound_unavailable"
     artifact = client.post(
         "/api/chat/artifact",
         json={"artifact_id": "research-brief", "state": {"problem": "Parts", "phase": "done"}},
     )
     assert artifact.status_code == 403
-    assert artifact.get_json()["error"]["code"] == "spend_ledger_unavailable"
-    with pytest.raises(SpendClosed) as exc:
-        from server.exa_search import exa_search
+    voice = client.post("/api/voice/plan", json={"text": "open the deck"})
+    assert voice.status_code == 403
+    models = client.get("/api/models")
+    estimate = client.post("/api/estimate", json={"mode": "deep_dive", "panelSize": 20})
+    assert models.status_code == 403 and estimate.status_code == 403
+    from server.api.branding import _generate_slot
 
-        exa_search("margin benchmarks")
-    assert exc.value.code == "paid_path_blocked"
+    with pytest.raises(SpendClosed) as brand:
+        _generate_slot("hero", prompt="other", model="other-model")
+    assert brand.value.code == "currency_bound_unavailable"
+    from server.exa_search import exa_search
+    from server.chatmemory import recall
+
     with pytest.raises(SpendClosed):
-        from server.chatmemory import recall
-
+        exa_search("margin")
+    with pytest.raises(SpendClosed):
         recall("chat", "query")
     assert provider_spies == []
 
 
-def test_legacy_run_is_blocked_before_the_catalog(provider_spies, monkeypatch):
+def test_legacy_run_and_auth_boundary(provider_spies, monkeypatch):
     monkeypatch.setenv("AI_PARTNER_API_KEYS", "static-test-key")
     client = _client()
-    res = client.post(
+    missing = client.post("/api/runs", json={"input": {"problem": "A hypothetical plant network."}})
+    assert missing.status_code == 401
+    present = client.post(
         "/api/runs",
         json={"input": {"problem": "A hypothetical plant network."}},
         headers={"Authorization": "Bearer static-test-key"},
     )
+    assert present.status_code == 403
+    assert present.get_json()["error"]["code"] == "paid_path_blocked"
+    assert provider_spies == []
+
+
+def test_forged_signature_is_rejected_before_a_provider(provider_spies):
+    res = _client().post(
+        "/api/chat",
+        json={
+            "message": "",
+            "state": {
+                "chat_id": "fixedchat0000001",
+                "phase": "research",
+                "problem": "Hypothetical plant margins.",
+                "team": "finance",
+                "tools": "spreadsheets",
+                "maturity": 2,
+                "calls": 3,
+                "sig": "v1.not-a-signature",
+            },
+        },
+    )
+    assert res.status_code == 400
+    assert res.get_json()["error"]["code"] == "tamper"
+    assert provider_spies == []
+
+
+def test_research_phase_without_a_signature_does_not_call_a_provider(provider_spies):
+    res = _client().post(
+        "/api/chat",
+        json={
+            "message": "",
+            "state": {
+                "chat_id": "fixedchat0000001",
+                "phase": "research",
+                "problem": "Hypothetical plant margins.",
+                "team": "finance",
+                "tools": "spreadsheets",
+                "maturity": 2,
+                "calls": 0,
+            },
+        },
+    )
     assert res.status_code == 403
-    assert res.get_json()["error"]["code"] == "paid_path_blocked"
+    assert res.get_json()["error"]["code"] == "currency_bound_unavailable"
     assert provider_spies == []
 
 
-def test_voice_catalog_estimate_and_brand_are_closed(provider_spies):
+def test_v1_and_mcp_paid_tools_stay_closed(provider_spies, monkeypatch):
+    monkeypatch.setenv("AI_PARTNER_API_KEYS", "static-test-key")
     client = _client()
-    voice = client.post("/api/voice/plan", json={"text": "open the deck"})
-    assert voice.status_code == 403
-    assert voice.get_json()["error"]["code"] == "spend_ledger_unavailable"
-    models = client.get("/api/models")
-    assert models.status_code == 403
-    assert models.get_json()["error"]["code"] == "paid_path_blocked"
-    estimate = client.post("/api/estimate", json={"mode": "deep_dive", "panelSize": 20})
-    assert estimate.status_code == 403
-    assert estimate.get_json()["error"]["code"] == "paid_path_blocked"
-    from server.api.branding import _generate_slot
-
-    with pytest.raises(SpendClosed) as brand:
-        _generate_slot("hero")
-    assert brand.value.code == "spend_ledger_unavailable"
+    headers = {"Authorization": "Bearer static-test-key"}
+    anonymous = client.post(
+        "/v1/chat/completions",
+        json={"model": "ai-partner", "messages": [{"role": "user", "content": ONE_SHOT}]},
+    )
+    assert anonymous.status_code == 401
+    paid = client.post(
+        "/v1/chat/completions",
+        json={"model": "ai-partner", "messages": [{"role": "user", "content": ONE_SHOT}]},
+        headers=headers,
+    )
+    assert paid.status_code == 200
+    text = paid.get_json()["choices"][0]["message"]["content"]
+    assert "not sent" in text.lower() or "Paid work is stopped" in text
+    session = client.post(
+        "/mcp",
+        json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+        headers=headers,
+    ).headers["Mcp-Session-Id"]
+    tool = client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {"name": "start_job", "arguments": {"message": ONE_SHOT}},
+        },
+        headers={**headers, "Mcp-Session-Id": session},
+    )
+    assert tool.status_code == 200
+    body = tool.get_json()["result"]["content"][0]["text"]
+    assert "Paid work is stopped" in body
     assert provider_spies == []
 
 
-def test_direct_model_client_is_blocked_without_a_phase(provider_spies):
-    with pytest.raises(SpendClosed) as exc:
-        complete_with_venice("ChatReply", [{"role": "user", "content": "Hi"}], {"type": "object"}, 50)
-    assert exc.value.code == "spend_ledger_unavailable"
+def test_signed_keiki_turn_does_not_call_a_provider(provider_spies, monkeypatch):
+    monkeypatch.setenv("KEIKI_HARNESS_SIGNING_SECRET", "whsec_test")
+    monkeypatch.setenv("KEIKI_AGENT_ID", "agent-1")
+    from server.api import keiki
+
+    posted = []
+    monkeypatch.setattr(keiki, "_post", lambda url, token, body: posted.append(body))
+    keiki.reset_replays()
+    raw = json.dumps(
+        {
+            "type": "keiki.turn",
+            "turnId": "closed-1",
+            "agentId": "agent-1",
+            "conversationId": "conv-1",
+            "messages": [{"text": ONE_SHOT}],
+            "keiki": {"turnUrl": "https://keiki.example/turns/closed-1"},
+        }
+    ).encode()
+    ts = int(time.time())
+    sig = hmac.new(b"whsec_test", f"{ts}.".encode() + raw, hashlib.sha256).hexdigest()
+    bad = _client().post("/keiki/turn", data=raw, headers={"Content-Type": "application/json"})
+    assert bad.status_code == 401
+    accepted = _client().post(
+        "/keiki/turn",
+        data=raw,
+        headers={
+            "Content-Type": "application/json",
+            "Keiki-Signature": f"t={ts},v1={sig}",
+            "Keiki-Turn-Token": "ht_x",
+        },
+    )
+    assert accepted.status_code == 202
+    for _ in range(50):
+        if any(item.get("status") == "completed" for item in posted):
+            break
+        time.sleep(0.02)
+    assert any("Paid work is stopped" in str(item.get("text") or "") for item in posted)
     assert provider_spies == []
 
 
-def _open_ledger(monkeypatch, tmp_path, ceiling="1000", venice="10", exa="4", memory="7"):
-    monkeypatch.delenv("VERCEL", raising=False)
-    monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER", "sqlite")
-    monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER_PATH", str(tmp_path / "spend.db"))
-    monkeypatch.setenv("AI_PARTNER_CALCULATED_CEILING_MICROUSD", ceiling)
-    if venice is None:
-        monkeypatch.delenv("AI_PARTNER_CALCULATED_MICROUSD_VENICE_ATTEMPT", raising=False)
-    else:
-        monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_VENICE_ATTEMPT", venice)
-    if exa is None:
-        monkeypatch.delenv("AI_PARTNER_CALCULATED_MICROUSD_EXA", raising=False)
-    else:
-        monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_EXA", exa)
-    if memory is None:
-        monkeypatch.delenv("AI_PARTNER_CALCULATED_MICROUSD_MEMORY", raising=False)
-    else:
-        monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_MEMORY", memory)
-
-
-def _state(chat_id="chat-a", phase="synthesize", problem="Keep the problem"):
-    return {
-        "chat_id": chat_id,
-        "phase": phase,
-        "problem": problem,
-        "team": "finance",
-        "tools": "spreadsheets",
-        "maturity": 2,
-        "experts": [],
-        "debate_done": 0,
-        "size": "",
-        "calls": 0,
-        "status": "settled",
-    }
-
-
-def test_missing_zero_and_negative_prices_are_not_free(monkeypatch, tmp_path):
-    _open_ledger(monkeypatch, tmp_path, venice=None)
-    with pytest.raises(SpendClosed) as missing:
-        run_paid_phase(_state(), lambda: {"ok": True})
-    assert missing.value.code == "calculated_price_unavailable"
-    _open_ledger(monkeypatch, tmp_path, venice="0")
-    with pytest.raises(SpendClosed) as zero:
-        run_paid_phase(_state(), lambda: {"ok": True})
-    assert zero.value.code == "calculated_price_unavailable"
-    _open_ledger(monkeypatch, tmp_path, venice="-3")
-    with pytest.raises(SpendClosed) as negative:
-        run_paid_phase(_state(), lambda: {"ok": True})
-    assert negative.value.code == "calculated_price_unavailable"
-
-
-def test_unset_ceiling_is_not_a_free_pass(monkeypatch, tmp_path):
-    _open_ledger(monkeypatch, tmp_path, ceiling="")
+def test_direct_client_without_a_journal_does_not_send(provider_spies):
+    client = VeniceClient(journal_path=None)
     with pytest.raises(SpendClosed) as exc:
-        run_paid_phase(_state(), lambda: {"ok": True})
+        client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"})
     assert exc.value.code == "currency_bound_unavailable"
+    with pytest.raises(SpendClosed):
+        claim_send(":memory:", "k")
+    with pytest.raises(SpendClosed):
+        claim_send("relative.db", "k")
+    assert provider_spies == []
 
 
-def test_replay_returns_the_recorded_result_and_uncertain_does_not_retry(monkeypatch, tmp_path):
-    _open_ledger(monkeypatch, tmp_path)
-    calls = []
+class _Drop(BaseHTTPRequestHandler):
+    def do_POST(self):
+        size = int(self.headers.get("Content-Length") or 0)
+        if size:
+            self.rfile.read(size)
+        self.server.hits += 1
+        self.close_connection = True
+        try:
+            self.connection.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
 
-    def work():
-        calls.append(1)
-        return {"reply": "recorded", "state": {"phase": "panel", "chat_id": "chat-a"}, "next": "panel"}
-
-    first = run_paid_phase(_state(), work)
-    second = run_paid_phase(_state(problem="Keep the problem"), work)
-    assert first == second
-    assert calls == [1]
-    assert phase_key(_state()) == phase_key({**_state(), "calls": 0, "sig": "forged", "status": "settled"})
-
-    def crash():
-        calls.append("crash")
-        raise Boom("after send")
-
-    with pytest.raises(Boom):
-        run_paid_phase(_state(chat_id="chat-b"), crash)
-    with pytest.raises(SpendClosed) as uncertain:
-        run_paid_phase(_state(chat_id="chat-b"), crash)
-    assert uncertain.value.code == "phase_uncertain"
-    assert calls == [1, "crash"]
+    def log_message(self, *_args):
+        return
 
 
-def test_a_different_chat_does_not_receive_another_chats_result(monkeypatch, tmp_path):
-    _open_ledger(monkeypatch, tmp_path)
+def _drop_server():
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Drop)
+    httpd.hits = 0
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    return httpd
+
+
+def _one_call(client):
+    return client.structured(
+        "model",
+        [{"role": "user", "content": "Hi"}],
+        "Chat",
+        {"type": "object"},
+        temperature=0,
+        max_completion_tokens=20,
+    )
+
+
+def test_ambiguous_accept_sends_once_and_blocks_the_repair_path(tmp_path):
+    httpd = _drop_server()
+    try:
+        client = VeniceClient(
+            base_url=f"http://127.0.0.1:{httpd.server_port}",
+            timeout=1,
+            journal_path=str(tmp_path / "transport.db"),
+        )
+        with pytest.raises(AmbiguousSend):
+            _one_call(client)
+        assert httpd.hits == 1
+        with pytest.raises(SpendClosed) as again:
+            _one_call(client)
+        assert again.value.code == "phase_uncertain"
+        assert httpd.hits == 1
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_replaced_journal_and_a_new_process_do_not_send_again(tmp_path):
+    httpd = _drop_server()
+    path = tmp_path / "transport.db"
+    try:
+        client = VeniceClient(
+            base_url=f"http://127.0.0.1:{httpd.server_port}",
+            timeout=1,
+            journal_path=str(path),
+        )
+        with pytest.raises(AmbiguousSend):
+            _one_call(client)
+        assert httpd.hits == 1
+        path.unlink()
+        for suffix in ("-wal", "-shm"):
+            extra = tmp_path / f"transport.db{suffix}"
+            if extra.exists():
+                extra.unlink()
+        path.write_bytes(b"")
+        with pytest.raises(SpendClosed):
+            _one_call(client)
+        assert httpd.hits == 1
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+    child = """
+import os, sys
+sys.path.insert(0, os.environ["REPO"])
+from server.spendguard import SpendClosed
+from server.venice.client import VeniceClient
+client = VeniceClient(api_key="t", base_url="http://127.0.0.1:9", timeout=1, journal_path=os.environ["JOURNAL"])
+try:
+    client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"}, temperature=0, max_completion_tokens=20)
+    print("SENT")
+except SpendClosed as exc:
+    print(exc.code)
+"""
+    # The replacement above changed the file. Rebuild the uncertain row in a fresh process
+    # by using the original bytes saved before replacement.
+    saved = tmp_path / "kept.db"
+    httpd = _drop_server()
+    try:
+        fresh = VeniceClient(
+            base_url=f"http://127.0.0.1:{httpd.server_port}",
+            timeout=1,
+            journal_path=str(saved),
+        )
+        with pytest.raises(AmbiguousSend):
+            _one_call(fresh)
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+    env = {**os.environ, "REPO": os.getcwd(), "JOURNAL": str(saved)}
+    completed = subprocess.run([sys.executable, "-c", child], capture_output=True, text=True, env=env, check=False)
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "phase_uncertain"
+
+
+def test_a_definite_invalid_json_response_still_repairs_inside_one_call(monkeypatch, tmp_path):
     seen = []
 
-    def work():
-        seen.append("run")
-        return {"reply": "one"}
+    class Resp:
+        def __init__(self, content):
+            self.status_code = 200
+            self.text = content
+            self.headers = {}
 
-    run_paid_phase(_state(chat_id="one"), work)
-    run_paid_phase(_state(chat_id="two"), work)
-    assert seen == ["run", "run"]
+        def json(self):
+            return {"choices": [{"message": {"content": self.text}}], "usage": {}}
 
+    def request(method, url, json=None, timeout=None, stream=False):
+        seen.append(json["messages"][-1]["content"])
+        if len(seen) == 1:
+            return Resp("not json")
+        return Resp('{"ok": true}')
 
-def test_parallel_callers_send_the_phase_once(monkeypatch, tmp_path):
-    _open_ledger(monkeypatch, tmp_path)
-    calls = []
-    entered = threading.Event()
-    release = threading.Event()
-
-    def work():
-        calls.append(1)
-        entered.set()
-        assert release.wait(timeout=2)
-        return {"reply": "once"}
-
-    errors = []
-
-    def runner():
-        try:
-            run_paid_phase(_state(chat_id="same"), work)
-        except SpendClosed as exc:
-            errors.append(exc.code)
-
-    threads = [threading.Thread(target=runner), threading.Thread(target=runner)]
-    for thread in threads:
-        thread.start()
-    assert entered.wait(timeout=2)
-    for _ in range(40):
-        if errors:
-            break
-        threading.Event().wait(0.05)
-    release.set()
-    for thread in threads:
-        thread.join(timeout=2)
-    assert calls == [1]
-    assert errors == ["phase_uncertain"]
+    client = VeniceClient(journal_path=str(tmp_path / "repair.db"))
+    monkeypatch.setattr(client._session, "request", request)
+    assert _one_call(client) == {"ok": True}
+    assert len(seen) == 2
+    assert "valid JSON" in seen[1]
 
 
-def test_two_ledger_files_do_not_share_a_settled_phase(monkeypatch, tmp_path):
-    calls = []
+def test_failed_uncertain_update_does_not_allow_another_send(tmp_path):
+    import sqlite3
 
-    def work():
-        calls.append(1)
-        return {"reply": "host"}
+    from server import spendguard
 
-    _open_ledger(monkeypatch, tmp_path)
-    monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER_PATH", str(tmp_path / "host-a.db"))
-    run_paid_phase(_state(), work)
-    monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER_PATH", str(tmp_path / "host-b.db"))
-    run_paid_phase(_state(), work)
-    assert calls == [1, 1]
-
-
-def test_calculated_ceiling_stops_before_the_call(monkeypatch, tmp_path):
-    _open_ledger(monkeypatch, tmp_path, ceiling="2", venice="10")
-    with pytest.raises(SpendClosed) as exc:
-        run_paid_phase(_state(), lambda: {"ok": True})
-    assert exc.value.code == "calculated_ceiling_exceeded"
-
-
-def test_research_requires_an_exa_price_when_the_venice_key_is_set(monkeypatch, tmp_path):
-    _open_ledger(monkeypatch, tmp_path, exa=None)
-    monkeypatch.setenv("VENICE_API_KEY", "present")
-    with pytest.raises(SpendClosed) as exc:
-        run_paid_phase(_state(phase="research"), lambda: {"ok": True})
-    assert exc.value.code == "calculated_price_unavailable"
-
-
-def test_vercel_cannot_use_the_sqlite_ledger(monkeypatch, tmp_path):
-    _open_ledger(monkeypatch, tmp_path)
-    monkeypatch.setenv("VERCEL", "1")
-    with pytest.raises(SpendClosed) as exc:
-        run_paid_phase(_state(), lambda: {"ok": True})
-    assert exc.value.code == "spend_ledger_unavailable"
-
-
-def test_opt_in_http_replay_uses_the_recorded_turn(monkeypatch, tmp_path, provider_spies):
-    _open_ledger(monkeypatch, tmp_path)
-    calls = []
-
-    def fake(name, messages, schema, max_tokens):
-        calls.append(name)
-        return {"facts": ["The client named plants."], "service_line": "Margin recovery", "queries": ["plant margin benchmarks"]}
-
-    fake._spend_enforced = True
-    monkeypatch.setattr("server.api.chat.complete_with_venice", fake)
-    monkeypatch.setattr("server.api.chat.exa_search", lambda query, limit=4: [])
-    client = _client()
-    state = {
-        "chat_id": "fixedchat0000001",
-        "phase": "research",
-        "problem": "Hypothetical plant margins.",
-        "team": "finance and plant leads",
-        "tools": "ERP and spreadsheets",
-        "maturity": 2,
-        "calls": 0,
-    }
-    first = client.post("/api/chat", json={"message": "", "state": state})
-    assert first.status_code == 200, first.get_json()
-    second = client.post("/api/chat", json={"message": "", "state": state})
-    assert second.status_code == 200
-    assert second.get_json()["reply"] == first.get_json()["reply"]
-    assert second.get_json()["state"]["phase"] == first.get_json()["state"]["phase"]
-    assert calls == ["ChatResearch"]
-    assert provider_spies == []
+    path = str(tmp_path / "hold.db")
+    claim_send(path, "op")
+    conn = sqlite3.connect(path)
+    conn.execute("DELETE FROM send_hold")
+    conn.commit()
+    conn.close()
+    with pytest.raises(SpendClosed) as lost:
+        spendguard.lose_send(path, "op")
+    assert lost.value.code == "phase_uncertain"
+    with pytest.raises(SpendClosed) as blocked:
+        claim_send(path, "op")
+    assert blocked.value.code == "phase_uncertain"

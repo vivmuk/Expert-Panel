@@ -140,31 +140,18 @@ def test_demo_page_renders_the_disclaimer(monkeypatch):
     assert b'id="guide-talk"' in client.get("/voice.js").data
 
 
-def test_text_plan_uses_only_the_whitelist(monkeypatch, tmp_path):
-    monkeypatch.delenv("VERCEL", raising=False)
+def test_text_plan_stays_closed(monkeypatch):
     monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
     monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER", "sqlite")
-    monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER_PATH", str(tmp_path / "spend.db"))
+    monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER_PATH", "/tmp/not-used.db")
     monkeypatch.setenv("AI_PARTNER_CALCULATED_CEILING_MICROUSD", "1000000")
-    monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_VENICE_ATTEMPT", "1")
     monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_VOICE", "1")
-
-    class Fake:
-        def structured(self, *args, **kwargs):
-            return {"action": "open_demo", "slug": "keiki", "say": "Opening Keiki."}
-
-    monkeypatch.setattr("server.api.voice.VeniceClient", Fake)
-    monkeypatch.setattr("server.api.voice._speak", lambda text: b"")
     from server import create_app
 
     client = create_app().test_client()
     res = client.post("/api/voice/plan", json={"text": "show keiki"})
-    assert res.status_code == 200
-    body = res.get_json()
-    assert body["heard"] == "show keiki"
-    assert body["action"]["action"] == "open_demo"
-    assert body["action"]["slug"] == "keiki"
-    assert body["captions"] == "Opening Keiki."
+    assert res.status_code == 403
+    assert res.get_json()["error"]["code"] == "currency_bound_unavailable"
 
 
 def _client(monkeypatch):

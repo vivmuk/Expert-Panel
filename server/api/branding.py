@@ -2,7 +2,6 @@
 models, caches it in DATA_DIR/branding, and serves it to the frontend. Assets
 are generated lazily in a background thread (first visit) and can be
 regenerated on demand from Settings."""
-import base64
 import logging
 import os
 import threading
@@ -11,13 +10,7 @@ import time
 from flask import Blueprint, jsonify, request, send_from_directory
 
 from ..config import Config
-from ..venice.client import get_client
-from ..venice.models import get_catalog
 from .access import require_partner_key
-
-# Image generation does not call get_catalog. The name stays so a test can
-# prove a brand request never reached the live model list.
-_ = get_catalog
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("branding", __name__)
@@ -57,47 +50,11 @@ def _path(slot):
 
 
 def _generate_slot(slot, prompt=None, model=None):
-    from ..spendguard import run_paid_phase
+    """Image generation stays closed. There is no image bill bound."""
+    from ..spendguard import refuse_paid
 
-    def _call():
-        return _write_slot(slot, prompt, model)
-
-    run_paid_phase(
-        {
-            "phase": "brand",
-            "chat_id": slot,
-            "problem": "",
-            "experts": [],
-            "debate_done": 0,
-            "team": "",
-            "tools": "",
-            "size": "",
-        },
-        _call,
-    )
-
-
-def _write_slot(slot, prompt=None, model=None):
-    client = get_client()
-    resolved = model or Config.MODEL_ROLE_DEFAULTS.get("image")
-    if not resolved:
-        from ..spendguard import SpendClosed
-
-        raise SpendClosed("calculated_price_unavailable")
-    aspect_ratio = "16:9" if slot == "hero" else "4:3"
-    result = client.generate_image(
-        prompt or SLOTS[slot], model=resolved, aspect_ratio=aspect_ratio
-    )
-    images = result.get("images") or []
-    if not images:
-        raise RuntimeError(f"No image returned for slot {slot}: {str(result)[:200]}")
-    data = images[0]
-    if isinstance(data, str) and data.startswith("data:"):
-        data = data.split(",", 1)[1]
-    raw = base64.b64decode(data)
-    with open(_path(slot), "wb") as f:
-        f.write(raw)
-    logger.info("Brand asset generated: %s via %s (%d bytes)", slot, resolved, len(raw))
+    del slot, prompt, model
+    refuse_paid()
 
 
 def _ensure_missing_async(slots=None, model=None):

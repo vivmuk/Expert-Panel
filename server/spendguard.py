@@ -1,53 +1,41 @@
-"""Fail-closed gate in front of paid provider work.
+"""Paid provider execution stays closed.
 
-A calculated unit price times a call count is not a provider bill. A missing
-price is not free. This module does not invent a currency cap. Paid work is
-sent only when an operator opts into a single-host SQLite ledger and sets a
-calculated ceiling and calculated unit prices. Otherwise the call is refused
-before any provider I/O.
+No authoritative provider bill is available in this process. A configured
+positive integer is not that bill, so HTTP routes do not send provider work.
+Voice, images, the model catalog, and legacy runs stay closed for the same
+reason.
 
-The ledger is one SQLite file. It is not shared by Railway, Maritime, and
-Vercel. Vercel has no durable file in this app, so paid work stays closed
-there. A row left `dispatched` is an uncertain charge: later calls return that
-row and do not send the phase again.
+`claim_send` is only the client's record of one socket write. It is not
+permission to run a chat, and it is not a currency cap. `:memory:` and a
+replaced file do not count as that record.
 """
 import hashlib
 import json
 import os
 import sqlite3
-from contextvars import ContextVar
-
-VENICE_ATTEMPTS = 3
-EXA_QUERIES = 6
-
-_phase = ContextVar("spend_phase", default=None)
+import stat
 
 CLOSED = {
-    "spend_ledger_unavailable": (
-        "Paid work is stopped. No durable single-host spend ledger is configured, "
-        "so this step was not sent to a provider."
-    ),
     "currency_bound_unavailable": (
-        "Paid work is stopped. No provider bill cap is configured. "
-        "A calculated price is not a bill. This step was not sent."
+        "Paid work is stopped. No authoritative provider bill bound is available. "
+        "A configured number is not a bill. This step was not sent."
     ),
-    "calculated_price_unavailable": (
-        "Paid work is stopped. A calculated unit price is missing, zero, or negative. "
-        "That is not free. This step was not sent."
-    ),
-    "calculated_ceiling_exceeded": (
-        "Paid work is stopped. This step would pass the configured calculated ceiling. "
-        "The ceiling is not a provider bill. This step was not sent."
+    "spend_ledger_unavailable": (
+        "Paid work is stopped. This process has no durable file that can record an "
+        "uncertain send. This step was not sent."
     ),
     "phase_uncertain": (
-        "Paid work is stopped. This step was already sent, or it stopped after the send "
-        "was committed and before a result was stored. It was not sent again."
+        "Paid work is stopped. This send was already attempted and its response was "
+        "not stored. It was not sent again."
     ),
     "paid_path_blocked": (
-        "Paid work is stopped. This provider call is outside a reserved phase. "
+        "Paid work is stopped. This provider call is outside a reserved send. "
         "It was not sent."
     ),
 }
+
+_identities = {}
+_lost = set()
 
 
 class SpendClosed(Exception):
@@ -57,187 +45,176 @@ class SpendClosed(Exception):
         super().__init__(self.message)
 
 
-class provider_window:
-    """Lets a caller that already reserved, or a local HTTP stub test, reach the provider client."""
-
-    def __enter__(self):
-        self._token = _phase.set("open")
-        return self
-
-    def __exit__(self, *_exc):
-        _phase.reset(self._token)
-        return False
+def refuse_paid():
+    """Production entry points call this before any provider I/O."""
+    raise SpendClosed("currency_bound_unavailable")
 
 
-def in_phase():
-    return _phase.get() is not None
+def run_paid_phase(state, fn):
+    """Do not call fn. An operator integer is not a bill bound."""
+    del state, fn
+    refuse_paid()
 
 
-def require_open_phase():
-    if not in_phase():
-        raise SpendClosed("paid_path_blocked")
-
-
-def _positive_int(name):
-    raw = os.environ.get(name, "").strip()
-    if not raw or not raw.isdigit():
-        return None
-    value = int(raw)
-    return value if value > 0 else None
-
-
-def _ledger_path():
-    if os.environ.get("VERCEL"):
-        return None
-    if os.environ.get("AI_PARTNER_SPEND_LEDGER", "").strip().lower() != "sqlite":
-        return None
-    path = os.environ.get("AI_PARTNER_SPEND_LEDGER_PATH", "").strip()
-    if not path:
-        return None
-    return path
-
-
-def _needs_exa(state):
-    return state.get("phase") == "research" and bool(os.environ.get("VENICE_API_KEY", "").strip())
-
-
-def _needs_memory(state):
-    return state.get("phase") in ("research", "judge") and bool(os.environ.get("SUPERMEMORY_API_KEY", "").strip())
-
-
-def _attempt_price(state):
-    phase = state.get("phase")
-    if phase == "voice":
-        return _positive_int("AI_PARTNER_CALCULATED_MICROUSD_VOICE")
-    if phase == "brand":
-        return _positive_int("AI_PARTNER_CALCULATED_MICROUSD_IMAGE")
-    return _positive_int("AI_PARTNER_CALCULATED_MICROUSD_VENICE_ATTEMPT")
-
-
-def readiness(state):
-    """Return a SpendClosed code, or None when a calculated reservation is possible."""
-    if _ledger_path() is None:
-        return "spend_ledger_unavailable"
-    if _positive_int("AI_PARTNER_CALCULATED_CEILING_MICROUSD") is None:
-        return "currency_bound_unavailable"
-    if _attempt_price(state) is None:
-        return "calculated_price_unavailable"
-    if _needs_exa(state) and _positive_int("AI_PARTNER_CALCULATED_MICROUSD_EXA") is None:
-        return "calculated_price_unavailable"
-    if _needs_memory(state) and _positive_int("AI_PARTNER_CALCULATED_MICROUSD_MEMORY") is None:
-        return "calculated_price_unavailable"
-    return None
-
-
-def exposure_microusd(state):
-    total = VENICE_ATTEMPTS * _attempt_price(state)
-    if _needs_exa(state):
-        total += EXA_QUERIES * _positive_int("AI_PARTNER_CALCULATED_MICROUSD_EXA")
-    if _needs_memory(state):
-        total += _positive_int("AI_PARTNER_CALCULATED_MICROUSD_MEMORY")
-    return total
-
-
-def phase_key(state):
-    body = {
-        "chat_id": str(state.get("chat_id") or ""),
-        "phase": str(state.get("phase") or ""),
-        "problem": str(state.get("problem") or ""),
-        "team": str(state.get("team") or ""),
-        "tools": str(state.get("tools") or ""),
-        "maturity": state.get("maturity"),
-        "experts": len(state.get("experts") or []),
-        "debate_done": int(state.get("debate_done") or 0),
-        "size": str(state.get("size") or ""),
-        "artifact": str(state.get("_spend_artifact") or ""),
-    }
-    raw = json.dumps(body, sort_keys=True, separators=(",", ":"), default=str)
+def operation_key(method, path, body):
+    raw = json.dumps(
+        {"method": method, "path": path, "body": body},
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+def _reject_ephemeral(path):
+    text = str(path or "").strip()
+    lowered = text.lower()
+    if (
+        not text
+        or not os.path.isabs(text)
+        or lowered == ":memory:"
+        or lowered.startswith("file:")
+        or "mode=memory" in lowered
+    ):
+        raise SpendClosed("spend_ledger_unavailable")
+    return text
+
+
+def _identity(path):
+    try:
+        st = os.stat(path)
+    except OSError as exc:
+        raise SpendClosed("spend_ledger_unavailable") from exc
+    if not stat.S_ISREG(st.st_mode):
+        raise SpendClosed("spend_ledger_unavailable")
+    ident = (st.st_dev, st.st_ino)
+    known = _identities.get(path)
+    if known is not None and known != ident:
+        raise SpendClosed("phase_uncertain")
+    return ident
+
+
 def _connect(path):
+    path = _reject_ephemeral(path)
     parent = os.path.dirname(path)
     if parent:
         os.makedirs(parent, exist_ok=True)
+    fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
+    os.close(fd)
+    ident = _identity(path)
     conn = sqlite3.connect(path, timeout=5, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute(
-        """CREATE TABLE IF NOT EXISTS spend_phase (
-            phase_key TEXT PRIMARY KEY,
-            status TEXT NOT NULL,
-            exposure_microusd INTEGER NOT NULL,
-            result_json TEXT
+        """CREATE TABLE IF NOT EXISTS send_hold (
+            op_key TEXT PRIMARY KEY,
+            status TEXT NOT NULL
         )"""
     )
+    conn.execute("CREATE TABLE IF NOT EXISTS send_probe (n INTEGER PRIMARY KEY)")
+    conn.execute("INSERT OR REPLACE INTO send_probe (n) VALUES (1)")
+    other = sqlite3.connect(path, timeout=5, isolation_level=None)
+    try:
+        seen = other.execute("SELECT n FROM send_probe").fetchone()
+    finally:
+        other.close()
+    if not seen:
+        conn.close()
+        raise SpendClosed("spend_ledger_unavailable")
+    _identities[path] = ident
     return conn
 
 
-def _lookup(conn, key):
-    return conn.execute("SELECT status, result_json FROM spend_phase WHERE phase_key = ?", (key,)).fetchone()
+def _visible(path, key, status):
+    other = sqlite3.connect(path, timeout=5, isolation_level=None)
+    try:
+        row = other.execute("SELECT status FROM send_hold WHERE op_key = ?", (key,)).fetchone()
+    finally:
+        other.close()
+    return row is not None and row[0] == status
 
 
-def _used(conn):
-    row = conn.execute("SELECT COALESCE(SUM(exposure_microusd), 0) AS n FROM spend_phase").fetchone()
-    return int(row["n"])
-
-
-def run_paid_phase(state, fn):
-    """Run fn at most once for this phase key. Refuse before fn when the ledger cannot reserve."""
-    code = readiness(state)
-    if code:
-        raise SpendClosed(code)
-    path = _ledger_path()
-    key = phase_key(state)
-    exposure = exposure_microusd(state)
-    ceiling = _positive_int("AI_PARTNER_CALCULATED_CEILING_MICROUSD")
+def claim_send(path, key):
+    """Record a pending send on a real file, or refuse before the socket write."""
+    if (path, key) in _lost:
+        raise SpendClosed("phase_uncertain")
     conn = _connect(path)
     try:
         conn.execute("BEGIN IMMEDIATE")
-        row = _lookup(conn, key)
-        if row and row["status"] == "settled":
+        row = conn.execute("SELECT status FROM send_hold WHERE op_key = ?", (key,)).fetchone()
+        if row is not None:
             conn.execute("ROLLBACK")
-            return json.loads(row["result_json"])
-        if row:
-            conn.execute("ROLLBACK")
+            _lost.add((path, key))
             raise SpendClosed("phase_uncertain")
-        if _used(conn) + exposure > ceiling:
-            conn.execute("ROLLBACK")
-            raise SpendClosed("calculated_ceiling_exceeded")
-        conn.execute(
-            "INSERT INTO spend_phase (phase_key, status, exposure_microusd, result_json) VALUES (?, 'dispatched', ?, NULL)",
-            (key, exposure),
-        )
+        conn.execute("INSERT INTO send_hold (op_key, status) VALUES (?, 'pending')", (key,))
         conn.execute("COMMIT")
     except SpendClosed:
         raise
-    except Exception:
+    except sqlite3.Error as exc:
         try:
             conn.execute("ROLLBACK")
         except sqlite3.Error:
             pass
-        raise
+        raise SpendClosed("spend_ledger_unavailable") from exc
     finally:
         conn.close()
+    if not _visible(path, key, "pending"):
+        _lost.add((path, key))
+        raise SpendClosed("spend_ledger_unavailable")
 
-    token = _phase.set(key)
+
+def lose_send(path, key):
+    """The socket write may have been accepted. Keep the row uncertain."""
+    _lost.add((path, key))
+    conn = _connect(path)
     try:
-        result = fn()
+        conn.execute("BEGIN IMMEDIATE")
+        cur = conn.execute(
+            "UPDATE send_hold SET status = 'uncertain' WHERE op_key = ? AND status = 'pending'",
+            (key,),
+        )
+        if cur.rowcount != 1:
+            conn.execute("ROLLBACK")
+            raise SpendClosed("phase_uncertain")
+        conn.execute("COMMIT")
+    except SpendClosed:
+        raise
+    except sqlite3.Error as exc:
         try:
-            stored = json.dumps(result, separators=(",", ":"))
-        except TypeError:
-            stored = json.dumps({"replay": "unavailable"})
-        conn = _connect(path)
-        try:
-            conn.execute("BEGIN IMMEDIATE")
-            conn.execute(
-                "UPDATE spend_phase SET status = 'settled', result_json = ? WHERE phase_key = ? AND status = 'dispatched'",
-                (stored, key),
-            )
-            conn.execute("COMMIT")
-        finally:
-            conn.close()
-        return result
+            conn.execute("ROLLBACK")
+        except sqlite3.Error:
+            pass
+        raise SpendClosed("phase_uncertain") from exc
     finally:
-        # A raised error leaves the row dispatched, which a later call treats as an uncertain charge.
-        _phase.reset(token)
+        conn.close()
+    if not _visible(path, key, "uncertain"):
+        raise SpendClosed("phase_uncertain")
+
+
+def release_send(path, key):
+    """A completed HTTP response arrived. Drop the pending row only."""
+    conn = _connect(path)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT status FROM send_hold WHERE op_key = ?", (key,)).fetchone()
+        if row is None or row["status"] != "pending":
+            conn.execute("ROLLBACK")
+            _lost.add((path, key))
+            raise SpendClosed("phase_uncertain")
+        cur = conn.execute("DELETE FROM send_hold WHERE op_key = ? AND status = 'pending'", (key,))
+        if cur.rowcount != 1:
+            conn.execute("ROLLBACK")
+            _lost.add((path, key))
+            raise SpendClosed("phase_uncertain")
+        conn.execute("COMMIT")
+    except SpendClosed:
+        raise
+    except sqlite3.Error as exc:
+        try:
+            conn.execute("ROLLBACK")
+        except sqlite3.Error:
+            pass
+        _lost.add((path, key))
+        raise SpendClosed("phase_uncertain") from exc
+    finally:
+        conn.close()
