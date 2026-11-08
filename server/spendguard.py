@@ -57,9 +57,13 @@ def refuse_paid():
 
 
 def run_paid_phase(state, fn):
-    """Do not call fn. An operator integer is not a bill bound."""
-    del state, fn
-    refuse_paid()
+    """Call fn only inside an offline execution. HTTP does not start one."""
+    from .exposure import current
+
+    if current() is None:
+        del state, fn
+        refuse_paid()
+    return fn()
 
 
 def operation_key(method, path, body):

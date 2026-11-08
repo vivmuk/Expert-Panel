@@ -42,6 +42,12 @@ An explicit stop or confirmation flag, if wanted, needs a separate decision. Pro
 
 Emptying the file does not mint another $5. Restoring an earlier valid copy brings back the earlier remainder. Copying the file to a new path spends again. Deleting the file and creating another mints another $5. Those three are unsolved. Threads on one file are serialized. That is not an external monotonic anchor and not a shared principal registry. HTTP routes do not create a project and do not read a calculated price. The report has no HTTP route. The manufacturer engagement stays unrun.
 
+## Application exposure is in-process only
+
+`server/exposure.py` counts engagement executions. Three is that count. Stage calls sit inside one execution. The Venice client's own HTTP retry count is multiplied into the worst-case reservation before the offline transport runs. 5000000 microusd is that reservation. It is not a provider invoice. The server mints the project and the execution id. A caller-chosen id does not create a budget. A settled execution returns its stored result and does not reserve again. An uncertain execution keeps its reservation and blocks the next execution until reconcile, which does not release the money. The report uses a random id and has no HTTP route.
+
+`MemoryAuthority` is the process-local stand-in used to prove those rules. Two instances are two ceilings. HTTP does not install one, so the paid entry points still refuse before a socket. The legacy `DATA_DIR/engagements.db` file is not this authority.
+
 ## Paid work stays closed
 
 Public intake questions do not call a provider. Chat, Exa, Supermemory, speech, brand images, the model list, cost estimate, and `/api/runs` are refused before a provider call. A configured positive integer is not an authoritative provider bill, so those settings do not open a call. Voice and images stay closed. The manufacturer engagement stays unrun and its currency amount stays unset.
