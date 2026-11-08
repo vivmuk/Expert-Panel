@@ -48,7 +48,11 @@ class SpendClosed(Exception):
 
 
 def refuse_paid():
-    """Production entry points call this before any provider I/O."""
+    """Production entry points call this before any provider I/O.
+
+    `projectbudget.activation_blockers` names why a $5 ledger is not consulted
+    here. A calculated price does not open this call.
+    """
     raise SpendClosed("currency_bound_unavailable")
 
 
