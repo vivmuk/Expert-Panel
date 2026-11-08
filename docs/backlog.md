@@ -5,7 +5,7 @@ Order is the delivery order. Dates are not estimates. Nothing below this line is
 1. **Legacy auth, validation, CI, smoke, and these docs.** Shipped on master as `a8e5ec5`. Partner key before any legacy run, store, or brand-write work. Shared-store access is documented there.
 2. **Same-browser project history.** Shipped on master as `d1dd46b` (#11). Multiple projects in `ai-partner-chat-v2`. No server account.
 2a. **Paid work stays closed.** Shipped on master as `67e3a5c` (#13). Tested HTTP routes stay closed. A configured integer does not open them.
-2b. **$5 project accounting.** This PR. A sealed file can record 5000000 microusd and 3 attempts. HTTP does not use it. Missing pieces are an authenticated project principal, an authoritative per-attempt bill cap, and a store shared across hosts. The manufacturer engagement is not run.
+2b. **$5 project accounting.** This PR. A sealed file can record 5000000 microusd and 3 attempts, plus a seal-holder cost report. HTTP does not use it, and a shared partner key cannot read it. Missing pieces are an authenticated project principal, an authoritative per-attempt bill cap, provider usage, invoices, and a store shared across hosts. The manufacturer engagement is not run.
 3. **Artifact versions** for the report, deck, and kit on a saved job.
 4. **Outcome milestones** on the work chart.
 5. **Approval gates** before a chart step counts as accepted.

@@ -190,6 +190,89 @@ except BudgetStop as exc:
     assert completed.stdout.strip() == "store_unproven"
 
 
+def test_synthetic_cost_report_keeps_four_amounts_apart(tmp_path):
+    path, project = _open(tmp_path)
+    decide(path, project["project_id"], project["seal"], "initial-inference", "venice", 100, stage="initial")
+    settle(path, project["project_id"], project["seal"], "initial-inference", "{\"not\":\"in-report\"}")
+    from server.projectbudget import record_facts, report
+
+    record_facts(
+        path,
+        project["project_id"],
+        project["seal"],
+        "initial-inference",
+        usage={"input_tokens": 10, "output_tokens": 2},
+        pricing_snapshot={"input_microusd_per_token": 3, "output_microusd_per_token": 5},
+    )
+    decide(path, project["project_id"], project["seal"], "recovery-search", "exa", 40, stage="recovery")
+    mark_uncertain(path, project["project_id"], project["seal"], "recovery-search")
+    decide(path, project["project_id"], project["seal"], "inflight-memory", "memory", 7, stage="initial")
+    view = report(path, project["project_id"], project["seal"], "synthetic")
+    assert view["label"] == "synthetic"
+    assert view["initial"]["reserved_worst_case_microusd"] == 107
+    assert view["recovery"]["reserved_worst_case_microusd"] == 40
+    assert view["remaining_application_microusd"] == APPLICATION_CEILING_MICROUSD - 147
+    assert view["successful_delivery_reserved_microusd"] == 100
+    assert view["inflight_reserved_microusd"] == 7
+    assert view["uncertain_reserved_microusd"] == 40
+    assert view["failed_microusd"] is None
+    assert view["providers"]["venice_inference"]["reserved_worst_case_microusd"] == 100
+    assert view["providers"]["venice_hosted_exa"]["reserved_worst_case_microusd"] == 40
+    assert view["providers"]["supermemory"]["reserved_worst_case_microusd"] == 7
+    assert "direct_exa" not in view["providers"]
+    assert view["direct_exa_invoice"] is None
+    assert view["amounts"]["reserved_worst_case_microusd"] == 147
+    assert view["amounts"]["calculated_microusd"] is None
+    assert view["amounts"]["billed_microusd"] is None
+    assert view["completeness"]["billed"] == "missing"
+    assert "result" not in view["attempts"][0]
+    assert "seal" not in view
+    inference = next(item for item in view["attempts"] if item["step_key"] == "initial-inference")
+    assert inference["calculated_microusd"] == 10 * 3 + 2 * 5
+    assert inference["billed_microusd"] is None
+    with pytest.raises(BudgetStop):
+        record_facts(
+            path,
+            project["project_id"],
+            project["seal"],
+            "initial-inference",
+            usage={"prompt": 1},
+        )
+
+
+def test_two_price_bases_are_not_added(tmp_path):
+    path, project = _open(tmp_path)
+    decide(path, project["project_id"], project["seal"], "mixed", "venice", 10)
+    from server.projectbudget import record_facts, report
+
+    record_facts(
+        path,
+        project["project_id"],
+        project["seal"],
+        "mixed",
+        usage={"input_tokens": 1, "output_tokens": 1, "request_count": 1},
+        pricing_snapshot={"input_microusd_per_token": 2, "output_microusd_per_token": 2, "per_request_microusd": 9},
+        billed_microusd=4,
+    )
+    view = report(path, project["project_id"], project["seal"], "synthetic")
+    mixed = view["attempts"][0]
+    assert mixed["calculated_microusd"] is None
+    assert mixed["billed_microusd"] == 4
+    assert view["amounts"]["billed_microusd"] == 4
+    assert view["amounts"]["calculated_microusd"] is None
+
+
+def test_shared_partner_key_has_no_cost_route(monkeypatch):
+    monkeypatch.setenv("AI_PARTNER_API_KEYS", "static-test-key")
+    from server import create_app
+
+    app = create_app()
+    rules = [rule.rule for rule in app.url_map.iter_rules()]
+    assert not any("cost" in rule or "budget" in rule for rule in rules)
+    res = app.test_client().get("/api/project-cost", headers={"Authorization": "Bearer static-test-key"})
+    assert res.status_code == 404
+
+
 def test_memory_path_is_not_a_budget(tmp_path):
     with pytest.raises(BudgetStop) as exc:
         create_project(":memory:")
