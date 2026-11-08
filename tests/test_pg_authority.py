@@ -6,8 +6,9 @@ The host must be local and the database name must be exposure_test.
 import os
 import socket
 import subprocess
+import sys
 import threading
-from urllib.parse import urlsplit
+from pathlib import Path
 
 import pytest
 
@@ -22,29 +23,29 @@ from server.exposure import (
     VENICE_UPSTREAM_TRIES,
     describe_venice,
 )
-from server.pg_authority import PostgresAuthority, drop_schema, install_schema
+from server.pg_authority import PostgresAuthority, drop_schema, install_schema, throwaway_params
 from server.spendguard import SpendClosed
 from tests.test_chatjob import ONE_SHOT
 from tests.test_exposure import Recording, _req, _requests, _schedule, _work
 
-_LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
-_PG_BIN = "/usr/lib/postgresql/16/bin"
-
-
 def assert_throwaway(url):
-    if not isinstance(url, str) or not url.strip():
-        raise RuntimeError("missing explicit disposable Postgres URL")
-    if os.environ.get("DATABASE_URL") and url == os.environ.get("DATABASE_URL") and "railway" in url.lower():
-        raise RuntimeError("refusing Railway DATABASE_URL")
-    parts = urlsplit(url.strip())
-    if parts.scheme not in {"postgresql", "postgres"}:
-        raise RuntimeError("unsupported scheme")
-    host = (parts.hostname or "").lower()
-    if host not in _LOCAL_HOSTS:
-        raise RuntimeError("refusing non-local Postgres endpoint")
-    if parts.path.lstrip("/") != "exposure_test":
-        raise RuntimeError("refusing database that is not exposure_test")
+    throwaway_params(url)
     return url.strip()
+
+
+def postgres_bindir():
+    root = Path("/usr/lib/postgresql")
+    found = []
+    if root.is_dir():
+        for child in root.iterdir():
+            bindir = child / "bin"
+            if all((bindir / name).is_file() for name in ("pg_ctl", "initdb", "createdb")):
+                found.append(bindir)
+    if not found:
+        if os.environ.get("EXPOSURE_PG_REQUIRED") == "1":
+            pytest.fail("Postgres tools are missing; stop/start proof cannot be skipped")
+        pytest.skip("Postgres tools are missing")
+    return sorted(found, key=lambda path: path.parts)[-1]
 
 
 def resolve_test_dsn():
@@ -82,6 +83,26 @@ def test_nonlocal_and_wrong_database_are_refused():
         assert_throwaway("postgresql://exposure@db.railway.internal/exposure_test")
     with pytest.raises(RuntimeError):
         assert_throwaway("postgresql://exposure@127.0.0.1/postgres")
+    base = "postgresql://exposure@127.0.0.1:55432/exposure_test"
+    for override in ("host=example.com", "hostaddr=8.8.8.8", "dbname=postgres", "service=prod"):
+        with pytest.raises(RuntimeError):
+            throwaway_params(base + "?" + override)
+
+
+def test_destructive_schema_setup_does_not_connect_for_a_routed_dsn(monkeypatch):
+    calls = []
+
+    def refuse(*_args, **_kwargs):
+        calls.append(1)
+        raise AssertionError("connected")
+
+    monkeypatch.setattr("psycopg.connect", refuse)
+    with pytest.raises(RuntimeError):
+        install_schema(
+            "postgresql://exposure@127.0.0.1:55432/exposure_test?host=example.com",
+            "exp_" + "a" * 16,
+        )
+    assert calls == []
 
 
 def test_two_connections_cannot_cross_the_ceiling(authority):
@@ -203,8 +224,7 @@ def test_void_retry_and_a_second_process(authority):
     assert fresh["execution_id"] != opened["execution_id"]
     assert fresh["kind"] == "reserved"
     child = """
-import os, sys
-sys.path.insert(0, os.environ["REPO"])
+import os
 from server.exposure import ExposureStop
 from server.pg_authority import PostgresAuthority
 from tests.test_exposure import _req, _schedule
@@ -215,16 +235,20 @@ try:
 except ExposureStop as exc:
     print(exc.code)
 """
+    repo = str(Path(__file__).resolve().parents[1])
+    entries = []
+    for entry in [repo, *sys.path]:
+        if entry and entry not in entries:
+            entries.append(entry)
     env = {
         **os.environ,
-        "REPO": "/agent/repos/Expert-Panel",
-        "PYTHONPATH": "/tmp/ai-partner-pydeps",
+        "PYTHONPATH": os.pathsep.join(entries),
         "SCHEMA": authority._schema,
         "PROJECT": project["project_id"],
         "SEAL": project["seal"],
     }
     completed = subprocess.run(
-        ["/tmp/ai-partner-venv/bin/python", "-c", child],
+        [sys.executable, "-c", child],
         capture_output=True,
         text=True,
         env=env,
@@ -237,25 +261,26 @@ except ExposureStop as exc:
 def test_postmaster_stop_start_keeps_the_committed_row(tmp_path):
     data = tmp_path / "data"
     log = tmp_path / "server.log"
-    initdb = f"{_PG_BIN}/initdb"
-    pg_ctl = f"{_PG_BIN}/pg_ctl"
-    createdb = f"{_PG_BIN}/createdb"
-    if not os.path.exists(pg_ctl):
-        if os.environ.get("EXPOSURE_PG_REQUIRED") == "1":
-            pytest.fail("pg_ctl is missing; stop/start proof cannot be skipped")
-        pytest.skip("pg_ctl is missing")
+    bindir = postgres_bindir()
+    initdb = str(bindir / "initdb")
+    pg_ctl = str(bindir / "pg_ctl")
+    createdb = str(bindir / "createdb")
+    probe = socket.socket()
+    probe.bind(("127.0.0.1", 0))
+    port = probe.getsockname()[1]
+    probe.close()
     subprocess.check_call(
         [initdb, "-D", str(data), "-U", "exposure", "--auth=trust", "--encoding=UTF8", "--locale=C"],
         stdout=subprocess.DEVNULL,
     )
     with open(data / "postgresql.conf", "a", encoding="utf-8") as handle:
-        handle.write("\nlisten_addresses = '127.0.0.1'\nport = 55433\nunix_socket_directories = '/tmp'\n")
+        handle.write(f"\nlisten_addresses = '127.0.0.1'\nport = {port}\nunix_socket_directories = '/tmp'\n")
     with open(data / "pg_hba.conf", "w", encoding="utf-8") as handle:
         handle.write("local all exposure trust\nhost all exposure 127.0.0.1/32 trust\nhost all exposure ::1/128 trust\n")
     subprocess.check_call([pg_ctl, "-D", str(data), "-l", str(log), "start", "-w"])
     try:
-        subprocess.check_call([createdb, "-h", "127.0.0.1", "-p", "55433", "-U", "exposure", "exposure_test"])
-        dsn = assert_throwaway("postgresql://exposure@127.0.0.1:55433/exposure_test")
+        subprocess.check_call([createdb, "-h", "127.0.0.1", "-p", str(port), "-U", "exposure", "exposure_test"])
+        dsn = assert_throwaway(f"postgresql://exposure@127.0.0.1:{port}/exposure_test")
         schema = "exp_" + __import__("secrets").token_hex(8)
         install_schema(dsn, schema)
         store = PostgresAuthority(dsn, _schedule(), schema)
@@ -348,6 +373,58 @@ def test_helpers_use_the_postgres_authority_and_http_does_not(authority, monkeyp
     assert _schemas(authority._dsn) == before
     rules = [rule.rule for rule in client.application.url_map.iter_rules()]
     assert not any("cost" in rule or "budget" in rule or "exposure" in rule for rule in rules)
+
+
+def test_another_projects_seal_cannot_change_an_execution(authority):
+    victim = authority.provision_project("pilot-engagement")
+    attacker = authority.provision_project("other-engagement")
+    request = _req("venice", "victim")
+    opened = authority.begin(victim["project_id"], victim["seal"], [request])
+    before = _execution_row(authority, opened["execution_id"])
+    calls = [
+        lambda: authority.authorize_send(
+            attacker["project_id"], attacker["seal"], opened["execution_id"], opened["capability"], request
+        ),
+        lambda: authority.mark_uncertain(attacker["project_id"], attacker["seal"], opened["execution_id"]),
+        lambda: authority.stop_after_failure(attacker["project_id"], attacker["seal"], opened["execution_id"]),
+        lambda: authority.void_unsent(attacker["project_id"], attacker["seal"], opened["execution_id"]),
+        lambda: authority.settle(attacker["project_id"], attacker["seal"], opened["execution_id"], "forged"),
+        lambda: authority.reconcile(attacker["project_id"], attacker["seal"], opened["execution_id"]),
+    ]
+    for call in calls:
+        with pytest.raises(Exception):
+            call()
+        assert _execution_row(authority, opened["execution_id"]) == before
+
+
+def test_another_projects_seal_cannot_clear_uncertainty(authority):
+    victim = authority.provision_project("pilot-engagement")
+    attacker = authority.provision_project("other-engagement")
+    opened = authority.begin(victim["project_id"], victim["seal"], [_req("venice", "held")])
+    authority.mark_uncertain(victim["project_id"], victim["seal"], opened["execution_id"])
+    before = _execution_row(authority, opened["execution_id"])
+    assert before["status"] == "uncertain"
+    assert before["reconciled"] is False
+    with pytest.raises(Exception):
+        authority.reconcile(attacker["project_id"], attacker["seal"], opened["execution_id"])
+    with pytest.raises(Exception):
+        authority.settle(attacker["project_id"], attacker["seal"], opened["execution_id"], "forged")
+    assert _execution_row(authority, opened["execution_id"]) == before
+
+
+def _execution_row(authority, execution_id):
+    import psycopg
+    from psycopg import sql
+    from psycopg.rows import dict_row
+
+    with psycopg.connect(**throwaway_params(authority._dsn), autocommit=True, row_factory=dict_row) as connection:
+        connection.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(authority._schema)))
+        row = connection.execute(
+            """SELECT status, result, capability, reserved_microusd, sends, reconciled
+               FROM execution WHERE id = %s""",
+            (execution_id,),
+        ).fetchone()
+    return dict(row)
 
 
 def describe_voice_blob(blob):

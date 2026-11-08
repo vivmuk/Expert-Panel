@@ -7,11 +7,14 @@ not detected; sends stay an operator decision outside this file.
 import json
 import re
 import secrets
+from urllib.parse import urlsplit
 
 import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
+
+_LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 from .exposure import (
     APPLICATION_CEILING_MICROUSD,
@@ -55,10 +58,44 @@ CREATE UNIQUE INDEX execution_live_fingerprint
 """
 
 
+def throwaway_params(url):
+    """Local exposure_test only. Query and service overrides are rejected before connect."""
+    if not isinstance(url, str) or not url.strip() or "://" not in url:
+        raise RuntimeError("missing explicit disposable Postgres URL")
+    parts = urlsplit(url.strip())
+    if parts.scheme not in {"postgresql", "postgres"}:
+        raise RuntimeError("unsupported scheme")
+    if parts.query or parts.fragment:
+        raise RuntimeError("refusing connection URI parameters")
+    host = (parts.hostname or "").lower().strip("[]")
+    if host not in _LOCAL_HOSTS:
+        raise RuntimeError("refusing non-local Postgres endpoint")
+    if parts.port is None:
+        raise RuntimeError("refusing implicit port")
+    if parts.path.lstrip("/") != "exposure_test":
+        raise RuntimeError("refusing database that is not exposure_test")
+    if not parts.username:
+        raise RuntimeError("refusing implicit user")
+    params = {
+        "host": "127.0.0.1" if host == "localhost" else host,
+        "port": parts.port,
+        "dbname": "exposure_test",
+        "user": parts.username,
+    }
+    if parts.password is not None:
+        params["password"] = parts.password
+    return params
+
+
+def connect_throwaway(url, **kwargs):
+    return psycopg.connect(**throwaway_params(url), **kwargs)
+
+
 def install_schema(dsn, schema):
     if not re.fullmatch(r"exp_[a-z0-9]{16}", schema):
         raise RuntimeError("refusing schema name")
-    with psycopg.connect(dsn, autocommit=True) as connection:
+    throwaway_params(dsn)
+    with connect_throwaway(dsn, autocommit=True) as connection:
         connection.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(schema)))
         connection.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
         connection.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(schema)))
@@ -68,7 +105,8 @@ def install_schema(dsn, schema):
 def drop_schema(dsn, schema):
     if not re.fullmatch(r"exp_[a-z0-9]{16}", schema):
         raise RuntimeError("refusing schema name")
-    with psycopg.connect(dsn, autocommit=True) as connection:
+    throwaway_params(dsn)
+    with connect_throwaway(dsn, autocommit=True) as connection:
         connection.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(schema)))
 
 
@@ -79,7 +117,7 @@ class PostgresAuthority(ExposureAuthority):
         self._schema = schema
 
     def _connect(self):
-        connection = psycopg.connect(self._dsn, autocommit=False, row_factory=dict_row)
+        connection = connect_throwaway(self._dsn, autocommit=False, row_factory=dict_row)
         connection.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(self._schema)))
         return connection
 
@@ -233,7 +271,7 @@ class PostgresAuthority(ExposureAuthority):
                 self._lock_project(connection, project_id, seal)
                 if self._blocked(connection, project_id):
                     raise SpendClosed("paid_path_blocked")
-                found = self._one(connection, execution_id)
+                found = self._one(connection, project_id, execution_id)
                 if found["status"] != "reserved" or found["capability"] != capability:
                     raise SpendClosed("paid_path_blocked")
                 record = {"snapshot": found["snapshot"], "used": found["used"]}
@@ -242,8 +280,9 @@ class PostgresAuthority(ExposureAuthority):
                     raise SpendClosed("paid_path_blocked")
                 used = found["used"] + [index]
                 connection.execute(
-                    "UPDATE execution SET used = %s, sends = sends + 1 WHERE id = %s AND status = 'reserved' AND capability = %s",
-                    (used, execution_id, capability),
+                    """UPDATE execution SET used = %s, sends = sends + 1
+                       WHERE id = %s AND project_id = %s AND status = 'reserved' AND capability = %s""",
+                    (used, execution_id, project_id, capability),
                 )
                 connection.commit()
                 return json.loads(json.dumps(found["snapshot"][index]))
@@ -254,11 +293,11 @@ class PostgresAuthority(ExposureAuthority):
                 connection.rollback()
                 raise
 
-    def _one(self, connection, execution_id):
+    def _one(self, connection, project_id, execution_id):
         row = connection.execute(
-            """SELECT id, capability, status, snapshot, used, sends, reserved_microusd, result
-               FROM execution WHERE id = %s FOR UPDATE""",
-            (execution_id,),
+            """SELECT id, project_id, capability, status, snapshot, used, sends, reserved_microusd, result
+               FROM execution WHERE id = %s AND project_id = %s FOR UPDATE""",
+            (execution_id, project_id),
         ).fetchone()
         if row is None:
             raise ExposureStop("execution_rejected")
@@ -279,7 +318,7 @@ class PostgresAuthority(ExposureAuthority):
         with self._connect() as connection:
             try:
                 self._lock_project(connection, project_id, seal)
-                found = self._one(connection, execution_id)
+                found = self._one(connection, project_id, execution_id)
                 if found["status"] == "uncertain":
                     connection.rollback()
                     return
@@ -288,8 +327,8 @@ class PostgresAuthority(ExposureAuthority):
                 connection.execute(
                     """UPDATE execution
                        SET status = 'uncertain', capability = %s, result = NULL
-                       WHERE id = %s AND status = 'reserved'""",
-                    (secrets.token_hex(16), execution_id),
+                       WHERE id = %s AND project_id = %s AND status = 'reserved'""",
+                    (secrets.token_hex(16), execution_id, project_id),
                 )
                 connection.commit()
             except ExposureStop:
@@ -300,23 +339,23 @@ class PostgresAuthority(ExposureAuthority):
         with self._connect() as connection:
             try:
                 self._lock_project(connection, project_id, seal)
-                found = self._one(connection, execution_id)
+                found = self._one(connection, project_id, execution_id)
                 if found["status"] == "void":
                     connection.rollback()
                     return
                 if int(found["sends"]) == 0 and found["status"] == "reserved":
                     connection.execute(
                         """UPDATE execution SET status = 'void', capability = %s
-                           WHERE id = %s AND status = 'reserved' AND sends = 0""",
-                        (secrets.token_hex(16), execution_id),
+                           WHERE id = %s AND project_id = %s AND status = 'reserved' AND sends = 0""",
+                        (secrets.token_hex(16), execution_id, project_id),
                     )
                     connection.commit()
                     return
                 if found["status"] == "reserved":
                     connection.execute(
                         """UPDATE execution SET status = 'uncertain', capability = %s, result = NULL
-                           WHERE id = %s AND status = 'reserved'""",
-                        (secrets.token_hex(16), execution_id),
+                           WHERE id = %s AND project_id = %s AND status = 'reserved'""",
+                        (secrets.token_hex(16), execution_id, project_id),
                     )
                     connection.commit()
             except ExposureStop:
@@ -327,7 +366,7 @@ class PostgresAuthority(ExposureAuthority):
         with self._connect() as connection:
             try:
                 self._lock_project(connection, project_id, seal)
-                found = self._one(connection, execution_id)
+                found = self._one(connection, project_id, execution_id)
                 if found["status"] == "void":
                     connection.rollback()
                     return
@@ -336,8 +375,8 @@ class PostgresAuthority(ExposureAuthority):
                 connection.execute(
                     """UPDATE execution
                        SET status = 'void', capability = %s
-                       WHERE id = %s AND status = 'reserved' AND sends = 0""",
-                    (secrets.token_hex(16), execution_id),
+                       WHERE id = %s AND project_id = %s AND status = 'reserved' AND sends = 0""",
+                    (secrets.token_hex(16), execution_id, project_id),
                 )
                 connection.commit()
             except ExposureStop:
@@ -350,23 +389,23 @@ class PostgresAuthority(ExposureAuthority):
         with self._connect() as connection:
             try:
                 self._lock_project(connection, project_id, seal)
-                found = self._one(connection, execution_id)
+                found = self._one(connection, project_id, execution_id)
                 if found["status"] != "reserved":
                     raise ExposureStop("attempt_uncertain")
                 if self._blocked(connection, project_id):
                     connection.execute(
                         """UPDATE execution
                            SET status = 'uncertain', capability = %s, result = NULL
-                           WHERE id = %s AND status = 'reserved'""",
-                        (secrets.token_hex(16), execution_id),
+                           WHERE id = %s AND project_id = %s AND status = 'reserved'""",
+                        (secrets.token_hex(16), execution_id, project_id),
                     )
                     connection.commit()
                     return "uncertain"
                 connection.execute(
                     """UPDATE execution
                        SET status = 'settled', capability = %s, result = %s
-                       WHERE id = %s AND status = 'reserved'""",
-                    (secrets.token_hex(16), result, execution_id),
+                       WHERE id = %s AND project_id = %s AND status = 'reserved'""",
+                    (secrets.token_hex(16), result, execution_id, project_id),
                 )
                 connection.commit()
                 return "settled"
@@ -378,18 +417,19 @@ class PostgresAuthority(ExposureAuthority):
         with self._connect() as connection:
             try:
                 self._lock_project(connection, project_id, seal)
-                found = self._one(connection, execution_id)
+                found = self._one(connection, project_id, execution_id)
                 if found["status"] != "uncertain":
                     raise ExposureStop("attempt_uncertain")
                 current = connection.execute(
-                    "SELECT reconciled FROM execution WHERE id = %s",
-                    (execution_id,),
+                    "SELECT reconciled FROM execution WHERE id = %s AND project_id = %s",
+                    (execution_id, project_id),
                 ).fetchone()
                 if current["reconciled"]:
                     raise ExposureStop("attempt_uncertain")
                 connection.execute(
-                    "UPDATE execution SET reconciled = true WHERE id = %s AND status = 'uncertain'",
-                    (execution_id,),
+                    """UPDATE execution SET reconciled = true
+                       WHERE id = %s AND project_id = %s AND status = 'uncertain'""",
+                    (execution_id, project_id),
                 )
                 connection.commit()
             except ExposureStop:
