@@ -8,8 +8,11 @@ applied.
 
 An uncertain step stops every new reservation in that file until
 `reconcile_uncertainty`. Reconciliation does not release the reservation.
-Reuse requires the same service, stage, and input fingerprint. Facts are
-inserted once. The report shows fingerprints, not the caller's text.
+Reuse requires the same service, stage, and input fingerprint. That fingerprint
+stays in the file. It is not a secret and it is not written into the report.
+The report id is a random value stored with the row. Facts are inserted once.
+A file whose tables are not this version is refused before any new table is
+created, so an older ledger keeps its rows.
 
 A copied file or a restored earlier copy of a valid file is not detected.
 There is no monotonic anchor outside the file and no principal registry.
@@ -24,6 +27,21 @@ import threading
 
 APPLICATION_CEILING_MICROUSD = 5_000_000
 REQUESTED_ENGAGEMENT_ATTEMPT_CAP = 3
+SCHEMA_VERSION = 2
+_PROJECT_COLUMNS = ("project_id", "seal_hash", "ceiling_microusd")
+_STEP_COLUMNS = (
+    "project_id",
+    "identity_hash",
+    "service",
+    "stage",
+    "status",
+    "reconciled",
+    "reserved_microusd",
+    "result_json",
+    "report_id",
+)
+_OBSERVATION_COLUMNS = ("project_id", "identity_hash", "kind", "body_json")
+_TABLES = ("observation", "project", "step")
 SERVICES = frozenset({"venice", "exa", "memory"})
 STAGES = frozenset({"initial", "recovery"})
 PROVIDER_CHANNEL = {"venice": "venice_inference", "exa": "venice_hosted_exa", "memory": "supermemory"}
@@ -81,16 +99,17 @@ def _connect(path):
     return conn
 
 
-def _ensure_schema(conn):
+def _create_schema(conn):
+    """Create the current tables. Callers may use this only on a new empty file."""
     conn.execute(
-        """CREATE TABLE IF NOT EXISTS project (
+        """CREATE TABLE project (
             project_id TEXT PRIMARY KEY,
             seal_hash TEXT NOT NULL,
             ceiling_microusd INTEGER NOT NULL
         )"""
     )
     conn.execute(
-        """CREATE TABLE IF NOT EXISTS step (
+        """CREATE TABLE step (
             project_id TEXT NOT NULL,
             identity_hash TEXT NOT NULL,
             service TEXT NOT NULL,
@@ -99,11 +118,12 @@ def _ensure_schema(conn):
             reconciled INTEGER NOT NULL,
             reserved_microusd INTEGER NOT NULL,
             result_json TEXT,
+            report_id TEXT NOT NULL,
             PRIMARY KEY (project_id, identity_hash)
         )"""
     )
     conn.execute(
-        """CREATE TABLE IF NOT EXISTS observation (
+        """CREATE TABLE observation (
             project_id TEXT NOT NULL,
             identity_hash TEXT NOT NULL,
             kind TEXT NOT NULL,
@@ -111,6 +131,30 @@ def _ensure_schema(conn):
             PRIMARY KEY (project_id, identity_hash, kind)
         )"""
     )
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+
+def _column_names(conn, table):
+    return tuple(row["name"] for row in conn.execute(f"PRAGMA table_info({table})"))
+
+
+def _require_current_schema(conn):
+    """Refuse any other layout before a statement that could create or change it."""
+    version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    names = tuple(
+        row["name"]
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        )
+    )
+    if version != SCHEMA_VERSION or names != _TABLES:
+        raise BudgetStop("schema_unsupported")
+    if _column_names(conn, "project") != _PROJECT_COLUMNS:
+        raise BudgetStop("schema_unsupported")
+    if _column_names(conn, "step") != _STEP_COLUMNS:
+        raise BudgetStop("schema_unsupported")
+    if _column_names(conn, "observation") != _OBSERVATION_COLUMNS:
+        raise BudgetStop("schema_unsupported")
 
 
 def _seal_hash(seal):
@@ -148,7 +192,7 @@ def create_project(path):
         try:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("BEGIN IMMEDIATE")
-            _ensure_schema(conn)
+            _create_schema(conn)
             conn.execute(
                 "INSERT INTO project (project_id, seal_hash, ceiling_microusd) VALUES (?, ?, ?)",
                 (project_id, _seal_hash(seal), APPLICATION_CEILING_MICROUSD),
@@ -211,7 +255,7 @@ def decide(path, project_id, seal, inputs, service, worst_case_microusd, stage="
         try:
             conn.execute("BEGIN IMMEDIATE")
             try:
-                _ensure_schema(conn)
+                _require_current_schema(conn)
                 project = _project(conn, project_id, seal)
             except BudgetStop:
                 conn.execute("ROLLBACK")
@@ -241,9 +285,9 @@ def decide(path, project_id, seal, inputs, service, worst_case_microusd, stage="
                 raise BudgetStop("over_cap")
             conn.execute(
                 """INSERT INTO step (
-                       project_id, identity_hash, service, stage, status, reconciled, reserved_microusd, result_json
-                   ) VALUES (?, ?, ?, ?, 'reserved', 0, ?, NULL)""",
-                (project_id, identity, service, stage, worst_case_microusd),
+                       project_id, identity_hash, service, stage, status, reconciled, reserved_microusd, result_json, report_id
+                   ) VALUES (?, ?, ?, ?, 'reserved', 0, ?, NULL, ?)""",
+                (project_id, identity, service, stage, worst_case_microusd, secrets.token_hex(16)),
             )
             conn.execute("COMMIT")
         except BudgetStop:
@@ -268,6 +312,7 @@ def _transition(path, project_id, seal, inputs, service, stage, status, result_j
         conn = _connect(path)
         try:
             conn.execute("BEGIN IMMEDIATE")
+            _require_current_schema(conn)
             _project(conn, project_id, seal)
             cur = conn.execute(
                 """UPDATE step SET status = ?, result_json = ?
@@ -312,6 +357,7 @@ def reconcile_uncertainty(path, project_id, seal, inputs, service, stage="initia
         conn = _connect(path)
         try:
             conn.execute("BEGIN IMMEDIATE")
+            _require_current_schema(conn)
             _project(conn, project_id, seal)
             cur = conn.execute(
                 """UPDATE step SET reconciled = 1
@@ -340,6 +386,7 @@ def accounted(path, project_id, seal):
         conn = _connect(path)
         try:
             conn.execute("BEGIN IMMEDIATE")
+            _require_current_schema(conn)
             _project(conn, project_id, seal)
             count, spent = _spent(conn, project_id)
             conn.execute("ROLLBACK")
@@ -423,6 +470,7 @@ def record_facts(path, project_id, seal, inputs, service, usage=None, pricing_sn
         conn = _connect(path)
         try:
             conn.execute("BEGIN IMMEDIATE")
+            _require_current_schema(conn)
             _project(conn, project_id, seal)
             found = conn.execute(
                 "SELECT 1 FROM step WHERE project_id = ? AND identity_hash = ?",
@@ -470,10 +518,11 @@ def report(path, project_id, seal, label):
         conn = _connect(path)
         try:
             conn.execute("BEGIN IMMEDIATE")
+            _require_current_schema(conn)
             project = _project(conn, project_id, seal)
             rows = list(conn.execute(
-                """SELECT identity_hash, service, stage, status, reserved_microusd
-                   FROM step WHERE project_id = ? ORDER BY identity_hash""",
+                """SELECT identity_hash, report_id, service, stage, status, reserved_microusd
+                   FROM step WHERE project_id = ? ORDER BY report_id""",
                 (project_id,),
             ))
             fact_rows = {
@@ -496,7 +545,7 @@ def report(path, project_id, seal, label):
         snapshot = facts.get("pricing_snapshot")
         billed = facts.get("billed")
         steps.append({
-            "step_id": row["identity_hash"],
+            "step_id": row["report_id"],
             "provider": PROVIDER_CHANNEL[row["service"]],
             "stage": row["stage"],
             "status": row["status"],

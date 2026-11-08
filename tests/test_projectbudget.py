@@ -3,6 +3,7 @@
 5000000 microusd is $5 of accounting, not a provider bill. This file does not
 count engagement executions. HTTP routes stay closed.
 """
+import hashlib
 import json
 import os
 import shutil
@@ -366,15 +367,46 @@ def test_facts_stay_when_a_later_write_omits_them(tmp_path):
     assert step["calculated_microusd"] is None
 
 
-def test_report_identifier_does_not_echo_caller_text(tmp_path):
+def test_report_identifier_is_random_and_not_a_content_hash(tmp_path):
     path, project = _open(tmp_path)
-    secret = "user@example.com sk-secret ?q=token"
-    decide(path, project["project_id"], project["seal"], secret, "memory", 10)
+    low = "a"
+    decide(path, project["project_id"], project["seal"], low, "memory", 10, stage="initial")
     from server.projectbudget import report
 
+    secret = "user@example.com sk-secret ?q=token"
+    decide(path, project["project_id"], project["seal"], secret, "venice", 10, stage="initial")
     view = report(path, project["project_id"], project["seal"], "ledger")
-    assert secret not in json.dumps(view)
-    assert view["steps"][0]["step_id"] != secret
+    raw = json.dumps(
+        {"inputs": low, "service": "memory", "stage": "initial"},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    fingerprint = hashlib.sha256(raw.encode()).hexdigest()
+    dumped = json.dumps(view)
+
+    def values(node):
+        if isinstance(node, str):
+            yield node
+        elif isinstance(node, dict):
+            for item in node.values():
+                yield from values(item)
+        elif isinstance(node, list):
+            for item in node:
+                yield from values(item)
+
+    assert low not in set(values(view))
+    assert secret not in dumped
+    assert fingerprint not in dumped
+    low_step = next(item for item in view["steps"] if item["provider"] == "supermemory")
+    assert low_step["step_id"] != fingerprint
+    assert low_step["step_id"] != low
+    again = report(path, project["project_id"], project["seal"], "ledger")
+    again_low = next(item for item in again["steps"] if item["provider"] == "supermemory")
+    assert again_low["step_id"] == low_step["step_id"]
+    other_path, other = _open(tmp_path, "other-report.db")
+    decide(other_path, other["project_id"], other["seal"], low, "memory", 10, stage="initial")
+    other_view = report(other_path, other["project_id"], other["seal"], "ledger")
+    assert other_view["steps"][0]["step_id"] != low_step["step_id"]
     assert view["runtime_enforcement"] is False
     assert view["engagement_attempts"] is None
     assert view["engagement_attempt_cap_enforced"] is False
@@ -436,6 +468,106 @@ def test_copying_the_file_forks_the_budget_unsolved(tmp_path):
     assert decide(fork, project["project_id"], project["seal"], "more-fork", "venice", 4_999_900)["kind"] == "reserved"
     assert accounted(path, project["project_id"], project["seal"])["reserved_microusd"] == APPLICATION_CEILING_MICROUSD
     assert accounted(fork, project["project_id"], project["seal"])["reserved_microusd"] == APPLICATION_CEILING_MICROUSD
+
+
+def _legacy_rows(path):
+    conn = sqlite3.connect(path)
+    try:
+        tables = [row[0] for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        )]
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        rows = list(conn.execute(
+            """SELECT step_key, service, stage, status, reserved_microusd, result_json
+               FROM attempt ORDER BY step_key"""
+        ))
+    finally:
+        conn.close()
+    return tables, version, rows
+
+
+def test_original_schema_with_reservations_is_refused_and_left_intact(tmp_path):
+    """The fed16dab layout is not migrated. Opening it must not free the old reservations."""
+    path = str(tmp_path / "legacy.db")
+    project_id = "legacy-project"
+    seal = "legacy-seal"
+    seal_hash = hashlib.sha256(seal.encode()).hexdigest()
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        """
+        CREATE TABLE project (
+            project_id TEXT PRIMARY KEY,
+            seal_hash TEXT NOT NULL,
+            ceiling_microusd INTEGER NOT NULL,
+            max_attempts INTEGER NOT NULL
+        );
+        CREATE TABLE attempt (
+            project_id TEXT NOT NULL,
+            step_key TEXT NOT NULL,
+            service TEXT NOT NULL,
+            stage TEXT NOT NULL,
+            status TEXT NOT NULL,
+            reserved_microusd INTEGER NOT NULL,
+            result_json TEXT,
+            usage_json TEXT,
+            pricing_snapshot_json TEXT,
+            calculated_microusd INTEGER,
+            billed_microusd INTEGER,
+            PRIMARY KEY (project_id, step_key)
+        );
+        """
+    )
+    conn.execute(
+        "INSERT INTO project (project_id, seal_hash, ceiling_microusd, max_attempts) VALUES (?, ?, ?, ?)",
+        (project_id, seal_hash, APPLICATION_CEILING_MICROUSD, 3),
+    )
+    legacy_rows = (
+        ("inflight", "exa", "recovery", "reserved", 1_000_000, None),
+        ("spent", "venice", "initial", "settled", 3_000_000, "{\"ok\":true}"),
+        ("unsure", "memory", "initial", "uncertain", 400_000, None),
+    )
+    for step_key, service, stage, status, reserved, result in legacy_rows:
+        conn.execute(
+            """INSERT INTO attempt (
+                   project_id, step_key, service, stage, status, reserved_microusd, result_json,
+                   usage_json, pricing_snapshot_json, calculated_microusd, billed_microusd
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL)""",
+            (project_id, step_key, service, stage, status, reserved, result),
+        )
+    conn.commit()
+    conn.close()
+    before = hashlib.sha256(open(path, "rb").read()).hexdigest()
+    child = """
+import os, sys
+sys.path.insert(0, os.environ["REPO"])
+from server.projectbudget import BudgetStop, accounted, decide, mark_uncertain, report
+calls = (
+    lambda: decide(os.environ["JOURNAL"], os.environ["PROJECT"], os.environ["SEAL"], "fresh", "venice", 5000000),
+    lambda: accounted(os.environ["JOURNAL"], os.environ["PROJECT"], os.environ["SEAL"]),
+    lambda: report(os.environ["JOURNAL"], os.environ["PROJECT"], os.environ["SEAL"], "ledger"),
+    lambda: mark_uncertain(os.environ["JOURNAL"], os.environ["PROJECT"], os.environ["SEAL"], "inflight", "exa", stage="recovery"),
+)
+for call in calls:
+    try:
+        call()
+        print("OPENED")
+    except BudgetStop as exc:
+        print(exc.code)
+"""
+    env = {**os.environ, "REPO": os.getcwd(), "JOURNAL": path, "PROJECT": project_id, "SEAL": seal}
+    completed = subprocess.run([sys.executable, "-c", child], capture_output=True, text=True, env=env, check=False)
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.splitlines() == ["schema_unsupported"] * 4
+    assert hashlib.sha256(open(path, "rb").read()).hexdigest() == before
+    assert not os.path.exists(path + "-wal")
+    tables, version, rows = _legacy_rows(path)
+    assert tables == ["attempt", "project"]
+    assert version == 0
+    assert rows == list(legacy_rows)
+    with pytest.raises(BudgetStop) as minted:
+        create_project(path)
+    assert minted.value.code == "store_unproven"
+    assert hashlib.sha256(open(path, "rb").read()).hexdigest() == before
 
 
 def test_deleting_the_file_mints_another_budget_unsolved(tmp_path):
