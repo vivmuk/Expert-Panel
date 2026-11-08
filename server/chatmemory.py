@@ -111,74 +111,32 @@ def recall(chat_id, query, visitor_id=None, has_history=False):
     key = _key()
     if not key or not query:
         return ""
-    from .spendguard import refuse_paid
+    from .exposure import current
 
-    refuse_paid()
-    ns = memory_namespace(chat_id, visitor_id)
-    if not _may_search(ns, has_history):
-        return ""
-    try:
-        response = requests.post(
-            f"https://api.supermemory.ai/ns/{ns}/search",
-            headers=_headers(key),
-            json={"query": query[:500], "searchMode": "hybrid", "limit": 3},
-            timeout=TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-        payload = response.json()
-    except Exception:
-        logger.info("supermemory recall failed for %s", ns)
-        return ""
-    parts = []
-    for item in (payload.get("results") or [])[:3]:
-        if not isinstance(item, dict):
-            continue
-        text = item.get("memory") or item.get("chunk") or ""
-        if isinstance(text, str) and text.strip():
-            parts.append(" ".join(text.split()))
-    return "\n".join(parts)[:800]
+    active = current()
+    if active is None:
+        from .spendguard import refuse_paid
+
+        refuse_paid()
+    from .exposure import describe_recall
+
+    transport, bound = active.consume(describe_recall(chat_id, query, visitor_id, has_history))
+    return transport.recall(bound)
 
 
 def remember(chat_id, content, visitor_id=None):
-    """POST one document under this chat's namespace tag.
-
-    /v3/documents appends when customId already exists, so a second post of the
-    same snapshot is skipped. A different snapshot for the same customId is sent
-    and Supermemory appends it.
-    """
+    """Memory writes stay closed unless an offline execution reserved this call."""
     key = _key()
     if not key or not content:
         return
-    from .spendguard import refuse_paid
+    from .exposure import current
 
-    refuse_paid()
-    ns = memory_namespace(chat_id, visitor_id)
-    text = content[:8000]
-    doc_id = _custom_id(ns, chat_id)
-    if _same_snapshot(doc_id, text):
-        return
-    body = {
-        "content": text,
-        "customId": doc_id,
-        "containerTags": [ns],
-        "metadata": _scalar_metadata({"type": "engagement"}),
-    }
-    response = None
-    try:
-        response = requests.post(
-            WRITE_URL,
-            headers=_headers(key),
-            json=body,
-            timeout=TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-    except Exception:
-        logger.info(
-            "supermemory remember failed for %s status=%s body=%s",
-            ns,
-            getattr(response, "status_code", None),
-            _response_body(response, key),
-        )
-        return
-    _note_snapshot(doc_id, text)
-    _note_written(ns)
+    active = current()
+    if active is None:
+        from .spendguard import refuse_paid
+
+        refuse_paid()
+    from .exposure import describe_remember
+
+    transport, bound = active.consume(describe_remember(chat_id, content, visitor_id))
+    return transport.remember(bound)

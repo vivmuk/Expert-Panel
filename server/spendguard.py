@@ -48,14 +48,22 @@ class SpendClosed(Exception):
 
 
 def refuse_paid():
-    """Production entry points call this before any provider I/O."""
+    """Production entry points call this before any provider I/O.
+
+    `projectbudget.activation_blockers` names why a $5 ledger is not consulted
+    here. A calculated price does not open this call.
+    """
     raise SpendClosed("currency_bound_unavailable")
 
 
 def run_paid_phase(state, fn):
-    """Do not call fn. An operator integer is not a bill bound."""
-    del state, fn
-    refuse_paid()
+    """Call fn only inside an offline execution. HTTP does not start one."""
+    from .exposure import current
+
+    if current() is None:
+        del state, fn
+        refuse_paid()
+    return fn()
 
 
 def operation_key(method, path, body):

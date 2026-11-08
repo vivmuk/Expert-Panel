@@ -128,10 +128,16 @@ def reset_limits():
 
 
 def complete_with_venice(name, messages, schema, max_tokens):
-    from ..spendguard import refuse_paid
+    from ..exposure import current, describe_venice
 
-    del name, messages, schema, max_tokens
-    refuse_paid()
+    active = current()
+    if active is None:
+        del name, messages, schema, max_tokens
+        from ..spendguard import refuse_paid
+
+        refuse_paid()
+    transport, bound = active.consume(describe_venice(name, messages, schema, max_tokens))
+    return transport.venice(bound)
 
 
 complete_with_venice._spend_enforced = True

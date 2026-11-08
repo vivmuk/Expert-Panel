@@ -50,11 +50,18 @@ def _path(slot):
 
 
 def _generate_slot(slot, prompt=None, model=None):
-    """Image generation stays closed. There is no image bill bound."""
+    """Image generation stays closed unless an offline execution reserved it."""
+    from ..exposure import current
     from ..spendguard import refuse_paid
 
-    del slot, prompt, model
-    refuse_paid()
+    active = current()
+    if active is None:
+        del slot, prompt, model
+        refuse_paid()
+    from ..exposure import describe_image
+
+    transport, bound = active.consume(describe_image(slot, prompt, model))
+    return transport.image(bound)
 
 
 def _ensure_missing_async(slots=None, model=None):
