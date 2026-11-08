@@ -6,6 +6,7 @@ from flask import Blueprint, Response, jsonify, request
 
 from ..pipeline.events import REGISTRY, sse_format
 from ..pipeline.runner import start_run
+from ..spendguard import SpendClosed
 from .access import require_partner_key
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,8 @@ def create_run():
     payload = request.get_json(force=True, silent=True) or {}
     try:
         run, engagement_id, estimate = start_run(payload)
+    except SpendClosed as exc:
+        return jsonify({"error": {"code": exc.code, "message": exc.message}}), 403
     except (ValueError, KeyError) as exc:
         return jsonify({"error": {"code": "bad_request", "message": str(exc)}}), 400
     return (

@@ -13,6 +13,7 @@ from .. import mcpjobs
 from ..artifacts import ArtifactError, generate_artifact
 from ..catalog import groups
 from ..chatjob import handle_turn
+from ..spendguard import SpendClosed
 from ..chatmemory import recall, remember
 from ..downloads import download_path, save_download
 from ..harnesskit import build_kit_zip
@@ -136,6 +137,8 @@ def _tool(name, arguments):
             result = generate_artifact(state, arguments.get("artifact_id") or "", complete_with_venice)
         except ArtifactError as exc:
             return _err(str(exc))
+        except SpendClosed as exc:
+            return _err(exc.message)
         return _kept(result, job_id) if job_id else _ok(result)
     return _err(f"Unknown tool {name}.")
 

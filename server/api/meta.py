@@ -1,23 +1,29 @@
-"""Meta endpoints: live models, modes, cost estimates, branding art."""
-import logging
+"""Meta endpoints: modes, and closed model-list and estimate routes.
 
-from flask import Blueprint, jsonify, request
+The model list and the estimate both read the live Venice catalog. This
+change does not reserve a price for that read, so both routes refuse before
+calling it. A cached catalog is not used as a price.
+"""
+from flask import Blueprint, jsonify
 
 from ..modes import MODE_REGISTRY
-from ..pipeline.estimate import estimate_run
-from ..venice.models import get_catalog
+from ..spendguard import CLOSED
 
-logger = logging.getLogger(__name__)
 bp = Blueprint("meta", __name__)
+
+
+def _closed():
+    return jsonify({
+        "error": {
+            "code": "paid_path_blocked",
+            "message": CLOSED["paid_path_blocked"],
+        }
+    }), 403
 
 
 @bp.get("/models")
 def list_models():
-    try:
-        return jsonify(get_catalog().summary())
-    except Exception:
-        logger.exception("Model listing failed")
-        return jsonify({"error": {"code": "venice_unavailable", "message": "The model list is unavailable right now."}}), 502
+    return _closed()
 
 
 @bp.get("/modes")
@@ -27,13 +33,6 @@ def list_modes():
 
 @bp.post("/estimate")
 def estimate():
-    data = request.get_json(force=True, silent=True) or {}
-    mode = data.get("mode", "deep_dive")
-    panel_size = int(data.get("panelSize", 20))
-    try:
-        return jsonify(estimate_run(mode, panel_size, data.get("models") or {}))
-    except Exception:
-        logger.exception("Estimate failed")
-        return jsonify({"error": {"code": "estimate_failed", "message": "The estimate could not be computed."}}), 500
+    return _closed()
 
 

@@ -140,9 +140,14 @@ def test_demo_page_renders_the_disclaimer(monkeypatch):
     assert b'id="guide-talk"' in client.get("/voice.js").data
 
 
-def test_text_plan_uses_only_the_whitelist(monkeypatch):
+def test_text_plan_uses_only_the_whitelist(monkeypatch, tmp_path):
+    monkeypatch.delenv("VERCEL", raising=False)
     monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
-    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER", "sqlite")
+    monkeypatch.setenv("AI_PARTNER_SPEND_LEDGER_PATH", str(tmp_path / "spend.db"))
+    monkeypatch.setenv("AI_PARTNER_CALCULATED_CEILING_MICROUSD", "1000000")
+    monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_VENICE_ATTEMPT", "1")
+    monkeypatch.setenv("AI_PARTNER_CALCULATED_MICROUSD_VOICE", "1")
 
     class Fake:
         def structured(self, *args, **kwargs):

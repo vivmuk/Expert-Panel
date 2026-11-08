@@ -120,16 +120,22 @@ def _venice(monkeypatch, responses):
     ],
 )
 def test_one_structured_call_makes_at_most_three_upstream_requests(monkeypatch, responses):
+    from server.spendguard import provider_window
+
     client, seen = _venice(monkeypatch, responses)
     with pytest.raises(VeniceError):
-        client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"})
+        with provider_window():
+            client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"})
     assert len(seen) == MAX_ATTEMPTS == 3
     assert set(seen) == {CHAT_TIMEOUT} == {90}
 
 
 def test_the_thinking_off_retry_still_runs_inside_the_cap(monkeypatch):
+    from server.spendguard import provider_window
+
     client, seen = _venice(monkeypatch, [_Resp(200), _Resp(200, '{"ok": true}')])
-    assert client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"}) == {"ok": True}
+    with provider_window():
+        assert client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"}) == {"ok": True}
     assert len(seen) == 2
 
 
@@ -272,17 +278,20 @@ def test_forged_and_bad_keys_are_rejected(client):
 def test_model_list_does_not_return_the_upstream_body(client, monkeypatch):
     from server.venice.errors import VeniceError
 
-    class Boom:
-        def summary(self):
-            raise VeniceError("HTTP 500 from /models: UPSTREAM_BODY_LEAK_TOKEN", 500, "UPSTREAM_BODY_LEAK_TOKEN")
+    calls = []
 
-    monkeypatch.setattr("server.api.meta.get_catalog", lambda: Boom())
+    def boom():
+        calls.append("catalog")
+        raise VeniceError("HTTP 500 from /models: UPSTREAM_BODY_LEAK_TOKEN", 500, "UPSTREAM_BODY_LEAK_TOKEN")
+
+    monkeypatch.setattr("server.api.meta.get_catalog", boom, raising=False)
     res = client.get("/api/models")
-    assert res.status_code == 502
+    assert res.status_code == 403
+    assert calls == []
     text = res.get_data(as_text=True)
     assert "UPSTREAM_BODY_LEAK_TOKEN" not in text
     assert "Traceback" not in text
-    assert res.get_json()["error"]["message"] == "The model list is unavailable right now."
+    assert res.get_json()["error"]["code"] == "paid_path_blocked"
 
 
 def test_unknown_pages_get_a_styled_404_and_api_paths_get_json(client):

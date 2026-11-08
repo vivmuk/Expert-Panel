@@ -3,7 +3,8 @@
 Order is the delivery order. Dates are not estimates. Nothing below this line is in the hardening PR except the first row, which is this PR.
 
 1. **Legacy auth, validation, CI, smoke, and these docs.** Shipped on master as `a8e5ec5`. Partner key before any legacy run, store, or brand-write work. Shared-store access is documented there.
-2. **Same-browser project history.** This PR. Multiple projects in `ai-partner-chat-v2`, reopen intake and job state, rebuild downloads from that state. The record is not shortened field by field. Oversize, unsafe, unreadable, and newer-schema values are not overwritten, and a refused save does not leave the current transcript. Two tabs do not silently replace each other. Null transcript entries stay in the stored record. No server account and no use of `/api/engagements`.
+2. **Same-browser project history.** Shipped on master as `d1dd46b` (#11). Multiple projects in `ai-partner-chat-v2`. No server account.
+2a. **Paid-work gate and phase replay.** This PR. Provider calls stay closed unless one host has an explicit SQLite ledger and a calculated ceiling. That ceiling is not a bill. Completed phases replay. Uncertain sends are not repeated. Unpaid intake stays open. The manufacturer engagement is not run, and its currency amount stays unset.
 3. **Artifact versions** for the report, deck, and kit on a saved job.
 4. **Outcome milestones** on the work chart.
 5. **Approval gates** before a chart step counts as accepted.

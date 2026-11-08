@@ -58,6 +58,14 @@ def _ns(url):
     return url.split("/ns/")[1].split("/")[0]
 
 
+@pytest.fixture(autouse=True)
+def _provider_window():
+    from server.spendguard import provider_window
+
+    with provider_window():
+        yield
+
+
 def _install(monkeypatch):
     monkeypatch.setenv("SUPERMEMORY_API_KEY", "test-memory-key")
     stub = MemoryStub()
