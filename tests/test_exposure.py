@@ -3,6 +3,7 @@
 These tests do not establish a production $5 cap. Postgres is not connected.
 """
 import contextvars
+import json
 import sqlite3
 import threading
 
@@ -10,7 +11,7 @@ import pytest
 
 from server.api.branding import _generate_slot
 from server.api.chat import complete_with_venice
-from server.api.voice import _planned
+from server.api.voice import _planned, _transcribe
 from server.chatmemory import recall, remember
 from server.exa_search import exa_search
 from server.exposure import (
@@ -644,6 +645,75 @@ def test_a_voided_unsent_request_can_start_a_new_execution(monkeypatch):
     for thread in threads:
         thread.join(5)
     assert sorted(outcomes) == ["attempt_uncertain", "reserved"]
+
+
+def test_duration_must_match_the_frozen_line():
+    authority = _authority()
+    project = authority.register_project()
+    body = [{"role": "user", "content": "timed"}]
+    over = describe_venice("offline", body, {}, 8, duration_seconds=61)
+    with pytest.raises(ExposureStop) as too_long:
+        authority.begin(project["project_id"], project["seal"], [over])
+    assert too_long.value.code == "envelope_rejected"
+    reserved = describe_venice("offline", body, {}, 8, duration_seconds=1)
+    opened = authority.begin(project["project_id"], project["seal"], [reserved])
+    wider = describe_venice("offline", body, {}, 8, duration_seconds=60)
+    with pytest.raises(SpendClosed):
+        authority.authorize_send(
+            project["project_id"], project["seal"], opened["execution_id"], opened["capability"], wider
+        )
+    assert authority._projects[project["project_id"]]["executions"][0]["sends"] == 0
+    transport = Recording(authority, project)
+    other = _authority()
+    second = other.register_project()
+
+    def work():
+        complete_with_venice("offline", body, {}, 8)
+        return "ok"
+
+    with pytest.raises(SpendClosed):
+        run_execution(
+            other,
+            second["project_id"],
+            second["seal"],
+            [describe_venice("offline", body, {}, 8, duration_seconds=2)],
+            transport,
+            work,
+        )
+    assert transport.calls == []
+    matched = authority.authorize_send(
+        project["project_id"],
+        project["seal"],
+        opened["execution_id"],
+        opened["capability"],
+        describe_venice("offline", body, {}, 8, duration_seconds=1),
+    )
+    assert matched["bounds"]["duration_seconds"] == 1
+
+
+def test_transcription_bytes_roundtrip_without_entering_the_report():
+    blob = b"RIFF\x00\xffTRANSCRIBE-MARKER"
+    mime = "audio/webm"
+    first = describe_voice("transcribe", {"blob": blob, "mime": mime})
+    second = describe_voice("transcribe", {"blob": blob, "mime": mime})
+    assert first["payload"] == second["payload"]
+    authority = _authority()
+    project = authority.register_project()
+    transport = Recording(authority, project)
+
+    def work():
+        _transcribe(blob, mime)
+        return "ok"
+
+    done = run_execution(authority, project["project_id"], project["seal"], [first], transport, work)
+    assert done["kind"] == "settled"
+    assert transport.calls == ["voice"]
+    assert transport.payloads == [first["payload"]]
+    view = authority.report(project["project_id"], project["seal"])
+    dumped = json.dumps(view)
+    assert "TRANSCRIBE-MARKER" not in dumped
+    assert mime not in dumped
+    assert blob not in json.dumps(view).encode()
 
 
 def test_sqlite_conditional_update_is_the_pending_postgres_shape(tmp_path):

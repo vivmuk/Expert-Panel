@@ -410,6 +410,7 @@ def _actual(actual):
         "payload_sha256": hashlib.sha256(bytes(payload)).hexdigest(),
         "input_bytes": len(payload),
         "output_tokens": actual.get("output_tokens"),
+        "duration_seconds": actual.get("duration_seconds"),
         "items": actual.get("items"),
         "payload": bytes(payload),
     }
@@ -427,6 +428,7 @@ def _match_line(execution, view):
             and line["payload_sha256"] == view["payload_sha256"]
             and bounds["input_bytes"] == view["input_bytes"]
             and bounds["output_tokens"] == view["output_tokens"]
+            and bounds["duration_seconds"] == view["duration_seconds"]
             and bounds["items"] == view["items"]
         ):
             return index
@@ -458,7 +460,19 @@ def describe_remember(chat_id, content, visitor_id=None):
 
 
 def describe_voice(operation, text):
-    payload = text if isinstance(text, (bytes, bytearray)) else _canon({"operation": operation, "text": text})
+    if isinstance(text, dict):
+        blob = text.get("blob")
+        mime = text.get("mime")
+        if isinstance(blob, str):
+            blob = blob.encode()
+        if not isinstance(blob, (bytes, bytearray)) or not isinstance(mime, str) or not mime:
+            raise ExposureStop("request_rejected")
+        mime_bytes = mime.encode()
+        payload = b"transcribe\n" + str(len(mime_bytes)).encode() + b"\n" + mime_bytes + b"\n" + bytes(blob)
+    elif isinstance(text, (bytes, bytearray)):
+        payload = b"bytes\n" + bytes(text)
+    else:
+        payload = _canon({"operation": operation, "text": text})
     return _described("voice", operation, "offline", payload, 1, 1, 1)
 
 
