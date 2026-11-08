@@ -40,7 +40,7 @@ An explicit stop or confirmation flag, if wanted, needs a separate decision. Pro
 
 Public intake questions do not call a provider. Chat, Exa, Supermemory, speech, brand images, the model list, cost estimate, and `/api/runs` are refused before a provider call. A configured positive integer is not an authoritative provider bill, so those settings do not open a call. Voice and images stay closed. The manufacturer engagement stays unrun and its currency amount stays unset.
 
-The Venice client can record one socket write in a real file when a caller passes that file in. A dropped response is not retried, and a later call with the same request does not write again. `:memory:` is refused. That file is not a bill cap and the HTTP routes do not pass one. The 16-call counter is still not a currency cap. `/api/runs` is refused before the legacy engine.
+The Venice client can record one non-streaming call in a real file when a caller passes that file in. A dropped response is not retried inside that call. Streaming is refused before a hold or a socket write. `:memory:` is refused. Replacing the file or truncating it, then starting a new process, allows the same operation to be claimed again. A completed response deletes the hold, so the same operation can be claimed again. The note has no budget and no principal. Those are activation blockers. HTTP routes do not pass a journal. The 16-call counter is still not a currency cap. `/api/runs` is refused before the legacy engine. An authorized `/v1/chat/completions` or MCP tool call can return HTTP 200 with the refusal in the body. A signed Keiki turn can return HTTP 202, and the callback carries the refusal.
 
 ## Release gates
 

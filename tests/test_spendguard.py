@@ -286,7 +286,8 @@ def _one_call(client):
     )
 
 
-def test_ambiguous_accept_sends_once_and_blocks_the_repair_path(tmp_path):
+def test_ambiguous_local_response_is_received_once_and_skips_repair(tmp_path):
+    """httpd.hits counts HTTP requests the local server received, not a provider charge."""
     httpd = _drop_server()
     try:
         client = VeniceClient(
@@ -306,31 +307,22 @@ def test_ambiguous_accept_sends_once_and_blocks_the_repair_path(tmp_path):
         httpd.server_close()
 
 
-def test_replaced_journal_and_a_new_process_do_not_send_again(tmp_path):
+def test_an_intact_uncertain_row_is_visible_to_a_new_process(tmp_path):
+    """The file is left in place. This is not a replacement or truncation test."""
     httpd = _drop_server()
-    path = tmp_path / "transport.db"
+    saved = tmp_path / "kept.db"
     try:
-        client = VeniceClient(
+        fresh = VeniceClient(
             base_url=f"http://127.0.0.1:{httpd.server_port}",
             timeout=1,
-            journal_path=str(path),
+            journal_path=str(saved),
         )
         with pytest.raises(AmbiguousSend):
-            _one_call(client)
-        assert httpd.hits == 1
-        path.unlink()
-        for suffix in ("-wal", "-shm"):
-            extra = tmp_path / f"transport.db{suffix}"
-            if extra.exists():
-                extra.unlink()
-        path.write_bytes(b"")
-        with pytest.raises(SpendClosed):
-            _one_call(client)
+            _one_call(fresh)
         assert httpd.hits == 1
     finally:
         httpd.shutdown()
         httpd.server_close()
-
     child = """
 import os, sys
 sys.path.insert(0, os.environ["REPO"])
@@ -343,25 +335,54 @@ try:
 except SpendClosed as exc:
     print(exc.code)
 """
-    # The replacement above changed the file. Rebuild the uncertain row in a fresh process
-    # by using the original bytes saved before replacement.
-    saved = tmp_path / "kept.db"
-    httpd = _drop_server()
-    try:
-        fresh = VeniceClient(
-            base_url=f"http://127.0.0.1:{httpd.server_port}",
-            timeout=1,
-            journal_path=str(saved),
-        )
-        with pytest.raises(AmbiguousSend):
-            _one_call(fresh)
-    finally:
-        httpd.shutdown()
-        httpd.server_close()
     env = {**os.environ, "REPO": os.getcwd(), "JOURNAL": str(saved)}
     completed = subprocess.run([sys.executable, "-c", child], capture_output=True, text=True, env=env, check=False)
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.strip() == "phase_uncertain"
+
+
+def _fresh_claim(path, op):
+    child = """
+import os, sys
+sys.path.insert(0, os.environ["REPO"])
+from server.spendguard import SpendClosed, claim_send
+try:
+    claim_send(os.environ["JOURNAL"], os.environ["OP"])
+    print("CLAIMED")
+except SpendClosed as exc:
+    print(exc.code)
+"""
+    env = {**os.environ, "REPO": os.getcwd(), "JOURNAL": str(path), "OP": op}
+    completed = subprocess.run([sys.executable, "-c", child], capture_output=True, text=True, env=env, check=False)
+    assert completed.returncode == 0, completed.stderr
+    return completed.stdout.strip()
+
+
+def test_replacement_and_truncate_are_unsolved_across_a_new_process(tmp_path):
+    """Process-local inode and lost-key sets do not survive a new process."""
+    from server.spendguard import claim_send, lose_send
+
+    replaced = tmp_path / "replaced.db"
+    claim_send(str(replaced), "same-op")
+    lose_send(str(replaced), "same-op")
+    replaced.unlink()
+    for suffix in ("-wal", "-shm"):
+        extra = tmp_path / f"replaced.db{suffix}"
+        if extra.exists():
+            extra.unlink()
+    replaced.write_bytes(b"")
+    assert _fresh_claim(replaced, "same-op") == "CLAIMED"
+
+    truncated = tmp_path / "truncated.db"
+    claim_send(str(truncated), "pending-op")
+    inode = truncated.stat().st_ino
+    for suffix in ("-wal", "-shm"):
+        extra = tmp_path / f"truncated.db{suffix}"
+        if extra.exists():
+            extra.unlink()
+    os.truncate(truncated, 0)
+    assert truncated.stat().st_ino == inode
+    assert _fresh_claim(truncated, "pending-op") == "CLAIMED"
 
 
 def test_a_definite_invalid_json_response_still_repairs_inside_one_call(monkeypatch, tmp_path):
@@ -389,7 +410,33 @@ def test_a_definite_invalid_json_response_still_repairs_inside_one_call(monkeypa
     assert "valid JSON" in seen[1]
 
 
-def test_failed_uncertain_update_does_not_allow_another_send(tmp_path):
+def test_stream_true_is_refused_before_a_hold_or_a_socket(monkeypatch, tmp_path):
+    path = tmp_path / "stream.db"
+    seen = []
+
+    def request(*_args, **_kwargs):
+        seen.append("socket")
+        raise AssertionError("stream reached the socket")
+
+    client = VeniceClient(journal_path=str(path))
+    monkeypatch.setattr(client._session, "request", request)
+    with pytest.raises(SpendClosed) as exc:
+        client._request("POST", "/chat/completions", json_body={"stream": True}, stream=True)
+    assert exc.value.code == "paid_path_blocked"
+    assert seen == []
+    assert not path.exists()
+
+
+def test_a_completed_hold_can_be_claimed_again(tmp_path):
+    from server.spendguard import claim_send, release_send
+
+    path = str(tmp_path / "released.db")
+    claim_send(path, "op")
+    release_send(path, "op")
+    claim_send(path, "op")
+
+
+def test_failed_uncertain_update_blocks_only_this_process(tmp_path):
     import sqlite3
 
     from server import spendguard
@@ -406,3 +453,4 @@ def test_failed_uncertain_update_does_not_allow_another_send(tmp_path):
     with pytest.raises(SpendClosed) as blocked:
         claim_send(path, "op")
     assert blocked.value.code == "phase_uncertain"
+    assert _fresh_claim(path, "op") == "CLAIMED"

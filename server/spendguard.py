@@ -5,9 +5,11 @@ positive integer is not that bill, so HTTP routes do not send provider work.
 Voice, images, the model catalog, and legacy runs stay closed for the same
 reason.
 
-`claim_send` is only the client's record of one socket write. It is not
-permission to run a chat, and it is not a currency cap. `:memory:` and a
-replaced file do not count as that record.
+`claim_send` is only a file note that a non-streaming call may write once.
+It is not permission to run a chat, not a currency cap, and not a stored
+result. `release_send` deletes that note, so the same key can be claimed
+again. A new process can claim again after the file is replaced or truncated.
+Those limits are activation blockers. HTTP routes do not pass a journal.
 """
 import hashlib
 import json

@@ -74,6 +74,8 @@ class VeniceClient:
     def _request(self, method, path, *, json_body=None, timeout=None, stream=False, attempts=None):
         from ..spendguard import SpendClosed, claim_send, lose_send, operation_key, release_send
 
+        if stream:
+            raise SpendClosed("paid_path_blocked")
         if not self.journal_path:
             raise SpendClosed("currency_bound_unavailable")
         key = operation_key(method, path, json_body)
