@@ -161,7 +161,11 @@ def quote(schedule, requests):
     return total, frozen, fingerprint
 
 
-class MemoryAuthority:
+class ExposureAuthority:
+    """Store the offline contract can run against. Constructing one does not arm HTTP."""
+
+
+class MemoryAuthority(ExposureAuthority):
     """One lock, one process. Postgres integration is pending. Two instances are two caps."""
 
     def __init__(self, schedule):
@@ -287,6 +291,20 @@ class MemoryAuthority:
             found["status"] = "uncertain"
             found["capability"] = secrets.token_hex(16)
             found["result"] = None
+
+    def stop_after_failure(self, project_id, seal, execution_id):
+        with self._lock:
+            project = self._project(project_id, seal)
+            found = self._execution(project, execution_id)
+            if found["status"] == "void":
+                return
+            if found["sends"] == 0 and found["status"] == "reserved":
+                found["status"] = "void"
+                found["capability"] = secrets.token_hex(16)
+                return
+            if found["status"] == "reserved":
+                found["status"] = "uncertain"
+                found["capability"] = secrets.token_hex(16)
 
     def void_unsent(self, project_id, seal, execution_id):
         """A reserved row that never authorized a send. This is not a refund."""
@@ -526,7 +544,7 @@ def _prepare(decision, transport):
 
 def run_execution(authority, project_id, seal, requests, transport, work, execution_id=None):
     """Reserve from the schedule once, then run work. The caller plan is not read again."""
-    if not isinstance(authority, MemoryAuthority) or not isinstance(transport, OfflineTransport):
+    if not isinstance(authority, ExposureAuthority) or not isinstance(transport, OfflineTransport):
         refuse_paid()
     if _current.get() is not None:
         raise ExposureStop("nested_execution")
@@ -569,15 +587,4 @@ def run_execution(authority, project_id, seal, requests, transport, work, execut
 
 
 def _stop_after_failure(authority, project_id, seal, execution_id):
-    with authority._lock:
-        project = authority._project(project_id, seal)
-        found = authority._execution(project, execution_id)
-        if found["status"] == "void":
-            return
-        if found["sends"] == 0 and found["status"] == "reserved":
-            found["status"] = "void"
-            found["capability"] = secrets.token_hex(16)
-            return
-        if found["status"] == "reserved":
-            found["status"] = "uncertain"
-            found["capability"] = secrets.token_hex(16)
+    authority.stop_after_failure(project_id, seal, execution_id)
