@@ -44,9 +44,7 @@ Emptying the file does not mint another $5. Restoring an earlier valid copy brin
 
 ## Application exposure is in-process only
 
-`server/exposure.py` counts engagement executions. Three is that count. Stage calls sit inside one execution. The Venice client's own HTTP retry count is multiplied into the worst-case reservation before the offline transport runs. 5000000 microusd is that reservation. It is not a provider invoice. The server mints the project and the execution id. A caller-chosen id does not create a budget. A settled execution returns its stored result and does not reserve again. An uncertain execution keeps its reservation and blocks the next execution until reconcile, which does not release the money. The report uses a random id and has no HTTP route.
-
-`MemoryAuthority` is the process-local stand-in used to prove those rules. Two instances are two ceilings. HTTP does not install one, so the paid entry points still refuse before a socket. The legacy `DATA_DIR/engagements.db` file is not this authority.
+`server/exposure.py` is an in-process contract with synthetic schedule rows only. It ships no verified price. A caller-supplied unit is rejected. One execution stores a single frozen request snapshot. Replay requires that same request. A send is a locked status check. 5000000 microusd and 3 executions are limits on that object, not a provider invoice and not a production cap. Postgres is not connected. HTTP does not install an authority, so paid entry points still refuse before a socket. Two instances are two ceilings. The legacy `DATA_DIR/engagements.db` file is not this authority.
 
 ## Paid work stays closed
 

@@ -1,10 +1,9 @@
-"""Engagement exposure through the real entry points. No provider sockets.
+"""Offline exposure contract. Synthetic prices only. No provider sockets.
 
-5000000 microusd and 3 executions are application limits. They are not a
-provider invoice. HTTP does not install an authority.
+These tests do not establish a production $5 cap. Postgres is not connected.
 """
-import hashlib
-import json
+import contextvars
+import sqlite3
 import threading
 
 import pytest
@@ -17,6 +16,7 @@ from server.exa_search import exa_search
 from server.exposure import (
     APPLICATION_CEILING_MICROUSD,
     MAX_ENGAGEMENT_ATTEMPTS,
+    POSTGRES_INTEGRATION,
     ExposureStop,
     MemoryAuthority,
     OfflineTransport,
@@ -67,18 +67,60 @@ class Recording(OfflineTransport):
         return None
 
 
-def _plan():
+def _row(service, unit, upstream, repair=0):
+    return {
+        "service": service,
+        "model": "offline",
+        "max_input_bytes": 2000,
+        "max_output_tokens": 200,
+        "max_duration_seconds": 60,
+        "max_items": 4,
+        "upstream_tries": upstream,
+        "repair_tries": repair,
+        "unit_microusd": unit,
+        "provenance": "synthetic",
+    }
+
+
+def _schedule():
     return [
-        {"service": "venice", "calls": 1, "unit_microusd": 10},
-        {"service": "exa", "calls": 1, "unit_microusd": 4},
-        {"service": "memory", "calls": 2, "unit_microusd": 7},
-        {"service": "voice", "calls": 1, "unit_microusd": 5},
-        {"service": "image", "calls": 1, "unit_microusd": 6},
+        _row("venice", 10, VENICE_UPSTREAM_TRIES, 1),
+        _row("exa", 4, 1, 0),
+        _row("memory", 7, 1, 0),
+        _row("voice", 5, 1, 0),
+        _row("image", 6, 1, 0),
+    ]
+
+
+def _authority():
+    return MemoryAuthority(_schedule())
+
+
+def _req(service, payload, output_tokens=8):
+    return {
+        "service": service,
+        "model": "offline",
+        "input_bytes": 32,
+        "output_tokens": output_tokens,
+        "duration_seconds": 1,
+        "items": 1,
+        "payload": payload,
+    }
+
+
+def _requests(tag):
+    return [
+        _req("venice", f"prompt-{tag}"),
+        _req("exa", f"query-{tag}"),
+        _req("memory", f"recall-{tag}"),
+        _req("memory", f"remember-{tag}"),
+        _req("voice", f"heard-{tag}"),
+        _req("image", f"image-{tag}"),
     ]
 
 
 def _expected_reserve():
-    return 10 * VENICE_UPSTREAM_TRIES + 4 + 7 * 2 + 5 + 6
+    return 10 * (VENICE_UPSTREAM_TRIES + 1) + 4 + 7 * 2 + 5 + 6
 
 
 def _work():
@@ -91,24 +133,28 @@ def _work():
     return "stored-result-token"
 
 
-def test_one_execution_covers_every_service_and_venice_retries(monkeypatch):
+def test_synthetic_schedule_bounds_one_execution_and_replay_is_the_same_request(monkeypatch):
     monkeypatch.setenv("SUPERMEMORY_API_KEY", "offline-memory")
-    authority = MemoryAuthority()
+    authority = _authority()
     project = authority.register_project()
     transport = Recording(authority, project)
-    done = run_execution(authority, project["project_id"], project["seal"], _plan(), transport, _work)
+    requests = _requests("one")
+    done = run_execution(authority, project["project_id"], project["seal"], requests, transport, _work)
     assert done["kind"] == "settled"
     assert done["reserved_microusd"] == _expected_reserve()
     assert transport.calls == ["venice", "exa", "memory", "memory-write", "voice", "image"]
     state = authority.accounted(project["project_id"], project["seal"])
     assert state["engagement_attempts"] == 1
-    assert state["engagement_attempt_cap_enforced"] is True
+    assert state["verified_price"] is False
+    assert state["postgres_integration"] == "pending"
     assert VENICE_UPSTREAM_TRIES > 1
+    requests.append(_req("venice", "mutated-after-reserve"))
+    requests[0]["output_tokens"] = 10_000
     again = run_execution(
         authority,
         project["project_id"],
         project["seal"],
-        _plan(),
+        _requests("one"),
         transport,
         _work,
         execution_id=done["execution_id"],
@@ -117,110 +163,278 @@ def test_one_execution_covers_every_service_and_venice_retries(monkeypatch):
     assert again["result"] == "stored-result-token"
     assert transport.calls == ["venice", "exa", "memory", "memory-write", "voice", "image"]
     assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 1
+    with pytest.raises(ExposureStop) as mismatch:
+        run_execution(
+            authority,
+            project["project_id"],
+            project["seal"],
+            _requests("changed"),
+            transport,
+            _work,
+            execution_id=done["execution_id"],
+        )
+    assert mismatch.value.code == "request_mismatch"
+    assert transport.calls == ["venice", "exa", "memory", "memory-write", "voice", "image"]
     view = authority.report(project["project_id"], project["seal"])
-    dumped = json.dumps(view)
-    assert "stored-result-token" not in dumped
-    assert "secret prompt" not in dumped
-    assert "secret query" not in dumped
-    fingerprint = hashlib.sha256(b"venice").hexdigest()
-    assert fingerprint not in dumped
+    assert view["production_cap"] is False
+    assert view["price_provenance"] == "synthetic"
+    assert view["verified_price"] is False
     assert view["provider_invoice_cap"] is False
-    assert view["engagement_attempt_cap"] == MAX_ENGAGEMENT_ATTEMPTS
-    assert view["executions"][0]["billed_microusd"] is None
+    assert "synthetic_price_not_a_verified_bound" in view["gaps"]
+    assert "stored-result-token" not in str(view)
     venice = next(item for item in view["executions"][0]["services"] if item["service"] == "venice")
-    assert venice["upstream_tries_covered"] == VENICE_UPSTREAM_TRIES
-    assert venice["logical_calls"] == 1
-    assert view["executions"][0]["report_id"] != fingerprint
+    assert venice["upstream_tries"] == VENICE_UPSTREAM_TRIES
+    assert venice["repair_tries"] == 1
 
 
-def test_fourth_execution_stops_before_transport():
-    authority = MemoryAuthority()
-    project = authority.register_project()
-    plan = [{"service": "venice", "calls": 1, "unit_microusd": 10}]
-
-    def work():
-        complete_with_venice("n", [], {}, 1)
-        return "ok"
-
-    for _ in range(MAX_ENGAGEMENT_ATTEMPTS):
-        transport = Recording(authority, project)
-        assert run_execution(authority, project["project_id"], project["seal"], plan, transport, work)["kind"] == "settled"
-        assert transport.calls == ["venice"]
-    transport = Recording(authority, project)
-    with pytest.raises(ExposureStop) as exc:
-        run_execution(authority, project["project_id"], project["seal"], plan, transport, work)
-    assert exc.value.code == "attempts_exhausted"
-    assert transport.calls == []
-    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 3
-
-
-def test_reservation_cannot_cross_five_dollars_and_a_missing_price_does_not_send():
-    authority = MemoryAuthority()
+def test_caller_price_and_over_envelope_do_not_reserve():
+    authority = _authority()
     project = authority.register_project()
     transport = Recording(authority, project)
-    over = [{"service": "venice", "calls": 1, "unit_microusd": APPLICATION_CEILING_MICROUSD}]
-    with pytest.raises(ExposureStop) as exc:
-        run_execution(authority, project["project_id"], project["seal"], over, transport, _work)
-    assert exc.value.code == "over_cap"
-    assert transport.calls == []
-    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 0
+    priced = _req("venice", "body")
+    priced["unit_microusd"] = 1
+    with pytest.raises(ExposureStop) as rejected:
+        run_execution(authority, project["project_id"], project["seal"], [priced], transport, _work)
+    assert rejected.value.code == "plan_rejected"
+    wide = _req("venice", "body", output_tokens=10_000)
+    with pytest.raises(ExposureStop) as envelope:
+        run_execution(authority, project["project_id"], project["seal"], [wide], transport, _work)
+    assert envelope.value.code == "envelope_rejected"
     with pytest.raises(ExposureStop) as missing:
         run_execution(
             authority,
             project["project_id"],
             project["seal"],
-            [{"service": "exa", "calls": 1, "unit_microusd": 0}],
+            [_req("venice", "body") | {"model": "not-on-the-schedule"}],
             transport,
             _work,
         )
     assert missing.value.code == "price_unknown"
     assert transport.calls == []
+    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 0
 
 
-def test_uncertain_execution_blocks_the_next_until_reconcile(monkeypatch):
+def test_mutating_the_request_list_cannot_widen_the_reserved_snapshot():
+    authority = _authority()
+    project = authority.register_project()
+    transport = Recording(authority, project)
+    requests = [_req("venice", "once")]
+
+    def work():
+        requests[0]["output_tokens"] = 1
+        requests.extend(_req("venice", f"extra-{i}") for i in range(100))
+        complete_with_venice("n", [], {}, 1)
+        complete_with_venice("n", [], {}, 1)
+        return "ok"
+
+    with pytest.raises(SpendClosed) as exc:
+        run_execution(authority, project["project_id"], project["seal"], requests, transport, work)
+    assert exc.value.code == "paid_path_blocked"
+    assert transport.calls == ["venice"]
+    assert authority.accounted(project["project_id"], project["seal"])["reserved_microusd"] == 10 * (VENICE_UPSTREAM_TRIES + 1)
+    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 1
+
+
+def test_fourth_distinct_request_stops_before_transport():
+    authority = _authority()
+    project = authority.register_project()
+
+    def work():
+        complete_with_venice("n", [], {}, 1)
+        return "ok"
+
+    for index in range(MAX_ENGAGEMENT_ATTEMPTS):
+        transport = Recording(authority, project)
+        requests = [_req("venice", f"attempt-{index}")]
+        assert run_execution(authority, project["project_id"], project["seal"], requests, transport, work)["kind"] == "settled"
+        assert transport.calls == ["venice"]
+    transport = Recording(authority, project)
+    with pytest.raises(ExposureStop) as exc:
+        run_execution(
+            authority,
+            project["project_id"],
+            project["seal"],
+            [_req("venice", "attempt-extra")],
+            transport,
+            work,
+        )
+    assert exc.value.code == "attempts_exhausted"
+    assert transport.calls == []
+    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 3
+
+
+def test_schedule_ceiling_and_a_missing_row_do_not_send():
+    schedule = [_row("venice", APPLICATION_CEILING_MICROUSD, VENICE_UPSTREAM_TRIES, 1)]
+    authority = MemoryAuthority(schedule)
+    project = authority.register_project()
+    transport = Recording(authority, project)
+    with pytest.raises(ExposureStop) as exc:
+        run_execution(authority, project["project_id"], project["seal"], [_req("venice", "big")], transport, _work)
+    assert exc.value.code == "over_cap"
+    bare = MemoryAuthority([_row("voice", 5, 1, 0)])
+    other = bare.register_project()
+    with pytest.raises(ExposureStop) as missing:
+        run_execution(bare, other["project_id"], other["seal"], [_req("exa", "q")], transport, _work)
+    assert missing.value.code == "price_unknown"
+    assert transport.calls == []
+    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 0
+
+
+def test_uncertain_execution_blocks_a_different_request_until_reconcile(monkeypatch):
     monkeypatch.setenv("SUPERMEMORY_API_KEY", "offline-memory")
-    authority = MemoryAuthority()
+    authority = _authority()
     project = authority.register_project()
     transport = Recording(authority, project, fail_at=1)
     with pytest.raises(SpendClosed) as exc:
-        run_execution(authority, project["project_id"], project["seal"], _plan(), transport, _work)
+        run_execution(authority, project["project_id"], project["seal"], _requests("one"), transport, _work)
     assert exc.value.code == "phase_uncertain"
     assert transport.calls == ["venice"]
     reserved = authority.accounted(project["project_id"], project["seal"])["reserved_microusd"]
     assert reserved == _expected_reserve()
     quiet = Recording(authority, project)
     with pytest.raises(ExposureStop) as blocked:
-        run_execution(authority, project["project_id"], project["seal"], _plan(), quiet, _work)
+        run_execution(authority, project["project_id"], project["seal"], _requests("next"), quiet, _work)
     assert blocked.value.code == "project_unreconciled"
     assert quiet.calls == []
     execution_id = authority._projects[project["project_id"]]["executions"][0]["execution_id"]
     authority.reconcile(project["project_id"], project["seal"], execution_id)
     assert authority.accounted(project["project_id"], project["seal"])["reserved_microusd"] == reserved
     follow = Recording(authority, project)
-    done = run_execution(authority, project["project_id"], project["seal"], _plan(), follow, _work)
+    done = run_execution(authority, project["project_id"], project["seal"], _requests("next"), follow, _work)
     assert done["kind"] == "settled"
     assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 2
 
 
+def test_authorize_fails_after_uncertainty_and_after_settlement():
+    authority = _authority()
+    project = authority.register_project()
+    first = authority.begin(project["project_id"], project["seal"], [_req("venice", "a")])
+    second = authority.begin(project["project_id"], project["seal"], [_req("venice", "b")])
+    authority.mark_uncertain(project["project_id"], project["seal"], first["execution_id"])
+    with pytest.raises(SpendClosed):
+        authority.authorize_send(
+            project["project_id"], project["seal"], second["execution_id"], second["capability"], "venice"
+        )
+    assert authority._projects[project["project_id"]]["executions"][1]["sends"] == 0
+
+
+def test_a_child_context_cannot_send_after_settlement():
+    authority = _authority()
+    project = authority.register_project()
+    box = {}
+
+    def work():
+        box["ctx"] = contextvars.copy_context()
+        complete_with_venice("n", [], {}, 1)
+        return "ok"
+
+    transport = Recording(authority, project)
+    done = run_execution(authority, project["project_id"], project["seal"], [_req("venice", "child")], transport, work)
+    assert done["kind"] == "settled"
+
+    def later():
+        from server.exposure import current
+
+        current().consume("venice")
+
+    with pytest.raises(SpendClosed):
+        box["ctx"].run(later)
+    assert transport.calls == ["venice"]
+
+
+def test_one_slot_cannot_be_authorized_twice():
+    authority = _authority()
+    project = authority.register_project()
+    decision = authority.begin(project["project_id"], project["seal"], [_req("venice", "slot")])
+    barrier = threading.Barrier(2)
+    outcomes = []
+
+    def once():
+        barrier.wait()
+        try:
+            authority.authorize_send(
+                project["project_id"], project["seal"], decision["execution_id"], decision["capability"], "venice"
+            )
+            outcomes.append("sent")
+        except SpendClosed:
+            outcomes.append("stopped")
+
+    threads = [threading.Thread(target=once) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(5)
+    assert sorted(outcomes) == ["sent", "stopped"]
+    assert authority._projects[project["project_id"]]["executions"][0]["sends"] == 1
+
+
+def test_uncertainty_racing_a_send_still_blocks_the_next_authorize():
+    authority = _authority()
+    project = authority.register_project()
+    decision = authority.begin(project["project_id"], project["seal"], [_req("memory", "race")])
+    barrier = threading.Barrier(2)
+    outcomes = []
+
+    def stop():
+        barrier.wait()
+        authority.mark_uncertain(project["project_id"], project["seal"], decision["execution_id"])
+
+    def go():
+        barrier.wait()
+        try:
+            authority.authorize_send(
+                project["project_id"], project["seal"], decision["execution_id"], decision["capability"], "memory"
+            )
+            outcomes.append("sent")
+        except SpendClosed:
+            outcomes.append("stopped")
+
+    threads = [threading.Thread(target=stop), threading.Thread(target=go)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(5)
+    sends = authority._projects[project["project_id"]]["executions"][0]["sends"]
+    assert sends in (0, 1)
+    with pytest.raises(SpendClosed):
+        authority.authorize_send(
+            project["project_id"], project["seal"], decision["execution_id"], decision["capability"], "memory"
+        )
+
+
+def test_initialization_failure_after_reserve_voids_the_unsent_row(monkeypatch):
+    authority = _authority()
+    project = authority.register_project()
+
+    def explode(decision, transport):
+        raise RuntimeError("init")
+
+    monkeypatch.setattr("server.exposure._prepare", explode)
+    with pytest.raises(RuntimeError):
+        run_execution(authority, project["project_id"], project["seal"], [_req("voice", "x")], Recording(authority, project), _work)
+    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 0
+    assert authority.accounted(project["project_id"], project["seal"])["reserved_microusd"] == 0
+
+
 def test_unknown_project_and_unknown_execution_do_not_mint():
-    authority = MemoryAuthority()
+    authority = _authority()
     project = authority.register_project()
     transport = Recording(authority, project)
-    plan = [{"service": "voice", "calls": 1, "unit_microusd": 5}]
+    requests = [_req("voice", "x")]
 
     def work():
         _planned("x")
         return "ok"
 
     with pytest.raises(ExposureStop) as missing:
-        run_execution(authority, "client-minted", project["seal"], plan, transport, work)
+        run_execution(authority, "client-minted", project["seal"], requests, transport, work)
     assert missing.value.code == "project_rejected"
     with pytest.raises(ExposureStop) as unknown:
         run_execution(
             authority,
             project["project_id"],
             project["seal"],
-            plan,
+            requests,
             transport,
             work,
             execution_id="client-chosen",
@@ -230,32 +444,10 @@ def test_unknown_project_and_unknown_execution_do_not_mint():
     assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 0
 
 
-def test_a_call_past_the_plan_does_not_send_and_keeps_the_reservation():
-    authority = MemoryAuthority()
-    project = authority.register_project()
-    transport = Recording(authority, project)
-    plan = [{"service": "venice", "calls": 1, "unit_microusd": 10}]
-
-    def work():
-        complete_with_venice("n", [], {}, 1)
-        complete_with_venice("n", [], {}, 1)
-        return "ok"
-
-    with pytest.raises(SpendClosed) as exc:
-        run_execution(authority, project["project_id"], project["seal"], plan, transport, work)
-    assert exc.value.code == "paid_path_blocked"
-    assert transport.calls == ["venice"]
-    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 1
-    assert authority.accounted(project["project_id"], project["seal"])["reserved_microusd"] == 10 * VENICE_UPSTREAM_TRIES
-    with pytest.raises(ExposureStop) as blocked:
-        run_execution(authority, project["project_id"], project["seal"], plan, Recording(authority, project), work)
-    assert blocked.value.code == "project_unreconciled"
-
-
 def test_two_authorities_are_not_one_cap():
-    plan = [{"service": "venice", "calls": 1, "unit_microusd": APPLICATION_CEILING_MICROUSD // VENICE_UPSTREAM_TRIES}]
-    first = MemoryAuthority()
-    second = MemoryAuthority()
+    schedule = [_row("venice", 1_000_000, VENICE_UPSTREAM_TRIES, 0)]
+    first = MemoryAuthority(schedule)
+    second = MemoryAuthority(schedule)
     one = first.register_project()
     two = second.register_project()
 
@@ -263,13 +455,12 @@ def test_two_authorities_are_not_one_cap():
         complete_with_venice("n", [], {}, 1)
         return "ok"
 
-    assert run_execution(first, one["project_id"], one["seal"], plan, Recording(first, one), work)["kind"] == "settled"
-    assert run_execution(second, two["project_id"], two["seal"], plan, Recording(second, two), work)["kind"] == "settled"
-    assert first.accounted(one["project_id"], one["seal"])["reserved_microusd"] == APPLICATION_CEILING_MICROUSD // VENICE_UPSTREAM_TRIES * VENICE_UPSTREAM_TRIES
+    assert run_execution(first, one["project_id"], one["seal"], [_req("venice", "a")], Recording(first, one), work)["kind"] == "settled"
+    assert run_execution(second, two["project_id"], two["seal"], [_req("venice", "a")], Recording(second, two), work)["kind"] == "settled"
 
 
 def test_http_does_not_install_an_authority_or_open_a_cost_route(monkeypatch):
-    authority = MemoryAuthority()
+    _authority()
     monkeypatch.delenv("VERCEL", raising=False)
     from server import create_app
 
@@ -288,7 +479,7 @@ def test_http_does_not_install_an_authority_or_open_a_cost_route(monkeypatch):
 
 
 def test_an_error_before_any_send_does_not_consume_an_attempt():
-    authority = MemoryAuthority()
+    authority = _authority()
     project = authority.register_project()
     transport = Recording(authority, project)
 
@@ -296,26 +487,27 @@ def test_an_error_before_any_send_does_not_consume_an_attempt():
         raise RuntimeError("stopped before a call")
 
     with pytest.raises(RuntimeError):
-        run_execution(authority, project["project_id"], project["seal"], _plan(), transport, work)
+        run_execution(authority, project["project_id"], project["seal"], _requests("err"), transport, work)
     assert transport.calls == []
     assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 0
 
 
 def test_parallel_begins_cannot_both_cross_the_ceiling():
-    authority = MemoryAuthority()
+    authority = MemoryAuthority([_row("memory", 3_000_000, 1, 0)])
     project = authority.register_project()
-    plan = [{"service": "memory", "calls": 1, "unit_microusd": 3_000_000}]
     barrier = threading.Barrier(2)
     outcomes = []
 
-    def once():
+    def once(payload):
         barrier.wait()
         try:
-            outcomes.append(authority.begin(project["project_id"], project["seal"], plan)["kind"])
+            outcomes.append(
+                authority.begin(project["project_id"], project["seal"], [_req("memory", payload)])["kind"]
+            )
         except ExposureStop as exc:
             outcomes.append(exc.code)
 
-    threads = [threading.Thread(target=once) for _ in range(2)]
+    threads = [threading.Thread(target=once, args=(f"side-{i}",)) for i in range(2)]
     for thread in threads:
         thread.start()
     for thread in threads:
@@ -323,3 +515,26 @@ def test_parallel_begins_cannot_both_cross_the_ceiling():
     assert sorted(outcomes) == ["over_cap", "reserved"]
     assert authority.accounted(project["project_id"], project["seal"])["reserved_microusd"] == 3_000_000
     assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 1
+
+
+def test_sqlite_conditional_update_is_the_pending_postgres_shape(tmp_path):
+    """Stdlib SQLite stands in for the transaction shape. It is not the production database."""
+    connection = sqlite3.connect(str(tmp_path / "contract.db"))
+    connection.execute(
+        "CREATE TABLE execution (id TEXT PRIMARY KEY, status TEXT, sends INTEGER, capability TEXT)"
+    )
+    connection.execute("INSERT INTO execution VALUES ('e', 'reserved', 0, 'cap')")
+    connection.commit()
+    granted = connection.execute(
+        "UPDATE execution SET sends = sends + 1 WHERE id = 'e' AND status = 'reserved' AND capability = 'cap'"
+    ).rowcount
+    connection.execute(
+        "UPDATE execution SET status = 'settled', capability = 'dead' WHERE id = 'e' AND status = 'reserved'"
+    )
+    connection.commit()
+    missed = connection.execute(
+        "UPDATE execution SET sends = sends + 1 WHERE id = 'e' AND status = 'reserved' AND capability = 'cap'"
+    ).rowcount
+    assert granted == 1
+    assert missed == 0
+    assert POSTGRES_INTEGRATION == "pending"
