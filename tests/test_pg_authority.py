@@ -23,7 +23,7 @@ from server.exposure import (
     VENICE_UPSTREAM_TRIES,
     describe_venice,
 )
-from server.pg_authority import PostgresAuthority, drop_schema, install_schema, throwaway_params
+from server.pg_authority import PostgresAuthority, connect_throwaway, drop_schema, install_schema, throwaway_params
 from server.spendguard import SpendClosed
 from tests.test_chatjob import ONE_SHOT
 from tests.test_exposure import Recording, _req, _requests, _schedule, _work
@@ -87,6 +87,37 @@ def test_nonlocal_and_wrong_database_are_refused():
     for override in ("host=example.com", "hostaddr=8.8.8.8", "dbname=postgres", "service=prod"):
         with pytest.raises(RuntimeError):
             throwaway_params(base + "?" + override)
+
+
+def test_ambient_routing_is_rejected_before_connect(monkeypatch):
+    calls = []
+
+    def refuse(*_args, **_kwargs):
+        calls.append(_kwargs)
+        raise AssertionError("connected")
+
+    monkeypatch.setattr("psycopg.connect", refuse)
+    for name in ("PGHOST", "PGHOSTADDR", "PGPORT", "PGDATABASE", "PGSERVICE", "PGSERVICEFILE"):
+        monkeypatch.delenv(name, raising=False)
+    url = "postgresql://exposure@127.0.0.1:55432/exposure_test"
+    for name, value in (
+        ("PGHOSTADDR", "8.8.8.8"),
+        ("PGSERVICE", "prod"),
+        ("PGHOST", "example.com"),
+        ("PGDATABASE", "postgres"),
+    ):
+        monkeypatch.setenv(name, value)
+        with pytest.raises(RuntimeError):
+            connect_throwaway(url)
+        monkeypatch.delenv(name)
+    assert calls == []
+    monkeypatch.setattr("psycopg.connect", lambda **kwargs: calls.append(kwargs) or (_ for _ in ()).throw(RuntimeError("stopped")))
+    with pytest.raises(RuntimeError, match="stopped"):
+        connect_throwaway("postgresql://exposure@localhost:55432/exposure_test")
+    assert calls[-1]["host"] == "127.0.0.1"
+    assert calls[-1]["hostaddr"] == "127.0.0.1"
+    assert calls[-1]["dbname"] == "exposure_test"
+    assert calls[-1]["port"] == 55432
 
 
 def test_destructive_schema_setup_does_not_connect_for_a_routed_dsn(monkeypatch):

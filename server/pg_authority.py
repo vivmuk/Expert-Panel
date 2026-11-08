@@ -5,6 +5,7 @@ and does not arm HTTP. Synthetic schedule rows only. A restored database is
 not detected; sends stay an operator decision outside this file.
 """
 import json
+import os
 import re
 import secrets
 from urllib.parse import urlsplit
@@ -15,6 +16,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 _LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+_AMBIENT_ROUTING = ("PGHOST", "PGHOSTADDR", "PGPORT", "PGDATABASE", "PGSERVICE", "PGSERVICEFILE")
 
 from .exposure import (
     APPLICATION_CEILING_MICROUSD,
@@ -76,8 +78,10 @@ def throwaway_params(url):
         raise RuntimeError("refusing database that is not exposure_test")
     if not parts.username:
         raise RuntimeError("refusing implicit user")
+    loopback = "127.0.0.1" if host == "localhost" else host
     params = {
-        "host": "127.0.0.1" if host == "localhost" else host,
+        "host": loopback,
+        "hostaddr": loopback,
         "port": parts.port,
         "dbname": "exposure_test",
         "user": parts.username,
@@ -87,8 +91,21 @@ def throwaway_params(url):
     return params
 
 
+def refuse_ambient_routing():
+    present = [name for name in _AMBIENT_ROUTING if os.environ.get(name, "").strip()]
+    if present:
+        raise RuntimeError("refusing ambient Postgres routing: " + ",".join(present))
+
+
 def connect_throwaway(url, **kwargs):
-    return psycopg.connect(**throwaway_params(url), **kwargs)
+    refuse_ambient_routing()
+    params = throwaway_params(url)
+    loopback = params["hostaddr"]
+    params.update(kwargs)
+    params["host"] = loopback
+    params["hostaddr"] = loopback
+    params["dbname"] = "exposure_test"
+    return psycopg.connect(**params)
 
 
 def install_schema(dsn, schema):
