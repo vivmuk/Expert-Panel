@@ -48,7 +48,11 @@ class ModelCatalog:
                     len(self._models),
                     len(self._image_models),
                 )
-            except Exception:
+            except Exception as exc:
+                from ..spendguard import SpendClosed
+
+                if isinstance(exc, SpendClosed):
+                    raise
                 self._last_failure_at = time.time()
                 logger.warning("Model catalog refresh failed; keeping stale data")
                 if not self._models:

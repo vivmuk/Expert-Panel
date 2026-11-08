@@ -129,17 +129,36 @@ def reset_limits():
 
 def complete_with_venice(name, messages, schema, max_tokens):
     from ..config import Config
+    from ..spendguard import in_phase, run_paid_phase
     from ..venice.client import get_client
 
     model = Config.MODEL_ROLE_DEFAULTS["workchart"] if name == "ChatChart" else Config.MODEL_ROLE_DEFAULTS["expert"]
-    return get_client().structured(
-        model,
-        messages,
-        name,
-        schema,
-        temperature=0.3,
-        max_completion_tokens=max_tokens,
+
+    def _call():
+        return get_client().structured(
+            model,
+            messages,
+            name,
+            schema,
+            temperature=0.3,
+            max_completion_tokens=max_tokens,
+        )
+
+    if in_phase():
+        return _call()
+    import hashlib
+    import json
+
+    digest = hashlib.sha256(
+        json.dumps({"name": name, "messages": messages}, sort_keys=True, default=str).encode()
+    ).hexdigest()
+    return run_paid_phase(
+        {"phase": "oneshot", "chat_id": digest, "problem": "", "experts": [], "debate_done": 0, "team": "", "tools": "", "size": ""},
+        _call,
     )
+
+
+complete_with_venice._spend_enforced = True
 
 
 def _body():
@@ -314,6 +333,10 @@ def post_root_chat():
             500,
         )
     except Exception as exc:
+        from ..spendguard import SpendClosed
+
+        if isinstance(exc, SpendClosed):
+            return jsonify({"response": exc.message, "error": {"code": exc.code, "message": exc.message}}), 403
         logger.exception("stateless chat failed")
         if out_of_credit(exc):
             return jsonify({"response": SPEND_LIMIT_REPLY}), 503
@@ -369,7 +392,17 @@ def post_chat():
             }
         ), 502
     code = (result.get("error") or {}).get("code")
-    status = {"tamper": 400, "budget": 429, "not_configured": 503}.get(code, 200)
+    status = {
+        "tamper": 400,
+        "budget": 429,
+        "not_configured": 503,
+        "spend_ledger_unavailable": 403,
+        "currency_bound_unavailable": 403,
+        "calculated_price_unavailable": 403,
+        "calculated_ceiling_exceeded": 403,
+        "phase_uncertain": 409,
+        "paid_path_blocked": 403,
+    }.get(code, 200)
     return jsonify(result), status
 
 
@@ -448,9 +481,20 @@ def chat_artifact():
     try:
         result = generate_artifact(incoming, artifact_id.strip(), complete_with_venice)
     except ArtifactError as exc:
-        status = 503 if exc.code == "not_configured" else 400 if exc.code in ("unknown", "tamper", "limit", "budget") else 502
+        status = 503 if exc.code == "not_configured" else 400 if exc.code in ("unknown", "tamper", "limit", "budget") else 403 if exc.code in (
+            "spend_ledger_unavailable",
+            "currency_bound_unavailable",
+            "calculated_price_unavailable",
+            "calculated_ceiling_exceeded",
+            "phase_uncertain",
+            "paid_path_blocked",
+        ) else 502
         return jsonify({"error": {"code": exc.code, "message": str(exc)}}), status
     except Exception as exc:
+        from ..spendguard import SpendClosed
+
+        if isinstance(exc, SpendClosed):
+            return jsonify({"error": {"code": exc.code, "message": exc.message}}), 403
         logger.exception("artifact %s failed", artifact_id)
         if out_of_credit(exc):
             return jsonify({"error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY}}), 503

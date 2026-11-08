@@ -142,7 +142,10 @@ def test_exa_request_matches_the_documented_shape(monkeypatch):
         return Response()
 
     monkeypatch.setattr("server.exa_search.requests.post", post)
-    found = exa_search("german reimbursement", limit=25)
+    from server.spendguard import provider_window
+
+    with provider_window():
+        found = exa_search("german reimbursement", limit=25)
     assert seen["url"] == EXA_URL
     assert seen["url"] == "https://api.venice.ai/api/v1/augment/search"
     assert seen["headers"]["Authorization"] == "Bearer test-not-a-real-key"

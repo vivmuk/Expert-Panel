@@ -10,6 +10,9 @@ def exa_search(query, limit=4, api_key=None):
     key = api_key if api_key is not None else os.environ.get("VENICE_API_KEY", "")
     if not key or not query:
         return []
+    from .spendguard import require_open_phase
+
+    require_open_phase()
     capped = max(1, min(int(limit), 20))
     response = requests.post(
         os.environ.get("EXA_URL", EXA_URL),

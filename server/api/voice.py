@@ -4,6 +4,7 @@ import os
 import requests
 from flask import Blueprint, Response, jsonify, request
 
+from ..spendguard import SpendClosed
 from ..venice.client import VeniceClient, VeniceError
 from ..voice_actions import WELCOME, validate_action
 from .chat import allow_in_this_process, client_ip
@@ -48,6 +49,8 @@ def turn():
         heard = _transcribe(blob, upload.mimetype or "audio/webm")
     except VeniceError:
         return jsonify({"error": {"code": "model", "message": "Transcription failed."}}), 502
+    except SpendClosed as exc:
+        return jsonify({"error": {"code": exc.code, "message": exc.message}}), 403
     return _plan_and_speak(heard)
 
 
@@ -63,9 +66,15 @@ def plan():
 
 
 def _plan_and_speak(heard):
-    action = _planned(heard) or {"action": "answer", "text": "I can open Chat, Demos, the Deck, Catalog, or Connect.", "say": "I can open Chat, Demos, the Deck, Catalog, or Connect."}
+    try:
+        action = _planned(heard)
+    except SpendClosed as exc:
+        return jsonify({"error": {"code": exc.code, "message": exc.message}}), 403
+    action = action or {"action": "answer", "text": "I can open Chat, Demos, the Deck, Catalog, or Connect.", "say": "I can open Chat, Demos, the Deck, Catalog, or Connect."}
     try:
         audio = _speak(action["say"])
+    except SpendClosed as exc:
+        return jsonify({"error": {"code": exc.code, "message": exc.message}}), 403
     except VeniceError:
         audio = b""
     payload = {"heard": heard, "action": action, "captions": action["say"]}
@@ -83,8 +92,10 @@ def _planned(heard):
         "Sections: hero demos catalog connect artifacts steps. "
         "Put the spoken reply in say. Return JSON only."
     )
-    try:
-        data = VeniceClient().structured(
+    from ..spendguard import run_paid_phase
+
+    def _call():
+        return VeniceClient().structured(
             os.environ.get("MODEL_VOICE_CLEAN", "mercury-3"),
             [{"role": "system", "content": system}, {"role": "user", "content": heard}],
             "VoiceAction",
@@ -92,21 +103,45 @@ def _planned(heard):
             temperature=0,
             max_completion_tokens=300,
         )
+
+    try:
+        data = run_paid_phase(_audio_state("plan:" + heard), _call)
     except VeniceError:
         return None
     return validate_action(data)
 
 
+def _audio_state(kind):
+    import hashlib
+
+    return {
+        "phase": "voice",
+        "chat_id": hashlib.sha256(kind.encode()).hexdigest(),
+        "problem": "",
+        "experts": [],
+        "debate_done": 0,
+        "team": "",
+        "tools": "",
+        "size": "",
+    }
+
+
 def _transcribe(blob, mime):
+    from ..spendguard import run_paid_phase
+
     key = os.environ.get("VENICE_API_KEY", "")
     base = os.environ.get("VENICE_BASE_URL", "https://api.venice.ai/api/v1").rstrip("/")
-    response = requests.post(
-        base + "/audio/transcriptions",
-        headers={"Authorization": f"Bearer {key}"},
-        files={"file": ("turn.webm", blob, mime)},
-        data={"model": os.environ.get("STT_MODEL", "stt-xai-v1")},
-        timeout=60,
-    )
+
+    def _call():
+        return requests.post(
+            base + "/audio/transcriptions",
+            headers={"Authorization": f"Bearer {key}"},
+            files={"file": ("turn.webm", blob, mime)},
+            data={"model": os.environ.get("STT_MODEL", "stt-xai-v1")},
+            timeout=60,
+        )
+
+    response = run_paid_phase(_audio_state("transcribe"), _call)
     if response.status_code >= 400:
         raise VeniceError(f"HTTP {response.status_code} from /audio/transcriptions", response.status_code)
     try:
@@ -117,18 +152,24 @@ def _transcribe(blob, mime):
 
 
 def _speak(text):
+    from ..spendguard import run_paid_phase
+
     key = os.environ.get("VENICE_API_KEY", "")
     base = os.environ.get("VENICE_BASE_URL", "https://api.venice.ai/api/v1").rstrip("/")
-    response = requests.post(
-        base + "/audio/speech",
-        headers={"Authorization": f"Bearer {key}"},
-        json={
-            "model": os.environ.get("TTS_MODEL", "tts-xai-v1"),
-            "voice": os.environ.get("TTS_VOICE", "carina"),
-            "input": text[:400],
-        },
-        timeout=60,
-    )
+
+    def _call():
+        return requests.post(
+            base + "/audio/speech",
+            headers={"Authorization": f"Bearer {key}"},
+            json={
+                "model": os.environ.get("TTS_MODEL", "tts-xai-v1"),
+                "voice": os.environ.get("TTS_VOICE", "carina"),
+                "input": text[:400],
+            },
+            timeout=60,
+        )
+
+    response = run_paid_phase(_audio_state("speak:" + text), _call)
     if response.status_code >= 400:
         raise VeniceError(f"HTTP {response.status_code} from /audio/speech", response.status_code)
     return response.content

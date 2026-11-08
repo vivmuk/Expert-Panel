@@ -15,6 +15,10 @@ from ..venice.client import get_client
 from ..venice.models import get_catalog
 from .access import require_partner_key
 
+# Image generation does not call get_catalog. The name stays so a test can
+# prove a brand request never reached the live model list.
+_ = get_catalog
+
 logger = logging.getLogger(__name__)
 bp = Blueprint("branding", __name__)
 
@@ -52,21 +56,34 @@ def _path(slot):
     return os.path.join(_dir(), f"{slot}.webp")
 
 
-def _resolve_image_model(requested=None):
-    catalog = get_catalog()
-    image_models = catalog.image_models()
-    ids = [m.get("id") for m in image_models]
-    for candidate in (requested, Config.MODEL_ROLE_DEFAULTS.get("image")):
-        if candidate and candidate in ids:
-            return candidate
-    if not ids:
-        raise RuntimeError("No Venice image models available")
-    return ids[0]
-
-
 def _generate_slot(slot, prompt=None, model=None):
+    from ..spendguard import run_paid_phase
+
+    def _call():
+        return _write_slot(slot, prompt, model)
+
+    run_paid_phase(
+        {
+            "phase": "brand",
+            "chat_id": slot,
+            "problem": "",
+            "experts": [],
+            "debate_done": 0,
+            "team": "",
+            "tools": "",
+            "size": "",
+        },
+        _call,
+    )
+
+
+def _write_slot(slot, prompt=None, model=None):
     client = get_client()
-    resolved = _resolve_image_model(model)
+    resolved = model or Config.MODEL_ROLE_DEFAULTS.get("image")
+    if not resolved:
+        from ..spendguard import SpendClosed
+
+        raise SpendClosed("calculated_price_unavailable")
     aspect_ratio = "16:9" if slot == "hero" else "4:3"
     result = client.generate_image(
         prompt or SLOTS[slot], model=resolved, aspect_ratio=aspect_ratio

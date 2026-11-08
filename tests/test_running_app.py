@@ -203,10 +203,18 @@ def live():
     base = f"http://127.0.0.1:{stub.server_address[1]}/api/v1"
     saved = {
         key: __import__("os").environ.get(key)
-        for key in ("VENICE_API_KEY", "VENICE_BASE_URL", "EXA_URL", "AI_PARTNER_API_KEYS", "AI_PARTNER_DAILY_ENGAGEMENTS", "SUPERMEMORY_API_KEY", "KEIKI_SELF_CHECK_URL", "KEIKI_HARNESS_SIGNING_SECRET", "KEIKI_AGENT_ID")
+        for key in ("VENICE_API_KEY", "VENICE_BASE_URL", "EXA_URL", "AI_PARTNER_API_KEYS", "AI_PARTNER_DAILY_ENGAGEMENTS", "SUPERMEMORY_API_KEY", "KEIKI_SELF_CHECK_URL", "KEIKI_HARNESS_SIGNING_SECRET", "KEIKI_AGENT_ID", "VERCEL", "AI_PARTNER_SPEND_LEDGER", "AI_PARTNER_SPEND_LEDGER_PATH", "AI_PARTNER_CALCULATED_CEILING_MICROUSD", "AI_PARTNER_CALCULATED_MICROUSD_VENICE_ATTEMPT", "AI_PARTNER_CALCULATED_MICROUSD_EXA", "AI_PARTNER_CALCULATED_MICROUSD_MEMORY", "AI_PARTNER_CALCULATED_MICROUSD_VOICE")
     }
     import os
 
+    os.environ.pop("VERCEL", None)
+    os.environ["AI_PARTNER_SPEND_LEDGER"] = "sqlite"
+    os.environ["AI_PARTNER_SPEND_LEDGER_PATH"] = __import__("tempfile").mkdtemp() + "/spend.db"
+    os.environ["AI_PARTNER_CALCULATED_CEILING_MICROUSD"] = "100000000"
+    os.environ["AI_PARTNER_CALCULATED_MICROUSD_VENICE_ATTEMPT"] = "1"
+    os.environ["AI_PARTNER_CALCULATED_MICROUSD_VOICE"] = "1"
+    os.environ["AI_PARTNER_CALCULATED_MICROUSD_EXA"] = "1"
+    os.environ["AI_PARTNER_CALCULATED_MICROUSD_MEMORY"] = "1"
     os.environ["VENICE_API_KEY"] = "test-not-a-real-key"
     os.environ["VENICE_BASE_URL"] = base
     os.environ["EXA_URL"] = base + "/augment/search"

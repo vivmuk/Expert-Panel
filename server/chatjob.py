@@ -775,7 +775,17 @@ class TurnFailed(Exception):
 
 def _run_work(state, complete, recall, remember, search):
     try:
-        return _work(state, complete, recall, remember, search)
+        if getattr(complete, "_spend_enforced", False):
+            from .spendguard import SpendClosed, run_paid_phase
+
+            try:
+                return run_paid_phase(state, lambda: _work(state, complete, recall, remember, search))
+            except SpendClosed as exc:
+                return _pack(exc.message, state, None, {"code": exc.code, "message": exc.message})
+        from .spendguard import provider_window
+
+        with provider_window():
+            return _work(state, complete, recall, remember, search)
     except Exception as exc:
         raise TurnFailed(_pack("", state, None)["state"]) from exc
 

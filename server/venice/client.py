@@ -71,6 +71,9 @@ class VeniceClient:
 
     # ------------------------------------------------------------------ http
     def _request(self, method, path, *, json_body=None, timeout=None, stream=False, attempts=None):
+        from ..spendguard import require_open_phase
+
+        require_open_phase()
         url = f"{self.base_url}{path}"
         attempts = attempts or Attempts()
         last_error = None

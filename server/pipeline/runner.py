@@ -26,6 +26,12 @@ class CostCircuitBreaker(Exception):
 def start_run(payload):
     """Validate, create engagement + run, and launch the worker thread.
     Returns (run, engagement_id, estimate)."""
+    from ..spendguard import SpendClosed
+
+    # A legacy run is many model calls with no per-phase reservation. The 3×
+    # estimate breaker is a calculated check, and a missing price becomes 0
+    # inside the ledger. Neither is a bill cap, so the run is not started.
+    raise SpendClosed("paid_path_blocked")
     mode = get_mode(payload.get("mode", "deep_dive"))
     if not mode.available:
         raise ValueError(f"Mode {mode.id} is not available yet")
@@ -61,6 +67,9 @@ def start_run(payload):
 
 
 def _execute(run, mode, payload, problem, panel_size, est):
+    from ..spendguard import SpendClosed
+
+    raise SpendClosed("paid_path_blocked")
     client = VeniceClient(timeout=LONG_TIMEOUT)
     catalog = get_catalog()
     ledger = UsageLedger(pricing_lookup=catalog.pricing)
