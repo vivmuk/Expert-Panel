@@ -111,9 +111,9 @@ def recall(chat_id, query, visitor_id=None, has_history=False):
     key = _key()
     if not key or not query:
         return ""
-    from .spendguard import require_open_phase
+    from .spendguard import refuse_paid
 
-    require_open_phase()
+    refuse_paid()
     ns = memory_namespace(chat_id, visitor_id)
     if not _may_search(ns, has_history):
         return ""
@@ -149,9 +149,9 @@ def remember(chat_id, content, visitor_id=None):
     key = _key()
     if not key or not content:
         return
-    from .spendguard import require_open_phase
+    from .spendguard import refuse_paid
 
-    require_open_phase()
+    refuse_paid()
     ns = memory_namespace(chat_id, visitor_id)
     text = content[:8000]
     doc_id = _custom_id(ns, chat_id)

@@ -38,11 +38,6 @@ def app(monkeypatch, tmp_path):
         return []
 
     monkeypatch.setattr("server.api.branding._ensure_missing_async", ensure)
-
-    def catalog():
-        raise AssertionError("brand generation reached the model catalog")
-
-    monkeypatch.setattr("server.api.branding.get_catalog", catalog)
     from server import create_app
 
     flask_app = create_app()
@@ -251,8 +246,7 @@ def test_missing_and_wrong_keys_never_reach_store_runs_or_brand(client, monkeypa
     monkeypatch.setattr("server.api.runs.start_run", _boom)
     monkeypatch.setattr(REGISTRY, "get", _boom)
     monkeypatch.setattr("server.api.branding._ensure_missing_async", _boom)
-    monkeypatch.setattr("server.api.branding.get_catalog", _boom)
-    monkeypatch.setattr("server.api.branding.get_client", _boom)
+    monkeypatch.setattr("server.api.branding._generate_slot", _boom)
     headers_set = (
         None,
         {"Authorization": "Bearer nope"},

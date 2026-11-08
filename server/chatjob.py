@@ -782,10 +782,7 @@ def _run_work(state, complete, recall, remember, search):
                 return run_paid_phase(state, lambda: _work(state, complete, recall, remember, search))
             except SpendClosed as exc:
                 return _pack(exc.message, state, None, {"code": exc.code, "message": exc.message})
-        from .spendguard import provider_window
-
-        with provider_window():
-            return _work(state, complete, recall, remember, search)
+        return _work(state, complete, recall, remember, search)
     except Exception as exc:
         raise TurnFailed(_pack("", state, None)["state"]) from exc
 

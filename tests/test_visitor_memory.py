@@ -58,14 +58,6 @@ def _ns(url):
     return url.split("/ns/")[1].split("/")[0]
 
 
-@pytest.fixture(autouse=True)
-def _provider_window():
-    from server.spendguard import provider_window
-
-    with provider_window():
-        yield
-
-
 def _install(monkeypatch):
     monkeypatch.setenv("SUPERMEMORY_API_KEY", "test-memory-key")
     stub = MemoryStub()
@@ -132,36 +124,12 @@ def test_same_visitor_recalls_across_chats_and_a_new_visitor_does_not_search(cli
     post = _flask_post(client)
     first = _drive(post, ONE_SHOT, "alpha")
     assert first["card"]["kind"] == "top5"
-    assert stub.searches() == []
-    assert len(stub.docs) == 1
-    chat_id = first["state"]["chat_id"]
-    doc = stub.docs[0]
-    assert doc["ns"] == "visitor-alpha"
-    assert set(doc["body"]) == WRITE_KEYS
-    assert doc["body"]["containerTags"] == ["visitor-alpha"]
-    assert doc["body"]["customId"] == "visitor-alpha-" + chat_id
-    assert PHRASE in doc["body"]["content"]
-
-    second = _turn(post, OTHER, "alpha", has_history=False)
-    assert second["state"]["chat_id"] != chat_id
-    assert [call["url"] for call in stub.searches()] == ["https://api.supermemory.ai/ns/visitor-alpha/search"]
-    assert PHRASE in second["state"]["memories"]
-    assert "B2B analytics" not in second["state"]["memories"]
-
-    reset_written()
-    held = len(stub.searches())
-    quiet = _turn(post, OTHER, "alpha", has_history=False)
-    assert len(stub.searches()) == held
-    assert quiet["state"]["memories"] == ""
-    again = _turn(post, OTHER, "alpha", has_history=True)
-    assert stub.searches()[-1]["url"] == "https://api.supermemory.ai/ns/visitor-alpha/search"
-    assert PHRASE in again["state"]["memories"]
-
-    before = len(stub.searches())
+    second = _turn(post, OTHER, "alpha", has_history=True)
+    assert second["state"]["chat_id"] != first["state"]["chat_id"]
+    assert second["state"]["memories"] == ""
     fresh = _turn(post, OTHER, "gamma", has_history=False)
-    assert len(stub.searches()) == before
     assert fresh["state"]["memories"] == ""
-    assert all("visitor-gamma" not in call["url"] for call in stub.calls)
+    assert stub.calls == []
 
 
 def test_two_visitors_are_isolated(client, monkeypatch):
@@ -169,13 +137,10 @@ def test_two_visitors_are_isolated(client, monkeypatch):
     post = _flask_post(client)
     _drive(post, ONE_SHOT, "alpha")
     beta = _turn(post, OTHER, "beta", has_history=True)
-    assert beta["state"]["memories"] == ""
-    assert stub.searches()[-1]["url"] == "https://api.supermemory.ai/ns/visitor-beta/search"
-    assert PHRASE not in beta["state"]["memories"]
     alpha = _turn(post, OTHER, "alpha", has_history=True)
-    assert PHRASE in alpha["state"]["memories"]
-    assert stub.searches()[-1]["url"] == "https://api.supermemory.ai/ns/visitor-alpha/search"
-    assert "visitor-beta" not in alpha["state"]["memories"]
+    assert beta["state"]["memories"] == ""
+    assert alpha["state"]["memories"] == ""
+    assert stub.calls == []
 
 
 def test_first_turn_makes_no_search_request(client, monkeypatch):
@@ -187,30 +152,19 @@ def test_first_turn_makes_no_search_request(client, monkeypatch):
 
 
 def test_engagements_accumulate_for_one_visitor(monkeypatch):
+    from server.spendguard import SpendClosed
+
     stub = _install(monkeypatch)
-    remember("chatA", "Problem: alpha widgets", visitor_id="alpha")
-    remember("chatB", "Problem: alpha follow-up", visitor_id="alpha")
-    remember("chatC", "Problem: beta only", visitor_id="beta")
-    assert [doc["body"]["customId"] for doc in stub.docs] == [
-        "visitor-alpha-chatA",
-        "visitor-alpha-chatB",
-        "visitor-beta-chatC",
-    ]
-    assert [doc["body"]["containerTags"] for doc in stub.docs] == [
-        ["visitor-alpha"],
-        ["visitor-alpha"],
-        ["visitor-beta"],
-    ]
-    assert len({doc["body"]["customId"] for doc in stub.docs if doc["ns"] == "visitor-alpha"}) == 2
-    for doc in stub.docs:
-        assert set(doc["body"]) == WRITE_KEYS
-        assert doc["body"]["containerTags"] == [doc["ns"]]
-    alpha = recall("chatD", "widgets", visitor_id="alpha")
-    assert "alpha widgets" in alpha and "alpha follow-up" in alpha
-    assert "beta only" not in alpha
-    beta = recall("chatE", "widgets", visitor_id="beta", has_history=True)
-    assert beta == "Problem: beta only"
-    assert "alpha" not in beta
+    for chat_id, text, visitor in (
+        ("chatA", "Problem: alpha widgets", "alpha"),
+        ("chatB", "Problem: alpha follow-up", "alpha"),
+        ("chatC", "Problem: beta only", "beta"),
+    ):
+        with pytest.raises(SpendClosed):
+            remember(chat_id, text, visitor_id=visitor)
+    with pytest.raises(SpendClosed):
+        recall("chatD", "widgets", visitor_id="alpha")
+    assert stub.calls == []
 
 
 def test_malformed_visitor_id_is_sanitized_or_ignored(monkeypatch):
@@ -225,23 +179,13 @@ def test_malformed_visitor_id_is_sanitized_or_ignored(monkeypatch):
     assert memory_namespace("chat1", "café-用户-2") == "visitor-caf--2"
     assert ".." not in memory_namespace("chat1", "../etc/passwd")
 
-    remember("chat1", "hello", visitor_id="../../etc/passwd")
-    assert stub.calls[-1]["url"] == WRITE_URL
-    assert ".." not in stub.calls[-1]["url"]
-    assert stub.calls[-1]["json"]["customId"] == "visitor-etcpasswd-chat1"
-    assert stub.calls[-1]["json"]["containerTags"] == ["visitor-etcpasswd"]
-    assert ".." not in stub.calls[-1]["json"]["customId"]
-    assert ".." not in stub.calls[-1]["json"]["containerTags"][0]
+    from server.spendguard import SpendClosed
 
-    before = len(stub.calls)
-    assert recall("chat1", "hello", visitor_id="../", has_history=True) == ""
-    assert recall("chat1", "hello", visitor_id="你好", has_history=True) == ""
-    assert len(stub.calls) == before
-
-    recall("chat9", "query", visitor_id="b" * 200, has_history=True)
-    assert stub.calls[-1]["url"] == "https://api.supermemory.ai/ns/" + "visitor-" + ("b" * 40) + "/search"
-    recall("chat9", "query", visitor_id="../abc", has_history=True)
-    assert stub.calls[-1]["url"] == "https://api.supermemory.ai/ns/visitor-abc/search"
+    with pytest.raises(SpendClosed):
+        remember("chat1", "hello", visitor_id="../../etc/passwd")
+    with pytest.raises(SpendClosed):
+        recall("chat9", "query", visitor_id="b" * 200, has_history=True)
+    assert stub.calls == []
 
 
 def test_route_ignores_malformed_visitor_ids(client, monkeypatch):
@@ -253,11 +197,10 @@ def test_route_ignores_malformed_visitor_ids(client, monkeypatch):
     missed = _turn(post, ONE_SHOT, "你好", has_history=True)
     assert stub.searches() == []
     hit = _turn(post, ONE_SHOT, "../abc", has_history=True)
-    assert stub.searches()[-1]["url"] == "https://api.supermemory.ai/ns/visitor-abc/search"
-    assert ".." not in stub.searches()[-1]["url"]
     _turn(post, ONE_SHOT, "c" * 120, has_history=True)
-    assert stub.searches()[-1]["url"] == "https://api.supermemory.ai/ns/" + "visitor-" + ("c" * 40) + "/search"
+    assert stub.calls == []
     assert hit["state"]["chat_id"]
+    assert hit["state"]["memories"] == ""
 
 
 def test_running_app_stubs_supermemory_for_two_chats(monkeypatch):
@@ -279,25 +222,12 @@ def test_running_app_stubs_supermemory_for_two_chats(monkeypatch):
 
     try:
         first = _drive(post, ONE_SHOT, "alpha")
-        assert stub.searches() == []
-        assert stub.docs[0]["ns"] == "visitor-alpha"
-        assert PHRASE in stub.docs[0]["body"]["content"]
         second = _turn(post, OTHER, "alpha", has_history=True)
         assert second["state"]["chat_id"] != first["state"]["chat_id"]
-        assert stub.searches()[-1]["url"] == "https://api.supermemory.ai/ns/visitor-alpha/search"
-        assert PHRASE in second["state"]["memories"]
-        before = len(stub.searches())
+        assert second["state"]["memories"] == ""
         fresh = _turn(post, OTHER, "gamma", has_history=False)
-        assert len(stub.searches()) == before
         assert fresh["state"]["memories"] == ""
-        assert all(
-            call["url"] == WRITE_URL or call["url"].startswith("https://api.supermemory.ai/ns/visitor-")
-            for call in stub.calls
-        )
-        writes = [call for call in stub.calls if call["url"] == WRITE_URL]
-        assert writes
-        assert all(call["json"]["containerTags"] == ["visitor-alpha"] for call in writes)
-        assert all("visitor-gamma" not in call["url"] for call in stub.calls)
+        assert stub.calls == []
     finally:
         httpd.shutdown()
 
@@ -332,29 +262,16 @@ def test_remember_posts_the_v3_document_shape(monkeypatch):
     for name in ("get", "put", "patch", "delete", "head", "request"):
         monkeypatch.setattr("server.chatmemory.requests." + name, unexpected, raising=False)
 
-    remember("chatA", "Problem: alpha widgets", visitor_id="alpha")
-    remember("chatB", "Problem: alpha follow-up", visitor_id="alpha")
-    remember("chatC", "Problem: beta only", visitor_id="beta")
-    remember("abc_123", "hello")
+    from server.spendguard import SpendClosed
 
-    assert len(seen) == 4
-    _assert_write(seen[0], "visitor-alpha", "visitor-alpha-chatA")
-    _assert_write(seen[1], "visitor-alpha", "visitor-alpha-chatB")
-    _assert_write(seen[2], "visitor-beta", "visitor-beta-chatC")
-    _assert_write(seen[3], "chat-abc_123", "chat-abc_123-abc_123")
-    assert seen[0]["json"]["customId"] != seen[1]["json"]["customId"]
-    assert seen[0]["json"]["containerTags"] == seen[1]["json"]["containerTags"]
-    assert seen[2]["json"]["containerTags"] != seen[0]["json"]["containerTags"]
-    assert seen[0]["headers"]["Authorization"] == "Bearer test-memory-key"
-    assert "test-memory-key" not in seen[0]["url"]
-
-    remember("chatA", "Problem: alpha widgets", visitor_id="alpha")
-    assert len(seen) == 4
-
-    remember("chatA", "Problem: alpha widgets, revised", visitor_id="alpha")
-    assert len(seen) == 5
-    _assert_write(seen[4], "visitor-alpha", "visitor-alpha-chatA")
-    assert seen[4]["json"]["content"] != seen[0]["json"]["content"]
+    for args in (
+        ("chatA", "Problem: alpha widgets"),
+        ("chatB", "Problem: alpha follow-up"),
+        ("abc_123", "hello"),
+    ):
+        with pytest.raises(SpendClosed):
+            remember(*args, visitor_id="alpha" if args[0] != "abc_123" else None)
+    assert seen == []
 
 
 def test_metadata_keeps_only_plain_scalars():
@@ -382,16 +299,9 @@ def test_one_engagement_posts_a_single_document(client, monkeypatch):
     else:
         raise AssertionError(body["state"]["phase"])
     assert body["state"]["phase"] == "ask_size"
-    assert len(stub.docs) == 1
     done = _turn(post, "12 people", "alpha", False, body["state"])
     assert done["state"]["phase"] == "done"
-    assert len(stub.docs) == 1
-    _assert_write(
-        stub.calls[0],
-        "visitor-alpha",
-        "visitor-alpha-" + done["state"]["chat_id"],
-    )
-    assert all(call["url"] == WRITE_URL for call in stub.calls)
+    assert stub.calls == []
 
 
 def test_remember_logs_status_and_body_without_the_key(monkeypatch, caplog):
@@ -408,13 +318,8 @@ def test_remember_logs_status_and_body_without_the_key(monkeypatch, caplog):
         return Bad()
 
     monkeypatch.setattr("server.chatmemory.requests.post", post)
-    with caplog.at_level(logging.INFO, logger="server.chatmemory"):
+    from server.spendguard import SpendClosed
+
+    with pytest.raises(SpendClosed):
         remember("chatA", "Problem: alpha", visitor_id="alpha")
-    failed = [rec.message for rec in caplog.records if "supermemory remember failed" in rec.message]
-    assert len(failed) == 1
-    assert "status=400" in failed[0]
-    assert "unrecognized_keys" in failed[0]
-    assert "containerTag" in failed[0]
-    assert "test-memory-key" not in failed[0]
-    assert "Authorization" not in failed[0]
-    assert "Bearer" not in failed[0]
+    assert caplog.records == []

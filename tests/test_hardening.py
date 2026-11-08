@@ -98,8 +98,8 @@ class _Resp:
         return {"choices": [{"message": {"content": self._content}}], "usage": {}}
 
 
-def _venice(monkeypatch, responses):
-    client = VeniceClient(api_key="test-not-a-real-key")
+def _venice(monkeypatch, responses, tmp_path):
+    client = VeniceClient(journal_path=str(tmp_path / "transport.db"))
     seen = []
 
     def request(method, url, json=None, timeout=None, stream=False):
@@ -119,23 +119,17 @@ def _venice(monkeypatch, responses):
         [_Resp(200), _Resp(503)],
     ],
 )
-def test_one_structured_call_makes_at_most_three_upstream_requests(monkeypatch, responses):
-    from server.spendguard import provider_window
-
-    client, seen = _venice(monkeypatch, responses)
+def test_one_structured_call_makes_at_most_three_upstream_requests(monkeypatch, responses, tmp_path):
+    client, seen = _venice(monkeypatch, responses, tmp_path)
     with pytest.raises(VeniceError):
-        with provider_window():
-            client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"})
+        client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"})
     assert len(seen) == MAX_ATTEMPTS == 3
     assert set(seen) == {CHAT_TIMEOUT} == {90}
 
 
-def test_the_thinking_off_retry_still_runs_inside_the_cap(monkeypatch):
-    from server.spendguard import provider_window
-
-    client, seen = _venice(monkeypatch, [_Resp(200), _Resp(200, '{"ok": true}')])
-    with provider_window():
-        assert client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"}) == {"ok": True}
+def test_the_thinking_off_retry_still_runs_inside_the_cap(monkeypatch, tmp_path):
+    client, seen = _venice(monkeypatch, [_Resp(200), _Resp(200, '{"ok": true}')], tmp_path)
+    assert client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"}) == {"ok": True}
     assert len(seen) == 2
 
 

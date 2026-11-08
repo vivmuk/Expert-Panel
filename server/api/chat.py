@@ -128,34 +128,10 @@ def reset_limits():
 
 
 def complete_with_venice(name, messages, schema, max_tokens):
-    from ..config import Config
-    from ..spendguard import in_phase, run_paid_phase
-    from ..venice.client import get_client
+    from ..spendguard import refuse_paid
 
-    model = Config.MODEL_ROLE_DEFAULTS["workchart"] if name == "ChatChart" else Config.MODEL_ROLE_DEFAULTS["expert"]
-
-    def _call():
-        return get_client().structured(
-            model,
-            messages,
-            name,
-            schema,
-            temperature=0.3,
-            max_completion_tokens=max_tokens,
-        )
-
-    if in_phase():
-        return _call()
-    import hashlib
-    import json
-
-    digest = hashlib.sha256(
-        json.dumps({"name": name, "messages": messages}, sort_keys=True, default=str).encode()
-    ).hexdigest()
-    return run_paid_phase(
-        {"phase": "oneshot", "chat_id": digest, "problem": "", "experts": [], "debate_done": 0, "team": "", "tools": "", "size": ""},
-        _call,
-    )
+    del name, messages, schema, max_tokens
+    refuse_paid()
 
 
 complete_with_venice._spend_enforced = True
