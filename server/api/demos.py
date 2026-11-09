@@ -178,7 +178,9 @@ def _report(demo):
         (len(_kit_paths(demo)), "kit files"),
     )
     stat_html = "".join(f'<div class="stat"><strong>{escape(str(v))}</strong><span>{escape(k)}</span></div>' for v, k in stats)
-    return f"""
+    frame = demo.get("frame") if live else None
+    plan = demo.get("plan") if live else None
+    summary = f"""
 <section id="summary" class="report-section">
   <div class="report-hero">
     {_art(demo, "cover", eager=True)}
@@ -194,52 +196,131 @@ def _report(demo):
   <div class="exec card">
     <p class="kicker">{icon("sparkles")}Executive summary</p>
     <h2 class="sr-only">Executive summary</h2>
+    {f'<p class="question">{escape(frame["key_question"])}</p>' if frame else ""}
     <p class="take">{escape(take)}</p>
     {_top_list(top)}
+    {_decisions(plan)}
   </div>
   {_deck_embed(demo)}
-</section>
-<section id="market" class="report-section">
-  {_section_head("02", "Research" if live else "Market analysis", f"{len(cites)} public pages, each with the note the research agents kept.")}
-  {_art(demo, "market")}
-  <p class="prose">{escape(demo["market"].get("summary") or "Not generated yet. Run scripts/run_demo.py.")}</p>
-  {_citations(cites)}
-</section>
-<section id="experts" class="report-section">
-  {_section_head("03", "Expert panel", f"{len(experts)} AI-generated experts, each with a distinct lens. Open a card for the full analysis.")}
-  {_experts(experts)}
-</section>
-<section id="debate" class="report-section">
-  {_section_head("04", "Debate", "Two rounds. Each expert answers a named colleague.")}
-  {_art(demo, "panel")}
-  {_debate(debate)}
-</section>
-<section id="synthesis" class="report-section">
-  {_section_head("05", "Judge and synthesis" if live else "Synthesis", "Where the panel converged, and what it may be missing.")}
-  {_synthesis(synthesis)}
-</section>
-<section id="top5" class="report-section">
-  {_section_head("06", "Top 5", "Ranked by the judge after the debate. Sort them to see the trade-offs.")}
-  {_top5(top)}
-</section>
-<section id="maturity" class="report-section">
-  {_section_head("07", "Maturity", "Where the team sits on the AI maturity ladder today.")}
-  {_maturity(maturity)}
-</section>
-<section id="chart" class="report-section">
-  {_section_head("08", "Work chart", "Every step today, and who owns it in the agent era.")}
-  {_chart(demo.get("chart"))}
-</section>
-<section id="skills" class="report-section">
-  {_section_head("09", "Harness and skill pack", "The files your team keeps running after the engagement. Every file is AI-generated.")}
-  {_art(demo, "build")}
-  {_kit(demo)}
-</section>
-<section id="artifacts" class="report-section">
-  {_section_head("10", "Deliverables" if live else "Artifacts", "The client deck, memo, work chart, brief, and roadmap from this engagement. Open any of them here, as a full page, or as a file." if live else "The catalog artifacts this engagement feeds. Generate any of them for your own problem in chat.")}
-  {_deliverables(demo) if live else _artifacts(demo.get("artifacts") or [])}
-</section>
-"""
+</section>"""
+    sections = [summary]
+    counter = {"n": 1}
+
+    def add(key, title, lede, inner):
+        counter["n"] += 1
+        sections.append(
+            f'\n<section id="{key}" class="report-section">\n  {_section_head(f"{counter["n"]:02d}", title, lede)}\n  {inner}\n</section>'
+        )
+
+    if frame:
+        add("question", "The question", "The situation, the complication, and the one question this engagement answers. Then the options the panel weighed.", _frame(frame))
+    add("market", "Research" if live else "Market analysis", f"{len(cites)} public pages, each with the note the research agents kept.", _art(demo, "market") + f'\n  <p class="prose">{escape(demo["market"].get("summary") or "Not generated yet. Run scripts/run_demo.py.")}</p>\n  {_citations(cites)}')
+    add("experts", "Expert panel", f"{len(experts)} AI-generated experts, each with a distinct lens. Open a card for the full analysis.", _experts(experts))
+    add("debate", "Debate", "Two rounds. Each expert answers a named colleague.", _art(demo, "panel") + "\n  " + _debate(debate))
+    add("synthesis", "Judge and synthesis" if live else "Synthesis", "Where the panel converged, and what it may be missing.", _synthesis(synthesis))
+    add("top5", "Top 5", "Ranked by the judge after the debate. Sort them to see the trade-offs.", _top5(top))
+    if frame:
+        add("value", "Value at stake", "Where the money or time comes from, how to size it, and what must be true.", _value_section(frame))
+    if plan:
+        add("risks", "Risk register", "Each risk with its likelihood, impact, mitigation, and the owner who watches it.", _risks(plan))
+    add("maturity", "Maturity", "Where the team sits on the AI maturity ladder today.", _maturity(maturity))
+    add("chart", "Work chart", "Every step today, and who owns it in the agent era.", _chart(demo.get("chart")))
+    if plan:
+        add("plan", "First 90 days", "Milestones with owners and decision gates, the measures that show it is working, and who needs to be aligned.", _plan(plan))
+    add("skills", "Harness and skill pack", "The files your team keeps running after the engagement. Every file is AI-generated.", _art(demo, "build") + "\n  " + _kit(demo))
+    add("artifacts", "Deliverables" if live else "Artifacts", "The client deck, memo, work chart, brief, and roadmap from this engagement. Open any of them here, as a full page, or as a file." if live else "The catalog artifacts this engagement feeds. Generate any of them for your own problem in chat.", _deliverables(demo) if live else _artifacts(demo.get("artifacts") or []))
+    if live and demo.get("method"):
+        add("method", "How this engagement was run", "The method, the sources, and the limits of what this report can claim.", _ul(demo["method"], "dots-list method-list"))
+    return "".join(sections) + "\n"
+
+
+def _sentence(text):
+    """End a fragment with one full stop, never two."""
+    text = " ".join(str(text or "").split())
+    return text if not text or text[-1] in ".!?" else text + "."
+
+
+def _decisions(plan):
+    if not plan or not plan.get("decisions"):
+        return ""
+    rows = "".join(
+        f'<li><a href="#plan"><span class="n">{n}</span><span>{escape(_sentence(d["decision"]))}{escape(" Owner: " + _sentence(d["owner"])) if d.get("owner") else ""}{escape(" By " + _sentence(d["by_when"])) if d.get("by_when") else ""}</span></a></li>'
+        for n, d in enumerate(plan["decisions"], 1)
+    )
+    return f'<p class="kicker decisions-kicker">{icon("list-checks")}Decisions required</p><ol class="top-list decisions">{rows}</ol>'
+
+
+_VERDICT_PILL = {"recommended": "cobalt", "conditional": "amber", "rejected": "ink"}
+
+
+def _frame(frame):
+    scq = "".join(
+        f'<div class="card"><h3>{icon(glyph)}{label}</h3><p>{escape(text)}</p></div>'
+        for glyph, label, text in (("map", "Situation", frame.get("situation")), ("triangle-alert", "Complication", frame.get("complication")), ("crosshair", "Question", frame.get("key_question")))
+        if text
+    )
+    options = "".join(
+        f'<li><span class="pill {_VERDICT_PILL.get(o.get("verdict"), "")}">{escape(o.get("verdict") or "")}</span><b>{escape(o.get("name") or "")}. {escape(o.get("summary") or "")}</b>'
+        f'<span>{escape(_sentence(o.get("why")))}{escape(" Upside: " + _sentence(o["upside"])) if o.get("upside") else ""}{escape(" Downside: " + _sentence(o["downside"])) if o.get("downside") else ""}</span></li>'
+        for o in frame.get("options") or []
+    )
+    return f'<div class="synth-grid three">{scq}</div><div class="card next-steps"><h3>{icon("git-fork")}Options considered</h3><ol class="next-list">{options}</ol></div>'
+
+
+def _value_section(frame):
+    drivers = "".join(
+        f'<div class="card"><h3>{icon("badge-dollar-sign")}{escape(v.get("driver") or "")}</h3><p>{escape(v.get("mechanism") or "")}</p>'
+        + (f'<p class="how"><b>How to size it.</b> {escape(v["how_to_size"])}</p>' if v.get("how_to_size") else "")
+        + "</div>"
+        for v in frame.get("value_drivers") or []
+    )
+    must = _ul(frame.get("assumptions"), "dots-list")
+    open_rows = "".join(
+        f'<li><span class="pill">Open</span><b>{escape(q.get("question") or "")}</b><span>{escape(q.get("how_to_answer") or "")}</span></li>'
+        for q in frame.get("open_questions") or []
+    )
+    return f"""<div class="synth-grid">{drivers}</div>
+{_empty("Figures that are not in the cited sources are assumptions for the client's finance team to size.")}
+<div class="synth-grid">
+  <div class="card"><h3>{icon("clipboard-check")}What must be true</h3>{must or _empty("No assumptions were recorded.")}</div>
+  <div class="card next-steps"><h3>{icon("file-search")}Open questions</h3><ol class="next-list">{open_rows}</ol></div>
+</div>"""
+
+
+def _risks(plan):
+    rows = "".join(
+        f'<tr><td><b>{escape(r.get("risk") or "")}</b></td><td>{_level("", r.get("likelihood"))}</td><td>{_level("", r.get("impact"))}</td><td>{escape(r.get("mitigation") or "")}</td><td>{escape(r.get("owner") or "-")}</td></tr>'
+        for r in plan.get("risks") or []
+    )
+    return f'<div class="table-wrap"><table class="report-table risks"><thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th><th>Owner</th></tr></thead><tbody>{rows}</tbody></table></div>'
+
+
+def _plan(plan):
+    from ..chatjob import WINDOWS
+
+    windows = "".join(
+        f'<div class="card"><h3>{icon("milestone")}{escape(window)}</h3><ul class="dots-list">'
+        + "".join(
+            f'<li><b>{escape(m.get("milestone") or "")}</b>{escape(" (" + m["owner"] + ")") if m.get("owner") else ""}{escape(" Gate: " + m["gate"]) if m.get("gate") else ""}</li>'
+            for m in plan.get("milestones") or [] if m.get("window") == window
+        )
+        + "</ul></div>"
+        for window in WINDOWS
+    )
+    kpis = "".join(
+        f'<tr><td><b>{escape(k.get("metric") or "")}</b></td><td>{escape(k.get("direction") or "")}</td><td>{escape(k.get("cadence") or "-")}</td><td>{escape(k.get("why") or "")}</td></tr>'
+        for k in plan.get("kpis") or []
+    )
+    people = "".join(
+        f'<tr><td><b>{escape(p.get("who") or "")}</b></td><td><span class="pill">{escape(p.get("role") or "")}</span></td><td>{escape(p.get("needs") or "")}</td></tr>'
+        for p in plan.get("stakeholders") or []
+    )
+    cadence = f'<p class="prose"><strong>Cadence.</strong> {escape(plan["cadence"])}</p>' if plan.get("cadence") else ""
+    return f"""<div class="synth-grid three">{windows}</div>
+{cadence}
+<h3 class="sub-head">How we will know it is working</h3>
+<div class="table-wrap"><table class="report-table kpis"><thead><tr><th>Measure</th><th>Direction</th><th>Cadence</th><th>Why</th></tr></thead><tbody>{kpis}</tbody></table></div>
+{f'<h3 class="sub-head">Who needs to be aligned</h3><div class="table-wrap"><table class="report-table people"><thead><tr><th>Who</th><th>Role</th><th>What they need</th></tr></thead><tbody>{people}</tbody></table></div>' if people else ""}"""
 
 
 def _has_deck(slug):

@@ -138,7 +138,8 @@ def _grid(slide, s):
 def _table(slide, s):
     _head(slide, s)
     rows, cols = len(s["rows"]) + 1, len(s["head"])
-    widths = [0.5, 6.6, 1.15, 1.15, 1.3, 1.2][:cols]
+    widths = list(s.get("widths") or [0.5, 6.6, 1.15, 1.15, 1.3, 1.2])[:cols]
+    levels = set(s.get("levels") or (2, 3, 4))
     shape = slide.shapes.add_table(rows, cols, Inches(0.7), Inches(2.05), Inches(sum(widths)), Inches(0.5 + 0.8 * (rows - 1)))
     table = shape.table
     for c, width in enumerate(widths):
@@ -153,9 +154,9 @@ def _table(slide, s):
             cell.margin_left = cell.margin_right = Inches(0.12)
             p = cell.text_frame.paragraphs[0]
             run = p.add_run()
-            run.text = value.upper() if r == 0 or c >= 2 and c < 5 else value
-            run.font.name = MONO if r == 0 or (2 <= c < 5) else SANS
-            run.font.size = Pt(9 if r == 0 else (20 if c == 0 else 12))
+            run.text = value.upper() if r == 0 or c in levels else value
+            run.font.name = MONO if r == 0 or c in levels else SANS
+            run.font.size = Pt(9 if r == 0 else (20 if c == 0 else 11 if len(value) > 70 else 12))
             run.font.bold = r == 0 or c == 0 or value == "high"
             run.font.color.rgb = INK_3 if r == 0 else (COBALT if c == 0 or value == "high" else INK)
 

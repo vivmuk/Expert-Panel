@@ -16,7 +16,7 @@ CLIENT_ICONS = (
     "arrow-right", "check", "copy", "download", "external-link", "file-text", "globe", "link", "loader-circle",
     "package", "puzzle", "refresh-cw", "rotate-ccw", "search", "shield-check", "sparkles", "trophy", "users",
     "workflow", "messages-square", "triangle-alert", "plug", "chevron-down", "x", "file-search",
-    "eye", "monitor-play", "presentation",
+    "eye", "monitor-play", "presentation", "crosshair", "milestone", "list-checks",
 )
 
 
@@ -38,7 +38,7 @@ def render_page(welcome, origin=""):
   <section class="home-stage" id="hero" aria-labelledby="home-title">
     {dots()}
     <h1 class="home-title" id="home-title">What problem is costing you <em>money</em>?</h1>
-    <p class="home-sub">AI Partner agents research it, 20 AI experts debate it, and your team gets the Top 5 moves and the harness kit. Your first engagement is free.</p>
+    <p class="home-sub">AI Partner agents research it, 20 AI experts debate it, and your team gets the Top 5 moves, the options weighed, a risk register, a 90-day plan, the client deck, and the harness kit. Your first engagement is free.</p>
     <form id="form" class="composer gb" autocomplete="off">
       <label class="sr-only" for="box">Describe the business problem</label>
       <textarea id="box" rows="3" placeholder="{escape(EXAMPLES[0][2])}" enterkeyhint="send"></textarea>

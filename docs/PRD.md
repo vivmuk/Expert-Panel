@@ -16,9 +16,9 @@ These counters are in the one server process. A restart clears them. They are no
 
 | Cap | Where it applies |
 |---|---|
-| 16 signed model calls per chat | `/api/chat`, `/v1`, MCP spend tools |
+| 18 signed model calls per chat | `/api/chat`, `/v1`, MCP spend tools |
 | 5 new chat ids per IP per day (`AI_PARTNER_DAILY_ENGAGEMENTS`) | those same spend paths |
-| 20 turns / 10 minutes / IP, and 200 turns / 10 minutes in the process | those paths, stateless `POST /chat`, and voice |
+| 24 turns / 10 minutes / IP, and 200 turns / 10 minutes in the process | those paths, stateless `POST /chat`, and voice |
 | 3× the pre-run estimate | `POST /api/runs` only, after the key check |
 | $2 confirm dialog | React launcher (`web/src/pages/NewEngagement.tsx`) only |
 
@@ -50,7 +50,7 @@ Emptying the file does not mint another $5. Restoring an earlier valid copy brin
 
 Public intake questions do not call a provider. Chat, Exa, Supermemory, speech, brand images, the model list, cost estimate, and `/api/runs` are refused before a provider call. A configured positive integer is not an authoritative provider bill, so those settings do not open a call. Voice and images stay closed. The manufacturer engagement stays unrun and its currency amount stays unset.
 
-The Venice client can record one non-streaming call in a real file when a caller passes that file in. A dropped response is not retried inside that call. Streaming is refused before a hold or a socket write. `:memory:` is refused. Replacing the file or truncating it, then starting a new process, allows the same operation to be claimed again. A completed response deletes the hold, so the same operation can be claimed again. The note has no budget and no principal. Those are activation blockers. HTTP routes do not pass a journal. The 16-call counter is still not a currency cap. `/api/runs` is refused before the legacy engine. An authorized `/v1/chat/completions` or MCP tool call can return HTTP 200 with the refusal in the body. A signed Keiki turn can return HTTP 202, and the callback carries the refusal.
+The Venice client can record one non-streaming call in a real file when a caller passes that file in. A dropped response is not retried inside that call. Streaming is refused before a hold or a socket write. `:memory:` is refused. Replacing the file or truncating it, then starting a new process, allows the same operation to be claimed again. A completed response deletes the hold, so the same operation can be claimed again. The note has no budget and no principal. Those are activation blockers. HTTP routes do not pass a journal. The 18-call counter is still not a currency cap. `/api/runs` is refused before the legacy engine. An authorized `/v1/chat/completions` or MCP tool call can return HTTP 200 with the refusal in the body. A signed Keiki turn can return HTTP 202, and the callback carries the refusal.
 
 ## Release gates
 

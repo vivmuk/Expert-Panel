@@ -56,6 +56,50 @@ CHART = {
 }
 
 
+FRAME = {
+    "situation": "The device is approved in the US and the German launch is funded.",
+    "complication": "German reimbursement codes lag a launch by a year.",
+    "key_question": "How should the device enter Germany so revenue starts before the code lands?",
+    "options": [
+        {"name": "Local partner", "summary": "Enter through a distributor that holds hospital frameworks.", "upside": "Revenue in year one.", "downside": "Margin shared.", "verdict": "recommended", "why": "It is the only path with a reference site before the code."},
+        {"name": "Direct sales force", "summary": "Hire a German team and sell direct.", "upside": "Full margin.", "downside": "Eighteen months to a first tender.", "verdict": "rejected", "why": "The team would wait for the code."},
+        {"name": "Wait for the code", "summary": "Launch only once the reimbursement code exists.", "upside": "No reimbursement risk.", "downside": "A competitor takes the reference sites.", "verdict": "conditional", "why": "Only if the partner search fails."},
+    ],
+    "value_drivers": [
+        {"driver": "Year-one procedure revenue", "mechanism": "Procedures at reference sites billed under existing codes.", "how_to_size": "Sites times procedures per month times the current reimbursed price."},
+        {"driver": "Avoided sales-force cost", "mechanism": "The partner carries the field team.", "how_to_size": "Planned headcount times loaded cost for eighteen months."},
+    ],
+    "assumptions": ["A partner with hospital frameworks is willing to carry the device.", "The US label claim transfers with a local evidence brief."],
+    "open_questions": [{"question": "Which partners hold the relevant frameworks?", "how_to_answer": "Pull the last two years of tender awards."}],
+}
+
+PLAN = {
+    "decisions": [
+        {"decision": "Approve the partner-led entry over a direct sales force", "owner": "Managing director", "by_when": "End of month one"},
+        {"decision": "Fund the local evidence brief", "owner": "Head of medical affairs", "by_when": "Week two"},
+    ],
+    "risks": [
+        {"risk": "Code delay", "likelihood": "high", "impact": "high", "mitigation": "File the code request before hiring.", "owner": "Market access lead"},
+        {"risk": "Partner exclusivity terms", "likelihood": "medium", "impact": "medium", "mitigation": "Cap exclusivity at two years with volume gates.", "owner": "Commercial lead"},
+        {"risk": "Claim mismatch", "likelihood": "medium", "impact": "high", "mitigation": "Rewrite the claim with local counsel.", "owner": "Regulatory counsel"},
+    ],
+    "kpis": [
+        {"metric": "Signed reference sites", "why": "Committees buy from vendors they know.", "cadence": "Monthly", "direction": "up"},
+        {"metric": "Days to code filing", "why": "The code gates year-two revenue.", "cadence": "Weekly", "direction": "down"},
+        {"metric": "Procedures per site", "why": "Shows the device is used, not shelved.", "cadence": "Monthly", "direction": "up"},
+    ],
+    "stakeholders": [
+        {"who": "Managing director", "role": "decides", "needs": "The partner shortlist and the margin split."},
+        {"who": "Hospital procurement", "role": "affected", "needs": "A reference site they can call."},
+    ],
+    "milestones": [
+        {"window": "Days 1-30", "milestone": "Shortlist three partners", "owner": "Commercial lead", "gate": "Pick one partner"},
+        {"window": "Days 31-60", "milestone": "Sign the first reference site", "owner": "Commercial lead", "gate": "Release launch budget"},
+        {"window": "Days 61-90", "milestone": "File the code request", "owner": "Market access lead", "gate": "Start year-two hiring plan"},
+    ],
+    "cadence": "A weekly launch stand-up and a monthly steering review with the managing director.",
+}
+
 NAMES = ["Ada", "Bao", "Chen", "Dia"] + [f"Expert {n}" for n in range(5, 21)]
 
 
@@ -115,8 +159,14 @@ def fake_model(calls):
                 "next": PANEL["next"],
                 "later": PANEL["later"],
             }
+        if name == "ChatFrame":
+            assert "Top 5 moves" in user
+            return FRAME
         if name == "ChatRedTeam":
             return ATTACKS
+        if name == "ChatPlan":
+            assert "Key question: " + FRAME["key_question"] in user
+            return PLAN
         if name == "ChatChart":
             assert "Enter Germany with a local partner." in user
             return CHART
@@ -144,7 +194,7 @@ def run_until_stop(result, complete, search=None, limit=30):
     raise AssertionError("the job did not stop")
 
 
-ENGAGEMENT = ["ChatResearch", "ChatBrief"] + ["ChatExperts"] * 4 + ["ChatDebate"] * 4 + ["ChatJudge"]
+ENGAGEMENT = ["ChatResearch", "ChatBrief"] + ["ChatExperts"] * 4 + ["ChatDebate"] * 4 + ["ChatJudge", "ChatFrame"]
 
 
 @pytest.fixture(autouse=True)
@@ -182,13 +232,17 @@ def test_three_questions_then_panel():
     assert fourth["state"]["maturity"] == 2
 
     judged = run_until_stop(fourth, complete)
-    assert calls == ENGAGEMENT + ["ChatChart"]
+    assert calls == ENGAGEMENT + ["ChatPlan", "ChatChart"]
     assert len(judged["state"]["experts"]) == EXPERTS
     assert {item["round"] for item in judged["state"]["debate"]} == {1, 2}
     assert len(judged["state"]["debate"]) == 2 * EXPERTS
     assert len(judged["state"]["top5"]) == 5
     assert judged["state"]["top5"][0]["impact"] == "medium"
     assert judged["state"]["panel"]["consensus"] == "Enter Germany with a local partner."
+    assert judged["state"]["frame"]["key_question"] == FRAME["key_question"]
+    assert [o["verdict"] for o in judged["state"]["frame"]["options"]] == ["recommended", "rejected", "conditional"]
+    assert len(judged["state"]["plan"]["risks"]) == 3
+    assert judged["state"]["plan"]["milestones"][0]["window"] == "Days 1-30"
     assert judged["state"]["phase"] == "ask_size"
 
 
@@ -209,7 +263,7 @@ def test_red_team_runs_only_when_asked_then_chart_finishes():
     finished = run_until_stop(started, complete)
     assert finished["next"] is None
     assert finished["state"]["phase"] == "ask_size"
-    assert calls == ENGAGEMENT + ["ChatRedTeam", "ChatChart"]
+    assert calls == ENGAGEMENT + ["ChatRedTeam", "ChatPlan", "ChatChart"]
     assert finished["state"]["attacks"]["top_risk"] == "Reimbursement codes lag the launch."
     assert "Source sweep" in finished["reply"]
     assert "Owner AI Agent" in finished["reply"]
@@ -274,6 +328,10 @@ def test_kit_zip_contains_the_agent_skills():
     assert "Pilot-led" in report
     assert "Ada" in report
     assert "Source sweep" in report
+    for heading in ("## The question", "## Options considered", "## Value at stake", "## Decisions required", "## Risk register", "## First 90 days", "## Measures", "## Stakeholders", "## How this engagement was run"):
+        assert heading in report
+    assert "| Code delay | high | high |" in report
+    assert "Local partner (recommended)" in report
 
 
 def test_kit_without_a_chart_fails():
@@ -344,10 +402,10 @@ def test_http_job_report_and_kit(client, monkeypatch):
         assert res.status_code == 200
         body = res.get_json()
         kinds.append(body["card"]["kind"])
-    assert kinds == ["research", "brief"] + ["experts"] * 4 + ["debate"] * 4 + ["top5", "chart"]
+    assert kinds == ["research", "brief"] + ["experts"] * 4 + ["debate"] * 4 + ["top5", "frame", "plan", "chart"]
     assert body["state"]["phase"] == "ask_size"
     assert "CLAUDE.md" in body["reply"]
-    assert client.application.test_client_calls == ENGAGEMENT + ["ChatChart"]
+    assert client.application.test_client_calls == ENGAGEMENT + ["ChatPlan", "ChatChart"]
     done = body
 
     kit = client.post("/api/chat/kit", json={"state": done["state"]})
@@ -477,3 +535,100 @@ def test_vercel_entrypoint_module():
     assert res.get_json()["status"] == "ok"
     page = app.test_client().get("/chat")
     assert page.status_code == 200
+
+
+def test_frame_and_plan_replies_read_as_text_messages():
+    calls = []
+    complete = fake_model(calls)
+    result = handle_turn({}, ONE_SHOT, complete, search=lambda query, limit=4: [])
+    while result["card"]["kind"] != "frame":
+        result = handle_turn(result["state"], "", complete, search=lambda query, limit=4: [])
+    assert result["next"] == "plan"
+    reply = result["reply"]
+    assert reply.startswith("The question. " + FRAME["key_question"])
+    assert "1. Local partner, recommended." in reply
+    assert "Year-one procedure revenue." in reply
+    assert "Open questions." in reply
+    planned = handle_turn(result["state"], "", complete, search=lambda query, limit=4: [])
+    assert planned["card"]["kind"] == "plan"
+    assert planned["next"] == "blueprint"
+    assert "Decisions required.\n1. Approve the partner-led entry" in planned["reply"]
+    assert "Code delay. Likelihood high, impact high." in planned["reply"]
+    assert "Days 1-30: Shortlist three partners (Commercial lead). Gate: Pick one partner" in planned["reply"]
+    assert "Cadence. A weekly launch stand-up" in planned["reply"]
+
+
+def test_incomplete_frame_keeps_the_job_on_frame():
+    model = fake_model([])
+
+    def complete(name, messages, schema, max_tokens):
+        if name == "ChatFrame":
+            return {"key_question": "x", "options": []}
+        return model(name, messages, schema, max_tokens)
+
+    result = run_until_stop(handle_turn({}, ONE_SHOT, complete, search=lambda query, limit=4: []), complete)
+    assert result["error"]["code"] == "incomplete"
+    assert result["state"]["phase"] == "frame"
+    assert result["state"]["frame"] is None
+
+
+def test_an_engagement_finished_before_framing_stays_finished():
+    from server.chatjob import load_state
+
+    legacy = {
+        "chat_id": "legacy01",
+        "phase": "done",
+        "problem": ONE_SHOT,
+        "team": "4 analysts",
+        "tools": "Excel",
+        "maturity": 2,
+        "panel": PANEL,
+        "chart": CHART,
+        "size": "small",
+        "pack": {"tier": "small"},
+        "brief": {"summary": "Old brief.", "citations": []},
+    }
+    state = load_state(legacy)
+    assert state["phase"] == "done"
+    assert state["frame"] is None and state["plan"] is None
+    unsized = load_state({**legacy, "phase": "ask_size", "size": "", "pack": None})
+    assert unsized["phase"] == "ask_size"
+    report = render_report(state)
+    assert "## The question" not in report
+    assert "## How this engagement was run" in report
+
+
+def test_deliverables_carry_the_framing_and_the_plan(client, monkeypatch):
+    from server.deck_pptx import build_pptx
+    from server.live_report import deliverables, slides
+
+    monkeypatch.setattr("server.api.chat.exa_search", lambda query, limit=4: [])
+    body = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}}).get_json()
+    while body["next"]:
+        body = client.post("/api/chat", json={"message": "", "state": body["state"]}).get_json()
+    body = client.post("/api/chat", json={"message": "small", "state": body["state"]}).get_json()
+    state = body["state"]
+    assert state["phase"] == "done"
+    docs = {d["id"]: d for d in deliverables(state, "https://demo.example")}
+    memo = docs["exec-memo"]["html"]
+    for text in ("Decisions we need from you", "The question we answered", "Options considered", "Value at stake", "The first 90 days", "How we will know it is working", "Who needs to be aligned", "Assumptions and open questions", "How this engagement was run"):
+        assert text in memo
+    assert "Code delay (high likelihood, high impact)" in memo
+    assert "## Risk register" in docs["exec-memo"]["markdown"]
+    roadmap = docs["roadmap"]["html"]
+    assert "The first 90 days" in roadmap and "Shortlist three partners" in roadmap and "Decisions that unlock it" in roadmap
+    kickers = [s["kicker"] for s in slides(state)]
+    for label in ("Decisions required", "The question", "Options considered", "Value at stake", "Risk register", "First 90 days", "Measures", "Stakeholders", "Assumptions and open questions"):
+        assert any(label in k for k in kickers), label
+    numbers = [int(k[:2]) for k in kickers if k[:2].isdigit()]
+    assert numbers == list(range(1, len(numbers) + 1))
+    assert kickers[-1] == "Appendix"
+    pptx = build_pptx(state)
+    assert pptx[:2] == b"PK"
+    view = client.post("/api/chat/view", json={"state": state}).get_json()
+    report = view["report"]
+    for key in ("question", "value", "risks", "plan", "method"):
+        assert f'id="{key}"' in report, key
+    assert "Decisions required" in report
+    assert report.index('id="question"') < report.index('id="market"')
+    assert report.index('id="chart"') < report.index('id="plan"') < report.index('id="skills"')
