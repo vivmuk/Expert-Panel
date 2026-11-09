@@ -208,9 +208,9 @@ def _report(demo):
 
     def add(key, title, lede, inner):
         counter["n"] += 1
-        sections.append(
-            f'\n<section id="{key}" class="report-section">\n  {_section_head(f"{counter["n"]:02d}", title, lede)}\n  {inner}\n</section>'
-        )
+        number = "%02d" % counter["n"]
+        head = _section_head(number, title, lede)
+        sections.append(f'\n<section id="{key}" class="report-section">\n  {head}\n  {inner}\n</section>')
 
     if frame:
         add("question", "The question", "The situation, the complication, and the one question this engagement answers. Then the options the panel weighed.", _frame(frame))
