@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("partner_chat", __name__)
 
 WINDOW_SECONDS = 600
-TURN_LIMIT = 20
+TURN_LIMIT = 24
 GLOBAL_LIMIT = 200
 MAX_KEYS = 2000
 DAY_SECONDS = 86400

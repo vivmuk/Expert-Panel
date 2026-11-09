@@ -14,7 +14,7 @@ also stays until the user keeps a copy and starts fresh.
   var MAX_PROJECTS = 12;
   var MAX_BYTES = 2000000;
   var ID_RE = /^[A-Za-z0-9_-]{8,40}$/;
-  var AUTO = { research: 1, synthesize: 1, panel: 1, debate: 1, judge: 1, red_team: 1, blueprint: 1, skills: 1 };
+  var AUTO = { research: 1, synthesize: 1, panel: 1, debate: 1, judge: 1, frame: 1, red_team: 1, plan: 1, blueprint: 1, skills: 1 };
   var DANGEROUS = Object.create(null);
   DANGEROUS.__proto__ = 1;
   DANGEROUS.constructor = 1;

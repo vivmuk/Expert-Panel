@@ -56,8 +56,12 @@ def _answer(raw):
         name = "ChatDebate"
     elif "You are the judge" in blob:
         name = "ChatJudge"
+    elif "You are the engagement partner writing the framing page" in blob:
+        name = "ChatFrame"
     elif "You are a red team" in blob:
         name = "ChatRedTeam"
+    elif "You are the engagement manager writing the implementation section" in blob:
+        name = "ChatPlan"
     elif "map one consulting process" in blob:
         name = "ChatChart"
     if name is None:

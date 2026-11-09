@@ -250,3 +250,21 @@
   .expand-all { margin-left: 0; }
 }
 .live-report .report-hero-copy h1 { font-size: clamp(34px, 4.6vw, 62px); letter-spacing: -.04em; line-height: 1; }
+
+/* framing, value, risk register, and 90-day plan sections */
+.synth-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.synth-grid .card p.how { margin-top: 8px; font-size: 13.5px; color: var(--ink-2); }
+.exec .question { font: 600 15px/1.5 var(--sans); color: var(--cobalt); margin: 0 0 8px; }
+.exec .decisions-kicker { margin-top: 18px; }
+.exec .decisions span:last-child { font-size: 14px; }
+.table-wrap { overflow-x: auto; }
+.report-table { width: 100%; border-collapse: collapse; background: var(--white); border: 1px solid var(--rule); border-radius: var(--r); overflow: hidden; font-size: 14px; line-height: 1.45; }
+.report-table th { text-align: left; font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3-aa); padding: 10px 12px; border-bottom: 1px solid var(--rule); background: var(--paper); }
+.report-table td { padding: 11px 12px; border-top: 1px solid var(--rule); vertical-align: top; color: var(--ink-2); }
+.report-table td b { color: var(--ink); }
+.report-table .level { margin: 0; }
+.report-table .level > span:first-child { display: none; }
+.method-list li { font-size: 14.5px; color: var(--ink-2); }
+@media (max-width: 900px) {
+  .synth-grid.three { grid-template-columns: 1fr; }
+}

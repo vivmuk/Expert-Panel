@@ -5,7 +5,7 @@
   var STORE = "ai-partner-chat-v2";
   var VISITOR_KEY = "ai-partner-visitor";
   var HISTORY_KEY = "ai-partner-has-history";
-  var AUTO = ["research", "synthesize", "panel", "debate", "judge", "red_team", "blueprint", "skills"];
+  var AUTO = ["research", "synthesize", "panel", "debate", "judge", "frame", "red_team", "plan", "blueprint", "skills"];
   var ICONS = {};
   try { ICONS = JSON.parse(document.getElementById("chat-icons").textContent); } catch (e) { ICONS = {}; }
 
@@ -15,6 +15,7 @@
     { label: "20 experts", count: function (s) { return (s.experts || []).length ? (s.experts || []).length + "/20" : ""; } },
     { label: "Debate", count: function (s) { return (s.debate || []).length ? String((s.debate || []).length) : ""; } },
     { label: "Top 5", count: function (s) { return (s.top5 || []).length ? "ranked" : ""; } },
+    { label: "Plan", count: function (s) { return s.plan ? "90 days" : s.frame ? "framed" : ""; } },
     { label: "Work chart", count: function (s) { return s.chart ? "drawn" : ""; } },
     { label: "Skill pack", count: function (s) { return s.pack ? "written" : ""; } },
     { label: "Harness kit", count: function () { return ""; } }
@@ -25,23 +26,30 @@
     panel: "Seating the panel of 20 AI experts, five at a time",
     debate: "The experts are debating, two rounds",
     judge: "The judge is ranking the Top 5",
+    frame: "The partner is framing the question, the options, and the value at stake",
     red_team: "The red team is attacking the plan",
+    plan: "The engagement manager is writing the risk register, the measures, and the first 90 days",
     blueprint: "Drawing the work chart",
     skills: "Writing the skill pack"
   };
   var NAV = [
     ["summary", "Summary", function () { return ""; }],
+    ["question", "The question", function (s) { return (s.frame && s.frame.options || []).length + " options"; }, function (s) { return !!s.frame; }],
     ["market", "Research", function (s) { return (s.sources || []).length + " sources"; }],
     ["experts", "20 experts", function (s) { return (s.experts || []).length + "/20"; }],
     ["debate", "Debate", function (s) { return String((s.debate || []).length); }],
     ["synthesis", "Judge", function () { return "synthesis"; }],
     ["top5", "Top 5", function () { return "ranked"; }],
+    ["value", "Value at stake", function (s) { return (s.frame && s.frame.value_drivers || []).length + " drivers"; }, function (s) { return !!s.frame; }],
+    ["risks", "Risk register", function (s) { return (s.plan && s.plan.risks || []).length + " risks"; }, function (s) { return !!s.plan; }],
     ["maturity", "Maturity", function (s) { return s.maturity ? s.maturity + "/4" : ""; }],
     ["chart", "Work chart", function () { return "swimlanes"; }],
+    ["plan", "First 90 days", function (s) { return (s.plan && s.plan.milestones || []).length + " milestones"; }, function (s) { return !!s.plan; }],
     ["skills", "Skill pack", function () { return "kit"; }],
-    ["artifacts", "Deliverables", function () { return "deck + 4"; }]
+    ["artifacts", "Deliverables", function () { return "deck + 4"; }],
+    ["method", "Method", function () { return "appendix"; }]
   ];
-  var STAGE_OF = { research: 1, brief: 1, experts: 2, debate: 3, top5: 4, red_team: 4, chart: 5, done: 6 };
+  var STAGE_OF = { research: 1, brief: 1, experts: 2, debate: 3, top5: 4, frame: 5, red_team: 5, plan: 5, chart: 6, done: 7 };
   var DOWNLOADS = {
     kit: ["/api/chat/kit", "harness-kit.zip"],
     "skill-pack": ["/api/chat/skill-pack", "skill-pack.zip"],
@@ -252,6 +260,79 @@
     ]);
   }
 
+  function sentence(text) {
+    var t = String(text || "").replace(/\s+/g, " ").trim();
+    return !t || /[.!?]$/.test(t) ? t : t + ".";
+  }
+
+  function verdictPill(verdict) {
+    var v = String(verdict || "").toLowerCase();
+    var cls = v === "recommended" ? "cobalt" : v === "conditional" ? "amber" : "ink";
+    return h("span", { class: "pill " + cls, text: v || "option" });
+  }
+
+  function frameCard() {
+    var frame = (state && state.frame) || {};
+    var scq = h("div", { class: "scq" }, [
+      ["Situation", frame.situation], ["Complication", frame.complication], ["Question", frame.key_question]
+    ].filter(function (r) { return r[1]; }).map(function (r) {
+      return h("p", {}, [h("b", { text: r[0] + ". " }), r[1]]);
+    }));
+    var options = h("ol", { class: "option-list" }, objects(frame.options).map(function (o, i) {
+      return h("li", { style: "--i:" + i }, [
+        verdictPill(o.verdict),
+        h("div", {}, [
+          h("b", { text: (o.name || "") + ". " + (o.summary || "") }),
+          h("span", { text: [sentence(o.why), o.upside ? "Upside: " + sentence(o.upside) : "", o.downside ? "Downside: " + sentence(o.downside) : ""].filter(Boolean).join(" ") })
+        ])
+      ]);
+    }));
+    var drivers = h("ul", { class: "risk-list" }, objects(frame.value_drivers).map(function (v) {
+      return h("li", {}, [h("b", { text: v.driver || "" }), h("span", { text: (v.mechanism || "") + (v.how_to_size ? " How to size it: " + v.how_to_size : "") })]);
+    }));
+    var must = texts(frame.assumptions).map(function (a) { return h("li", {}, [h("b", { text: "Must be true. " }), a]); });
+    var open = objects(frame.open_questions).map(function (q) { return h("li", {}, [h("b", { text: "Open. " }), (q.question || "") + (q.how_to_answer ? " " + q.how_to_answer : "")]); });
+    return cardShell("crosshair", "The question and the options", objects(frame.options).length + " options", [
+      scq,
+      h("h4", { text: "Options considered" }), options,
+      h("h4", { text: "Value at stake" }), drivers,
+      h("p", { class: "sub", text: "Figures not in the cited sources are assumptions for your finance team to size." }),
+      must.length || open.length ? h("details", { class: "more" }, [h("summary", {}, ["Assumptions and open questions", ico("chevron-down")]), h("ul", { class: "risk-list" }, must.concat(open))]) : null
+    ]);
+  }
+
+  function planCard() {
+    var plan = (state && state.plan) || {};
+    var decisions = h("ol", { class: "decision-list" }, objects(plan.decisions).map(function (d) {
+      return h("li", {}, [h("b", { text: sentence(d.decision) }), h("span", { text: [d.owner ? "Owner: " + sentence(d.owner) : "", d.by_when ? "By " + sentence(d.by_when) : ""].filter(Boolean).join(" ") })]);
+    }));
+    var risks = h("ul", { class: "risk-list" }, objects(plan.risks).map(function (r) {
+      return h("li", {}, [
+        h("b", { text: r.risk || "" }),
+        h("div", { class: "levels" }, [level("Likelihood", r.likelihood), level("Impact", r.impact)]),
+        h("span", { text: (r.mitigation || "") + (r.owner ? " Owner: " + r.owner + "." : "") })
+      ]);
+    }));
+    var windows = ["Days 1-30", "Days 31-60", "Days 61-90"].map(function (w) {
+      var rows = objects(plan.milestones).filter(function (m) { return m.window === w; });
+      return h("div", { class: "chart-col" }, [h("h4", { text: w })].concat(rows.length ? [h("ul", { class: "risk-list" }, rows.map(function (m) {
+        return h("li", {}, [h("b", { text: m.milestone || "" }), h("span", { text: [m.owner ? "(" + m.owner + ")" : "", m.gate ? "Gate: " + m.gate : ""].filter(Boolean).join(" ") })]);
+      }))] : [h("p", { class: "sub", text: "No milestone in this window." })]));
+    });
+    var kpis = h("ul", { class: "risk-list" }, objects(plan.kpis).map(function (k) {
+      return h("li", {}, [h("b", { text: (k.metric || "") + (k.direction ? ", " + k.direction : "") + (k.cadence ? ", " + k.cadence : "") }), h("span", { text: k.why || "" })]);
+    }));
+    var people = objects(plan.stakeholders).map(function (p) { return h("li", {}, [h("b", { text: (p.who || "") + " " }), h("span", { class: "pill", text: p.role || "" }), " ", p.needs || ""]); });
+    return cardShell("milestone", "Decisions, risks, and the first 90 days", objects(plan.milestones).length + " milestones", [
+      h("h4", { text: "Decisions required" }), decisions,
+      h("h4", { text: "Risk register" }), risks,
+      h("h4", { text: "First 90 days" }), h("div", { class: "chart-cols three" }, windows),
+      plan.cadence ? h("p", { class: "sub" }, [h("b", { text: "Cadence. " }), plan.cadence]) : null,
+      h("h4", { text: "Measures" }), kpis,
+      people.length ? h("details", { class: "more" }, [h("summary", {}, ["Who needs to be aligned", ico("chevron-down")]), h("ul", { class: "risk-list people" }, people)]) : null
+    ]);
+  }
+
   function steps(rows) {
     return h("ol", { class: "steps-list" }, objects(rows).map(function (s) {
       return h("li", {}, [owner(s.owner), h("b", { text: s.step || "" }), h("span", { class: "task", text: s.task || "" })]);
@@ -425,7 +506,9 @@
     if (card.kind === "experts") return expertsCard(card);
     if (card.kind === "debate") return debateCard(card);
     if (card.kind === "top5") return top5Card(card);
+    if (card.kind === "frame") return frameCard();
     if (card.kind === "red_team") return redTeamCard();
+    if (card.kind === "plan") return planCard();
     if (card.kind === "chart") return chartCard();
     if (card.kind === "done") return doneCard();
     return null;
@@ -492,7 +575,7 @@
       }
       var kind = item.role === "card" && item.card ? item.card.kind : null;
       if (showReport && kind === "done") {
-        log.appendChild(h("li", { class: "msg report-msg", id: "stage-6" }, [reportNode]));
+        log.appendChild(h("li", { class: "msg report-msg", id: "stage-7" }, [reportNode]));
         return;
       }
       var node = renderItem(item, i);
@@ -532,10 +615,11 @@
     if (phase === "research" || phase === "synthesize") return 1;
     if (phase === "panel") return 2;
     if (phase === "debate") return 3;
-    if (phase === "judge" || phase === "red_team") return 4;
-    if (phase === "blueprint") return 5;
-    if (phase === "ask_size" || phase === "skills") return 6;
-    if (phase === "done") return 8;
+    if (phase === "judge") return 4;
+    if (phase === "frame" || phase === "red_team" || phase === "plan") return 5;
+    if (phase === "blueprint") return 6;
+    if (phase === "ask_size" || phase === "skills") return 7;
+    if (phase === "done") return 9;
     return 0;
   }
 
@@ -549,6 +633,7 @@
     stagesEl.parentElement.setAttribute("aria-label", nav ? "Report sections" : "Progress");
     if (nav) {
       NAV.forEach(function (row) {
+        if (row[3] && !row[3](s)) return;
         stagesEl.appendChild(h("li", { class: "done" }, [h("a", { href: "#" + row[0] }, [
           h("span", { class: "n" }, [ico("check")]), h("span", { class: "lbl", text: row[1] }), h("span", { class: "count", text: row[2](s) })
         ])]));
@@ -564,7 +649,7 @@
         h("span", { class: "count", text: stage.count(s) })
       ];
       stagesEl.appendChild(h("li", { class: done ? "done" : active ? "active" : "", "aria-current": active ? "step" : null },
-        done || active ? [h("a", { href: "#stage-" + Math.min(i, 6) }, kids)] : kids));
+        done || active ? [h("a", { href: "#stage-" + Math.min(i, 7) }, kids)] : kids));
     });
     var pct = Math.min(100, Math.round(current / STAGES.length * 100));
     if (s.phase === "panel" || s.phase === "debate") {
@@ -821,7 +906,7 @@
 
   function saveJson() {
     var s = state || {};
-    var keep = { problem: s.problem, team: s.team, tools: s.tools, maturity: s.maturity, brief: s.brief, experts: s.experts, debate: s.debate, top5: s.top5, panel: s.panel, attacks: s.attacks, chart: s.chart };
+    var keep = { problem: s.problem, team: s.team, tools: s.tools, maturity: s.maturity, brief: s.brief, experts: s.experts, debate: s.debate, top5: s.top5, panel: s.panel, frame: s.frame, attacks: s.attacks, plan: s.plan, chart: s.chart };
     blobSave(JSON.stringify(keep, null, 2), "engagement.json", "application/json");
   }
 

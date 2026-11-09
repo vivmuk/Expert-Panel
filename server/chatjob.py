@@ -11,7 +11,7 @@ EXPERT_WAVE = 5
 DEBATE_ROUNDS = 2
 DEBATE_SLICE = 10
 DEBATE_STEPS = DEBATE_ROUNDS * (EXPERTS // DEBATE_SLICE)
-MAX_MODEL_CALLS = 16
+MAX_MODEL_CALLS = 18
 MAX_OUTPUT_TOKENS = 1600
 LEVELS = ("high", "medium", "low")
 
@@ -38,14 +38,16 @@ PHASES = (
     "panel",
     "debate",
     "judge",
+    "frame",
     "red_team",
+    "plan",
     "blueprint",
     "ask_size",
     "skills",
     "done",
 )
 
-AUTO = ("research", "synthesize", "panel", "debate", "judge", "red_team", "blueprint", "skills")
+AUTO = ("research", "synthesize", "panel", "debate", "judge", "frame", "red_team", "plan", "blueprint", "skills")
 
 WELCOME = (
     "AI Partner takes one strategy engagement from the first question to a harness kit. "
@@ -128,7 +130,9 @@ def fresh_state(chat_id):
         "debate": [],
         "debate_done": 0,
         "top5": [],
+        "frame": None,
         "attacks": None,
+        "plan": None,
         "chart": None,
         "calls": 0,
         "memories": "",
@@ -288,6 +292,113 @@ def normalize_top5(raw, roster, allowed_urls=None):
     return found
 
 
+VERDICTS = ("recommended", "conditional", "rejected")
+STAKEHOLDER_ROLES = ("decides", "approves", "delivers", "affected")
+DIRECTIONS = ("up", "down", "hold")
+WINDOWS = ("Days 1-30", "Days 31-60", "Days 61-90")
+
+
+def _rows(raw, count, fields, required, enums=None):
+    """Objects with trimmed string fields. A row is kept when every required field survives."""
+    found = []
+    if not isinstance(raw, list):
+        return found
+    for item in raw[:count]:
+        if not isinstance(item, dict):
+            continue
+        row = {}
+        for key, limit in fields.items():
+            value = item.get(key)
+            if enums and key in enums:
+                row[key] = value if value in enums[key] else ""
+            else:
+                row[key] = _str(value, limit)
+        if all(row[key] for key in required):
+            found.append(row)
+    return found
+
+
+def normalize_frame(raw):
+    """The framing a partner writes before the recommendation: the question, the options, the value, the assumptions."""
+    if not isinstance(raw, dict):
+        return None
+    key_question = _str(raw.get("key_question"), 300)
+    options = _rows(
+        raw.get("options"),
+        4,
+        {"name": 80, "summary": 240, "upside": 200, "downside": 200, "verdict": 20, "why": 240},
+        ("name", "summary", "verdict"),
+        {"verdict": VERDICTS},
+    )
+    drivers = _rows(raw.get("value_drivers"), 4, {"driver": 100, "mechanism": 240, "how_to_size": 240}, ("driver", "mechanism"))
+    questions = _rows(raw.get("open_questions"), 4, {"question": 200, "how_to_answer": 200}, ("question",))
+    if not key_question or len(options) < 2 or len(drivers) < 2:
+        return None
+    return {
+        "situation": _str(raw.get("situation"), 400),
+        "complication": _str(raw.get("complication"), 400),
+        "key_question": key_question,
+        "options": options,
+        "value_drivers": drivers,
+        "assumptions": _texts(raw.get("assumptions"), 5, 200),
+        "open_questions": questions,
+    }
+
+
+def normalize_plan(raw):
+    """The implementation layer: decisions, risk register, measures, stakeholders, 90-day milestones, cadence."""
+    if not isinstance(raw, dict):
+        return None
+    decisions = _rows(raw.get("decisions"), 3, {"decision": 200, "owner": 80, "by_when": 60}, ("decision",))
+    risks = _rows(
+        raw.get("risks"),
+        5,
+        {"risk": 160, "likelihood": 10, "impact": 10, "mitigation": 240, "owner": 80},
+        ("risk", "mitigation"),
+        {"likelihood": LEVELS, "impact": LEVELS},
+    )
+    for row in risks:
+        row["likelihood"] = row["likelihood"] or "medium"
+        row["impact"] = row["impact"] or "medium"
+    kpis = _rows(
+        raw.get("kpis"),
+        5,
+        {"metric": 120, "why": 200, "cadence": 40, "direction": 10},
+        ("metric",),
+        {"direction": DIRECTIONS},
+    )
+    for row in kpis:
+        row["direction"] = row["direction"] or "up"
+    people = _rows(
+        raw.get("stakeholders"),
+        5,
+        {"who": 80, "role": 20, "needs": 200},
+        ("who", "needs"),
+        {"role": STAKEHOLDER_ROLES},
+    )
+    for row in people:
+        row["role"] = row["role"] or "affected"
+    milestones = _rows(
+        raw.get("milestones"),
+        6,
+        {"window": 20, "milestone": 160, "owner": 80, "gate": 200},
+        ("milestone",),
+        {"window": WINDOWS},
+    )
+    for row in milestones:
+        row["window"] = row["window"] or WINDOWS[0]
+    if not decisions or len(risks) < 3 or len(kpis) < 3 or len(milestones) < 3:
+        return None
+    return {
+        "decisions": decisions,
+        "risks": risks,
+        "kpis": kpis,
+        "stakeholders": people,
+        "milestones": milestones,
+        "cadence": _str(raw.get("cadence"), 300),
+    }
+
+
 def _steps(raw, allowed, fallback):
     steps = []
     if not isinstance(raw, list):
@@ -334,8 +445,12 @@ def _frontier(state):
         if state["debate_done"] < DEBATE_STEPS:
             return "debate"
         return "judge"
+    if not state.get("frame") and not state["chart"]:
+        return "frame"
     if state["red_team"] and not state["attacks"]:
         return "red_team"
+    if not state.get("plan") and not state["chart"]:
+        return "plan"
     if not state["chart"]:
         return "blueprint"
     if not state.get("size"):
@@ -380,6 +495,8 @@ def load_state(raw):
     if isinstance(done, int) and not isinstance(done, bool) and len(state["experts"]) >= EXPERTS:
         state["debate_done"] = max(0, min(done, DEBATE_STEPS))
     state["top5"] = normalize_top5(raw.get("top5"), roster)
+    state["frame"] = normalize_frame(raw.get("frame"))
+    state["plan"] = normalize_plan(raw.get("plan"))
     attacks = normalize_attacks(raw.get("attacks"))
     if attacks:
         state["attacks"] = attacks
@@ -806,8 +923,12 @@ def _work(state, complete, recall, remember, search):
         return _debate(state, complete)
     if phase == "judge":
         return _judge(state, complete, remember)
+    if phase == "frame":
+        return _frame(state, complete)
     if phase == "red_team":
         return _red_team(state, complete)
+    if phase == "plan":
+        return _plan(state, complete)
     if phase == "skills":
         return _skills(state, complete)
     return _blueprint(state, complete)
@@ -994,6 +1115,137 @@ def _voices(experts, top5):
         }
         for item in ranked[:4]
     ]
+
+
+def _top5_block(state):
+    return "\n".join(
+        f"{rank}. {item['title']}. {item['detail']} Confidence {item['confidence']}, impact {item['impact']}, effort {item['effort']}."
+        for rank, item in enumerate(state.get("top5") or [], 1)
+    )
+
+
+def _frame(state, complete):
+    """Partner framing after the judge: the question, the options weighed, where the value is, what must be true."""
+    system = (
+        "You are the engagement partner writing the framing page of a strategy report. "
+        "State the situation, the complication, and the one key question this engagement answers, in the client's words. "
+        "Lay out 3 strategic options the client could take, including the path the panel recommends, and give a verdict on each: "
+        "recommended, conditional, or rejected, with the reason. "
+        "Name 2 to 4 value drivers: where the money or time comes from, the mechanism, and how the client's own finance team should size it. "
+        "List the assumptions that must hold, and the open questions to settle first, each with how to answer it. "
+        "Do not invent statistics, prices, or quotes. Where a number is missing, say what input is needed instead."
+    )
+    user = (
+        _brief(state)
+        + "\n\n" + _research_context(state)
+        + "\n\nPanel consensus: " + state["panel"]["consensus"]
+        + ("\n\nMain dissent: " + state["panel"]["dissent"] if state["panel"].get("dissent") else "")
+        + "\n\nTop 5 moves:\n" + _top5_block(state)
+    )
+    data = complete(
+        "ChatFrame",
+        [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        FRAME_SCHEMA,
+        MAX_OUTPUT_TOKENS,
+    )
+    state["calls"] += 1
+    frame = normalize_frame(data)
+    if not frame:
+        return _incomplete(state)
+    state["frame"] = frame
+    return _advance(frame_reply(frame), state, {"kind": "frame"})
+
+
+def frame_reply(frame):
+    lines = [f"The question. {frame['key_question']}"]
+    if frame["situation"]:
+        lines.append(f"Situation. {frame['situation']}")
+    if frame["complication"]:
+        lines.append(f"Complication. {frame['complication']}")
+    option_lines = ["Options considered."]
+    for rank, item in enumerate(frame["options"], 1):
+        option_lines.append(f"{rank}. {item['name']}, {item['verdict']}. {item['summary']} {item['why']}".strip())
+    lines.append("\n".join(option_lines))
+    value_lines = ["Value at stake."]
+    for item in frame["value_drivers"]:
+        value_lines.append(f"{item['driver']}. {item['mechanism']}" + (f" Size it with {item['how_to_size']}" if item["how_to_size"] else ""))
+    lines.append("\n".join(value_lines))
+    if frame["assumptions"]:
+        lines.append("Must be true. " + " ".join(frame["assumptions"]))
+    if frame["open_questions"]:
+        lines.append("\n".join(["Open questions."] + [f"{q['question']} {q['how_to_answer']}".strip() for q in frame["open_questions"]]))
+    return "\n\n".join(lines)
+
+
+def _plan(state, complete):
+    """The implementation layer a client keeps after the partner leaves."""
+    system = (
+        "You are the engagement manager writing the implementation section of a strategy report. "
+        "Name the decisions the leadership team must take now, each with an owner and a date window. "
+        "Write a risk register of 3 to 5 risks with likelihood, impact, a mitigation, and an owner; fold in any red-team attacks. "
+        "Pick 3 to 5 measures that show the plan is working, each with the reason, a review cadence, and the direction it should move. "
+        "Map the stakeholders: who decides, approves, delivers, or is affected, and what each needs to hear. "
+        "Set 3 to 6 milestones across Days 1-30, 31-60, and 61-90, each with an owner and the decision gate it unlocks. "
+        "Owners are roles on the client's team, from the Team line, never panel experts. "
+        "End with the governance cadence. Do not invent statistics or quotes."
+    )
+    user = (
+        _brief(state)
+        + "\n\nPanel consensus: " + state["panel"]["consensus"]
+        + "\n\nTop 5 moves:\n" + _top5_block(state)
+        + "\n\nNow: " + " ".join(state["panel"]["now"])
+        + "\nNext: " + " ".join(state["panel"]["next"])
+        + "\nLater: " + " ".join(state["panel"]["later"])
+    )
+    frame = state.get("frame")
+    if frame:
+        user += "\n\nKey question: " + frame["key_question"]
+        if frame["assumptions"]:
+            user += "\nAssumptions: " + " ".join(frame["assumptions"])
+    attacks = state.get("attacks")
+    if attacks:
+        user += "\n\nRed team. Top risk: " + attacks["top_risk"] + "\n" + "\n".join(
+            f"{a['threat']}. {a['why']} Mitigation: {a['mitigation']}" for a in attacks["attacks"]
+        )
+    data = complete(
+        "ChatPlan",
+        [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        PLAN_SCHEMA,
+        MAX_OUTPUT_TOKENS,
+    )
+    state["calls"] += 1
+    plan = normalize_plan(data)
+    if not plan:
+        return _incomplete(state)
+    state["plan"] = plan
+    return _advance(plan_reply(plan), state, {"kind": "plan"})
+
+
+def plan_reply(plan):
+    decisions = ["Decisions required."]
+    for rank, item in enumerate(plan["decisions"], 1):
+        who = f" Owner {item['owner']}." if item["owner"] else ""
+        when = f" By {item['by_when']}." if item["by_when"] else ""
+        decisions.append(f"{rank}. {item['decision']}.{who}{when}")
+    risks = ["Risk register."]
+    for item in plan["risks"]:
+        who = f" Owner {item['owner']}." if item["owner"] else ""
+        risks.append(f"{item['risk']}. Likelihood {item['likelihood']}, impact {item['impact']}. {item['mitigation']}{who}")
+    days = ["First 90 days."]
+    for item in plan["milestones"]:
+        who = f" ({item['owner']})" if item["owner"] else ""
+        gate = f" Gate: {item['gate']}" if item["gate"] else ""
+        days.append(f"{item['window']}: {item['milestone']}{who}.{gate}")
+    kpis = ["Measures."]
+    for item in plan["kpis"]:
+        cadence = f", {item['cadence']}" if item["cadence"] else ""
+        kpis.append(f"{item['metric']}, {item['direction']}{cadence}. {item['why']}".strip())
+    lines = ["\n".join(decisions), "\n".join(risks), "\n".join(days), "\n".join(kpis)]
+    if plan["stakeholders"]:
+        lines.append("\n".join(["Stakeholders."] + [f"{p['who']} ({p['role']}): {p['needs']}" for p in plan["stakeholders"]]))
+    if plan["cadence"]:
+        lines.append("Cadence. " + plan["cadence"])
+    return "\n\n".join(lines)
 
 
 def _red_team(state, complete):
@@ -1325,10 +1577,12 @@ def render_report(state):
     lines.extend(["Now. " + " ".join(state["panel"]["now"]), ""])
     lines.extend(["Next. " + " ".join(state["panel"]["next"]), ""])
     lines.extend(["Later. " + " ".join(state["panel"]["later"]), ""])
+    lines.extend(frame_markdown(state.get("frame")))
     if state.get("attacks"):
         lines.extend(["## Red team", "", f"Top risk. {state['attacks']['top_risk']}", ""])
         for attack in state["attacks"]["attacks"]:
             lines.extend([f"### {attack['threat']}", "", attack["why"], "", attack["mitigation"], ""])
+    lines.extend(plan_markdown(state.get("plan")))
     chart = state["chart"]
     lines.extend(["## Work chart", "", chart["summary"], "", "### Today", ""])
     for step in chart["current"]:
@@ -1336,8 +1590,82 @@ def render_report(state):
     lines.extend(["", "### Agent era", ""])
     for step in chart["future"]:
         lines.append(f"- {step['step']}. Owner {step['owner']}. {step['task']}")
+    lines.extend(["", "## How this engagement was run", ""])
+    lines.extend(f"- {line}" for line in method_lines(state))
     lines.append("")
     return "\n".join(lines)
+
+
+def frame_markdown(frame):
+    """The framing sections of the report, as markdown lines. Empty for an engagement that ran before framing existed."""
+    if not frame:
+        return []
+    lines = ["## The question", ""]
+    if frame["situation"]:
+        lines.extend([f"Situation. {frame['situation']}", ""])
+    if frame["complication"]:
+        lines.extend([f"Complication. {frame['complication']}", ""])
+    lines.extend([f"Question. {frame['key_question']}", "", "## Options considered", ""])
+    for item in frame["options"]:
+        lines.append(f"- {item['name']} ({item['verdict']}). {item['summary']} {item['why']}".rstrip())
+        if item["upside"] or item["downside"]:
+            lines.append(f"  Upside: {item['upside'] or 'not stated'}. Downside: {item['downside'] or 'not stated'}.")
+    lines.extend(["", "## Value at stake", ""])
+    for item in frame["value_drivers"]:
+        tail = f" How to size it: {item['how_to_size']}" if item["how_to_size"] else ""
+        lines.append(f"- {item['driver']}. {item['mechanism']}{tail}")
+    lines.extend(["", "Figures that are not in the cited sources are assumptions for the client's finance team to size.", ""])
+    if frame["assumptions"] or frame["open_questions"]:
+        lines.extend(["## Assumptions and open questions", ""])
+        for text in frame["assumptions"]:
+            lines.append(f"- Must be true: {text}")
+        for item in frame["open_questions"]:
+            lines.append(f"- Open: {item['question']}" + (f" How to answer it: {item['how_to_answer']}" if item["how_to_answer"] else ""))
+        lines.append("")
+    return lines
+
+
+def plan_markdown(plan):
+    """The implementation sections of the report, as markdown lines."""
+    if not plan:
+        return []
+    lines = ["## Decisions required", ""]
+    for rank, item in enumerate(plan["decisions"], 1):
+        who = f" Owner: {item['owner']}." if item["owner"] else ""
+        when = f" By: {item['by_when']}." if item["by_when"] else ""
+        lines.append(f"{rank}. {item['decision']}.{who}{when}")
+    lines.extend(["", "## Risk register", "", "| Risk | Likelihood | Impact | Mitigation | Owner |", "|---|---|---|---|---|"])
+    for item in plan["risks"]:
+        lines.append(f"| {item['risk']} | {item['likelihood']} | {item['impact']} | {item['mitigation']} | {item['owner'] or '-'} |")
+    lines.extend(["", "## First 90 days", "", "| Window | Milestone | Owner | Decision gate |", "|---|---|---|---|"])
+    for item in plan["milestones"]:
+        lines.append(f"| {item['window']} | {item['milestone']} | {item['owner'] or '-'} | {item['gate'] or '-'} |")
+    lines.extend(["", "## Measures", "", "| Metric | Direction | Cadence | Why |", "|---|---|---|---|"])
+    for item in plan["kpis"]:
+        lines.append(f"| {item['metric']} | {item['direction']} | {item['cadence'] or '-'} | {item['why']} |")
+    if plan["stakeholders"]:
+        lines.extend(["", "## Stakeholders", "", "| Who | Role | What they need |", "|---|---|---|"])
+        for item in plan["stakeholders"]:
+            lines.append(f"| {item['who']} | {item['role']} | {item['needs']} |")
+    if plan["cadence"]:
+        lines.extend(["", f"Governance cadence. {plan['cadence']}"])
+    lines.append("")
+    return lines
+
+
+def method_lines(state):
+    """How the engagement was run and what it cannot claim. The appendix every report carries."""
+    sources = len(state.get("sources") or [])
+    queries = len(state.get("queries") or [])
+    experts = len(state.get("experts") or [])
+    debate = len(state.get("debate") or [])
+    lines = [
+        f"Research. {queries} web searches returned {sources} public sources. Every source URL is kept in the brief; nothing was quoted from memory.",
+        f"Panel. {experts} AI-generated experts took opening positions and debated over {DEBATE_ROUNDS} rounds, {debate} statements in all. A judge ranked the Top 5 and named backers and dissenters.",
+        "Red team. " + ("An adversarial pass attacked the plan and each attack carries a mitigation." if state.get("attacks") else "Not run. Add the words red team to a new engagement to include one."),
+        "Limits. The experts are AI personas, not named people, and their views are not interviews. The engagement saw only the client's messages, uploads, and public pages. Any figure not in a cited source is an assumption and should be sized by the client's own finance team before a decision rests on it.",
+    ]
+    return lines
 
 
 def _schema(properties, required):
@@ -1500,4 +1828,98 @@ _SKILL_NOTE = _schema(
 SKILLS_SCHEMA = _schema(
     {"skills": {"type": "array", "items": _SKILL_NOTE, "minItems": 1, "maxItems": 10}},
     ["skills"],
+)
+
+_VERDICT = {"type": "string", "enum": list(VERDICTS)}
+
+_OPTION = _schema(
+    {
+        "name": {"type": "string"},
+        "summary": {"type": "string"},
+        "upside": {"type": "string"},
+        "downside": {"type": "string"},
+        "verdict": _VERDICT,
+        "why": {"type": "string"},
+    },
+    ["name", "summary", "upside", "downside", "verdict", "why"],
+)
+
+_DRIVER = _schema(
+    {"driver": {"type": "string"}, "mechanism": {"type": "string"}, "how_to_size": {"type": "string"}},
+    ["driver", "mechanism", "how_to_size"],
+)
+
+_QUESTION = _schema(
+    {"question": {"type": "string"}, "how_to_answer": {"type": "string"}},
+    ["question", "how_to_answer"],
+)
+
+FRAME_SCHEMA = _schema(
+    {
+        "situation": {"type": "string"},
+        "complication": {"type": "string"},
+        "key_question": {"type": "string"},
+        "options": {"type": "array", "items": _OPTION, "minItems": 2, "maxItems": 4},
+        "value_drivers": {"type": "array", "items": _DRIVER, "minItems": 2, "maxItems": 4},
+        "assumptions": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 5},
+        "open_questions": {"type": "array", "items": _QUESTION, "minItems": 1, "maxItems": 4},
+    },
+    ["situation", "complication", "key_question", "options", "value_drivers", "assumptions", "open_questions"],
+)
+
+_DECISION = _schema(
+    {"decision": {"type": "string"}, "owner": {"type": "string"}, "by_when": {"type": "string"}},
+    ["decision", "owner", "by_when"],
+)
+
+_RISK = _schema(
+    {
+        "risk": {"type": "string"},
+        "likelihood": _LEVEL,
+        "impact": _LEVEL,
+        "mitigation": {"type": "string"},
+        "owner": {"type": "string"},
+    },
+    ["risk", "likelihood", "impact", "mitigation", "owner"],
+)
+
+_KPI = _schema(
+    {
+        "metric": {"type": "string"},
+        "why": {"type": "string"},
+        "cadence": {"type": "string"},
+        "direction": {"type": "string", "enum": list(DIRECTIONS)},
+    },
+    ["metric", "why", "cadence", "direction"],
+)
+
+_STAKEHOLDER = _schema(
+    {
+        "who": {"type": "string"},
+        "role": {"type": "string", "enum": list(STAKEHOLDER_ROLES)},
+        "needs": {"type": "string"},
+    },
+    ["who", "role", "needs"],
+)
+
+_MILESTONE = _schema(
+    {
+        "window": {"type": "string", "enum": list(WINDOWS)},
+        "milestone": {"type": "string"},
+        "owner": {"type": "string"},
+        "gate": {"type": "string"},
+    },
+    ["window", "milestone", "owner", "gate"],
+)
+
+PLAN_SCHEMA = _schema(
+    {
+        "decisions": {"type": "array", "items": _DECISION, "minItems": 1, "maxItems": 3},
+        "risks": {"type": "array", "items": _RISK, "minItems": 3, "maxItems": 5},
+        "kpis": {"type": "array", "items": _KPI, "minItems": 3, "maxItems": 5},
+        "stakeholders": {"type": "array", "items": _STAKEHOLDER, "minItems": 1, "maxItems": 5},
+        "milestones": {"type": "array", "items": _MILESTONE, "minItems": 3, "maxItems": 6},
+        "cadence": {"type": "string"},
+    },
+    ["decisions", "risks", "kpis", "stakeholders", "milestones", "cadence"],
 )

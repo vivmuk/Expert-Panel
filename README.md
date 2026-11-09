@@ -48,9 +48,10 @@ ticker during runs, per-engagement totals, and a circuit breaker that aborts any
 run exceeding 3× its estimate. The $2 confirm dialog is in the React launcher.
 The 3× circuit breaker runs inside `POST /api/runs`. `POST /api/estimate` and
 `GET /api/models` are separate routes and are not behind the partner key.
-`/chat` uses a different set: 16 signed model calls per chat,
-5 new chat ids per IP per day (`AI_PARTNER_DAILY_ENGAGEMENTS`), and 20 turns
-per 10 minutes per IP with a 200-turn process cap. The counters live in the
+`/chat` uses a different set: 18 signed model calls per chat,
+5 new chat ids per IP per day (`AI_PARTNER_DAILY_ENGAGEMENTS`), and 24 turns
+per 10 minutes per IP with a 200-turn process cap. A full engagement with a red
+team is 17 turns. The counters live in the
 one gunicorn process and reset on restart.
 
 `POST /api/runs`, run read, answer, and cancel, `/api/engagements` list, read,
@@ -62,7 +63,7 @@ rows by caller. `/chat` stays open without a key.
 
 ## Try the demo
 
-The demo is a chat at `/chat`, which is also the front page. Your team names a problem in any function. The page asks who is on the team, which tools they use, and where they sit on a four-point AI maturity scale. It then runs research with parallel Exa searches, a cited brief, 20 AI-generated experts in four waves of five, two debate rounds, the judge's Top 5, an optional red team, and a work chart. Each model call is its own request, so a Vercel function can finish inside its time limit. The browser keeps the job and sends it back on the next turn. When the job is done, the page downloads a report and a harness kit zip.
+The demo is a chat at `/chat`, which is also the front page. Your team names a problem in any function. The page asks who is on the team, which tools they use, and where they sit on a four-point AI maturity scale. It then runs research with parallel Exa searches, a cited brief, 20 AI-generated experts in four waves of five, two debate rounds, the judge's Top 5, the partner's framing (situation, complication, the key question, the options weighed with a verdict on each, value drivers with how to size them, assumptions, and open questions), an optional red team, the implementation plan (decisions required with owners, a risk register, measures with a cadence, stakeholders, 90-day milestones with decision gates, and the governance cadence), and a work chart. Each model call is its own request, so a Vercel function can finish inside its time limit. The browser keeps the job and sends it back on the next turn. When the job is done, the page shows the full report with every section, and downloads the report, the client deck, the executive memo, the roadmap, and a harness kit zip. Every report ends with a method and limits appendix.
 
 The kit is one harness: `CLAUDE.md`, `playbook.md`, `model-routing.md`, `project-state-schema.md`, and a skill pack. Small and medium engagements cap the pack at 3 skills. A large team caps it at 10, with one orchestrator. After the work chart the chat asks whether the client is small, medium, or large, unless you already said so. It then searches with Venice Exa, writes a brief that keeps the source URLs, and builds the pack. Download skill pack is a second zip. The same files are under `skills/` in the harness kit, and `CLAUDE.md` points at `skills/skills.json`.
 

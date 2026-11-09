@@ -720,3 +720,19 @@ details.more[open] summary .ico { transform: rotate(180deg); }
   .channel-marks { display: grid; grid-template-columns: repeat(4, 21px); gap: 2px; }
   .channel-marks img, .channel-marks img:nth-child(n+5) { display: block; width: 21px; height: 21px; padding: 3px; margin: 0; }
 }
+
+/* framing and plan cards in the thread */
+.scq { display: grid; gap: 6px; margin-bottom: 10px; font-size: 14.5px; line-height: 1.5; }
+.scq p { margin: 0; }
+.card h4 { margin: 14px 0 6px; font-size: 13px; letter-spacing: .02em; text-transform: uppercase; color: var(--ink-3-aa); }
+.option-list, .decision-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.option-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: start; font-size: 14px; line-height: 1.45; }
+.option-list li .pill { margin-top: 2px; }
+.option-list li span, .decision-list li span { display: block; color: var(--ink-2); font-size: 13.5px; }
+.decision-list { counter-reset: dec; }
+.decision-list li { position: relative; padding-left: 26px; font-size: 14.5px; line-height: 1.45; }
+.decision-list li::before { counter-increment: dec; content: counter(dec); position: absolute; left: 0; top: 1px; font: 700 13px var(--mono); color: var(--cobalt); }
+.chart-cols.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.risk-list .levels { margin: 4px 0; }
+.risk-list.people .pill { vertical-align: middle; }
+@media (max-width: 760px) { .chart-cols.three { grid-template-columns: 1fr; } }
