@@ -457,3 +457,19 @@ def test_failed_uncertain_update_blocks_only_this_process(tmp_path):
         claim_send(path, "op")
     assert blocked.value.code == "phase_uncertain"
     assert _fresh_claim(path, "op") == "CLAIMED"
+
+
+def test_provider_reports_keep_only_the_newest_256():
+    from server.chat_send import note, reported, reset_reported
+
+    reset_reported()
+    try:
+        for i in range(259):
+            note("venice", {"usage": {"prompt_tokens": i}, "cost_usd": i})
+        rows = reported()
+        assert len(rows) == 256
+        assert rows[0]["cost_usd"] == 3
+        assert rows[-1]["usage"] == {"prompt_tokens": 258}
+        assert rows[-1]["cost_usd"] == 258
+    finally:
+        reset_reported()
