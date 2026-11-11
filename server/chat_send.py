@@ -1,11 +1,13 @@
 import os
 import threading
+from collections import deque
 from contextlib import contextmanager
 from contextvars import ContextVar
 
 _open = ContextVar("user_chat_send", default=False)
 _lock = threading.Lock()
-_reported = []
+_REPORTED_LIMIT = 256
+_reported = deque(maxlen=_REPORTED_LIMIT)
 
 
 def secret_text(value):
