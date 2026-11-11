@@ -337,12 +337,34 @@ def test_unconfigured_chat_refuses_before_the_stub(live, monkeypatch):
     channel = _post(live, "/chat", {"message": "Hello from a channel", "source": "maritime"})
     assert channel.status_code == 403, channel.text[:300]
     assert channel.json()["error"]["code"] == "currency_bound_unavailable"
+    from server.chat_send import RAILWAY_MARKERS
+
+    for name in RAILWAY_MARKERS:
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "  ")
     hosted = _post(live, "/api/chat", {"message": ONE_SHOT, "state": {"chat_id": "vercel-closed"}})
     assert hosted.status_code == 403, hosted.text[:300]
     assert hosted.json()["error"]["code"] == "currency_bound_unavailable"
     assert len(live["stub"].hits) == before
     assert live["stub"].errors == []
+
+
+def test_railway_sends_when_vercel_is_also_set(live, monkeypatch):
+    monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
+    before = len(live["stub"].hits)
+    res = _post(live, "/api/chat", {"message": ONE_SHOT, "state": {"chat_id": "railway-with-vercel"}})
+    assert res.status_code == 200, res.text[:400]
+    assert res.json().get("error") is None
+    sent = live["stub"].hits[before:]
+    assert any(path.endswith("/chat/completions") for path in sent)
+    channel_before = len(live["stub"].hits)
+    channel = _post(live, "/chat", {"message": "Hello from a channel", "source": "maritime"})
+    assert channel.status_code == 403, channel.text[:300]
+    assert channel.json()["error"]["code"] == "currency_bound_unavailable"
+    assert len(live["stub"].hits) == channel_before
 
 
 def test_configured_chat_completes_a_paid_step(live):

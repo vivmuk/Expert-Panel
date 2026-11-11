@@ -8,6 +8,16 @@ _open = ContextVar("user_chat_send", default=False)
 _lock = threading.Lock()
 _REPORTED_LIMIT = 256
 _reported = deque(maxlen=_REPORTED_LIMIT)
+RAILWAY_MARKERS = (
+    "RAILWAY_ENVIRONMENT",
+    "RAILWAY_ENVIRONMENT_ID",
+    "RAILWAY_ENVIRONMENT_NAME",
+    "RAILWAY_SERVICE_ID",
+    "RAILWAY_SERVICE_NAME",
+    "RAILWAY_PROJECT_ID",
+    "RAILWAY_DEPLOYMENT_ID",
+    "RAILWAY_REPLICA_ID",
+)
 
 
 def secret_text(value):
@@ -27,6 +37,17 @@ def allowed():
     return _open.get() is True
 
 
+def _present(name):
+    return bool(os.environ.get(name, "").strip())
+
+
+def host_may_send():
+    """Railway's own service variables open the chat even when VERCEL=1 is also set."""
+    if any(_present(name) for name in RAILWAY_MARKERS):
+        return True
+    return not _present("VERCEL")
+
+
 def open_worker():
     """Search workers do not inherit the request context on this interpreter."""
     _open.set(True)
@@ -34,7 +55,7 @@ def open_worker():
 
 @contextmanager
 def user_chat_send():
-    token = _open.set(False if os.environ.get("VERCEL") else True)
+    token = _open.set(host_may_send())
     try:
         yield
     finally:
