@@ -328,6 +328,17 @@ def test_full_engagement_stays_closed_before_the_stub(live):
     assert live["stub"].errors == []
 
 
+def test_configured_chat_completes_a_paid_step(live):
+    before = len(live["stub"].hits)
+    res = _post(live, "/api/chat", {"message": ONE_SHOT, "state": {}})
+    assert res.status_code == 200, res.text[:400]
+    body = res.json()
+    assert body.get("error") is None
+    sent = live["stub"].hits[before:]
+    assert any(path.endswith("/chat/completions") for path in sent)
+    assert live["stub"].errors == []
+
+
 def test_chat_inputs_that_careless_users_send(live):
     before = len(live["stub"].hits)
     empty = _post(live, "/api/chat", {"message": "", "state": {}})
