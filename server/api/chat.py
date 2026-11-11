@@ -363,8 +363,6 @@ def post_root_chat():
     except Exception as exc:
         from ..spendguard import SpendClosed
 
-        from ..spendguard import SpendClosed
-
         if isinstance(exc, SpendClosed):
             return jsonify({"response": exc.message, "error": {"code": exc.code, "message": exc.message}}), _paid_status(exc.code)
         logger.exception("stateless chat failed")
@@ -405,31 +403,35 @@ def post_chat():
             return closed
     scoped_recall, scoped_remember = _memory_for(raw)
     from ..chat_send import user_chat_send
+    from ..usage import actor, note_event
 
-    with user_chat_send():
-        try:
-            result = handle_turn(incoming, message, complete_with_venice, scoped_recall, scoped_remember, exa_search)
-        except Exception as exc:
-            state = exc.state if isinstance(exc, TurnFailed) else load_state(incoming)
-            logger.exception("chat turn failed at phase %s", state.get("phase"))
-            if out_of_credit(exc):
+    visitor = raw.get("visitor_id") if isinstance(raw.get("visitor_id"), str) else ""
+    note_event("web", visitor or chat_id, "visit", chat_id)
+    with actor("web", visitor or chat_id):
+        with user_chat_send():
+            try:
+                result = handle_turn(incoming, message, complete_with_venice, scoped_recall, scoped_remember, exa_search)
+            except Exception as exc:
+                state = exc.state if isinstance(exc, TurnFailed) else load_state(incoming)
+                logger.exception("chat turn failed at phase %s", state.get("phase"))
+                if out_of_credit(exc):
+                    return jsonify(
+                        {
+                            "reply": SPEND_LIMIT_REPLY,
+                            "state": state,
+                            "next": None,
+                            "error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY},
+                        }
+                    ), 503
+                reply = "The model call failed. Your earlier answers are still here. Send the message again."
                 return jsonify(
                     {
-                        "reply": SPEND_LIMIT_REPLY,
+                        "reply": reply,
                         "state": state,
                         "next": None,
-                        "error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY},
+                        "error": {"code": "model", "message": reply},
                     }
-                ), 503
-            reply = "The model call failed. Your earlier answers are still here. Send the message again."
-            return jsonify(
-                {
-                    "reply": reply,
-                    "state": state,
-                    "next": None,
-                    "error": {"code": "model", "message": reply},
-                }
-            ), 502
+                ), 502
     code = (result.get("error") or {}).get("code")
     status = {
         "tamper": 400,

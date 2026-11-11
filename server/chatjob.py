@@ -1,3 +1,4 @@
+import contextvars
 import logging
 import re
 import threading
@@ -885,10 +886,10 @@ def _turn_locked(raw_state, message, complete, recall=None, remember=None, searc
         if not state["size"]:
             return _pack(question, state, None)
         state["phase"] = _frontier(state)
-        return _run_work(state, complete, recall, remember, search)
+        return _run_work(state, complete, recall, remember, search, message)
     if state["phase"] in ("ask_problem", "ask_followup", "ask_context", "ask_maturity"):
         return _intake(state, message, complete, recall, remember, search)
-    return _run_work(state, complete, recall, remember, search)
+    return _run_work(state, complete, recall, remember, search, message)
 
 
 _GREETING = re.compile(r"^(hi|hello|hey|hiya|thanks|thank you|yo)[.! ]*$", re.I)
@@ -1037,7 +1038,7 @@ class TurnFailed(Exception):
         self.state = state
 
 
-def _run_work(state, complete, recall, remember, search):
+def _run_work(state, complete, recall, remember, search, message=""):
     try:
         if getattr(complete, "_spend_enforced", False):
             from .chat_send import allowed
@@ -1045,6 +1046,9 @@ def _run_work(state, complete, recall, remember, search):
 
             try:
                 if allowed():
+                    from .usage import note_chat
+
+                    note_chat(state, message)
                     return _work(state, complete, recall, remember, search)
                 return run_paid_phase(state, lambda: _work(state, complete, recall, remember, search))
             except SpendClosed as exc:
@@ -1484,12 +1488,18 @@ def _research(state, complete, search, recall=None):
         state["service_line"] = _str(data.get("service_line"), 120)
     state["queries"] = _queries(data if isinstance(data, dict) else {}, state)
 
+    parent = contextvars.copy_context()
+
     def lookup(query):
-        try:
-            return query, search(query, limit=4) or []
-        except Exception:
-            logger.info("exa search failed")
-            return query, []
+        def run():
+            try:
+                return query, search(query, limit=4) or []
+            except Exception:
+                logger.info("exa search failed")
+                return query, []
+
+        # Each worker needs its own copy. One Context cannot be entered by two threads.
+        return parent.copy().run(run)
 
     from .chat_send import allowed, open_worker
 

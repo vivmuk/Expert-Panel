@@ -159,6 +159,32 @@ def _rows(items, cells):
     return "".join("<tr>" + "".join(f"<td>{cell(item)}</td>" for cell in cells) + "</tr>" for item in items)
 
 
+def _source_rows(sources):
+    order = ("email", "keiki", "agent", "web")
+    return "".join(
+        "<tr><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+            escape(name),
+            int((sources.get(name) or {}).get("connections") or 0),
+            int((sources.get(name) or {}).get("events") or 0),
+        )
+        for name in order
+    )
+
+
+def _connection_rows(rows):
+    if not rows:
+        return "<tr><td colspan=\"8\">None yet.</td></tr>"
+    return "".join(
+        "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+            escape(item.get("source") or ""),
+            escape(item.get("identity") or ""),
+            _when(item.get("created_at")),
+            int(item.get("events") or 0),
+        )
+        for item in rows
+    )
+
+
 def _render(report):
     users = _rows(
         report["users"],
@@ -206,8 +232,19 @@ def _render(report):
     <p class="lede">A question is one signed-in prompt that starts paid provider work. Intake does not count. Unknown cost stays unknown.</p>
   </section>
   <section class="usage-summary" aria-label="Signups">
-    <p class="kicker">Signups</p>
+    <p class="kicker">Email signups</p>
     <p class="usage-count">{int(report["signups"])}</p>
+  </section>
+  <section aria-labelledby="sources-title">
+    <h2 id="sources-title">Connections</h2>
+    <table class="usage-table">
+      <thead><tr><th>Source</th><th>People</th><th>Events</th></tr></thead>
+      <tbody>{_source_rows(report.get("sources") or {})}</tbody>
+    </table>
+    <table class="usage-table">
+      <thead><tr><th>Source</th><th>Identity</th><th>Since</th><th>Events</th></tr></thead>
+      <tbody>{_connection_rows(report.get("connections") or [])}</tbody>
+    </table>
   </section>
   <section aria-labelledby="users-title">
     <h2 id="users-title">Users</h2>

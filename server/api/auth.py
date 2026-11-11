@@ -2,7 +2,12 @@
 
 On Railway this stores the user and the session. On Maritime and Vercel it
 forwards the same calls to Railway and keeps only the browser cookie.
+The proxy signs the browser IP with the chat signing secret so Railway's
+email limit follows that person, not the proxy's outbound address.
 """
+import base64
+import hashlib
+import hmac
 import threading
 import time
 from urllib.parse import quote
@@ -14,6 +19,7 @@ from ..backend_proxy import call_backend
 from ..entitlement import COOKIE, session_token
 from ..get_started import valid_email
 from ..hostrole import account_role
+from ..keys import signing_secrets
 from ..spendguard import CLOSED, SpendClosed
 from .access import allowed_origins, request_origin
 
@@ -39,6 +45,62 @@ def _allow(ip, now=None):
             return False
         _hits[ip] = stamps + [now]
         return True
+
+
+CLIENT_HEADER = "X-AI-Partner-Client"
+_PROOF_TTL = 600
+
+
+def _b64(text):
+    return base64.urlsafe_b64encode(text.encode()).rstrip(b"=").decode()
+
+
+def _unb64(text):
+    pad = "=" * (-len(text) % 4)
+    return base64.urlsafe_b64decode(text + pad).decode()
+
+
+def sign_client_ip(ip, now=None):
+    """HMAC the browser address so the authority can rate-limit that person."""
+    if not isinstance(ip, str) or not ip or any(ch.isspace() for ch in ip) or len(ip) > 80:
+        return ""
+    secrets = signing_secrets()
+    if not secrets:
+        return ""
+    kid = "v1" if "v1" in secrets else next(iter(secrets))
+    secret = secrets[kid]
+    stamp = str(int(time.time() if now is None else now))
+    body = f"{kid}.{stamp}.{_b64(ip)}"
+    mac = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+    return body + "." + mac
+
+
+def verified_client_ip(header, now=None):
+    """Return the signed address, or '' when the proof is missing or forged."""
+    secrets = signing_secrets()
+    if not secrets or not isinstance(header, str):
+        return ""
+    parts = header.split(".")
+    if len(parts) != 4:
+        return ""
+    kid, stamp, encoded, mac = parts
+    secret = secrets.get(kid)
+    if not secret or not stamp.isdigit():
+        return ""
+    age = int(time.time() if now is None else now) - int(stamp)
+    if age < 0 or age > _PROOF_TTL:
+        return ""
+    try:
+        ip = _unb64(encoded)
+    except (ValueError, UnicodeError):
+        return ""
+    if not ip or any(ch.isspace() for ch in ip) or len(ip) > 80:
+        return ""
+    body = f"{kid}.{stamp}.{encoded}"
+    expect = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expect, mac):
+        return ""
+    return ip
 
 LINK_BASES = (
     "https://74da9def-954d-4df0-9234-04a7301c4740.mtm.sh",
@@ -96,7 +158,8 @@ def request_link():
         return jsonify({"error": {"code": "bad_request", "message": "Enter a valid email."}}), 400
     from .chat import client_ip
 
-    if not _allow(client_ip()):
+    signed = verified_client_ip(request.headers.get(CLIENT_HEADER, ""))
+    if not _allow(signed or client_ip()):
         return jsonify({"error": {"code": "rate", "message": "Too many sign-in emails. Try again later."}}), 429
     base = _link_allowed(body.get("link_base") or request_origin())
     if not base:
@@ -121,6 +184,9 @@ def request_link():
         "Sign in to AI Partner",
         "Use this link to sign in. It expires in 20 minutes and works once.\n\n" + link + "\n",
     )
+    from ..usage import note_event
+
+    note_event("email", email, "sign_up")
     return jsonify({"ok": True})
 
 
@@ -132,8 +198,17 @@ def _proxy_request():
     base = _link_allowed(request_origin())
     if not base:
         return jsonify({"error": {"code": "bad_request", "message": "This host cannot receive the sign-in link."}}), 400
+    from .chat import client_ip
+
+    ip = client_ip()
+    proof = sign_client_ip(ip)
+    headers = {CLIENT_HEADER: proof} if proof else {}
+    if not proof and not _allow(ip):
+        return jsonify({"error": {"code": "rate", "message": "Too many sign-in emails. Try again later."}}), 429
     try:
-        status, parsed, raw = call_backend("POST", "/api/auth/request", {"email": email, "link_base": base})
+        status, parsed, raw = call_backend(
+            "POST", "/api/auth/request", {"email": email, "link_base": base}, headers=headers
+        )
     except SpendClosed as exc:
         return jsonify({"error": {"code": exc.code, "message": exc.message}}), 503
     if parsed is None:
@@ -178,6 +253,9 @@ def _issue(token, redirect_to):
     if not session:
         return jsonify({"error": {"code": "bad_request", "message": "This sign-in link is invalid or already used."}}), 400
     user = user_for_session(session)
+    from ..usage import note_event
+
+    note_event("email", user["email"], "sign_in")
     payload = {"ok": True, "session_token": session, **_public_user(user)}
     if redirect_to:
         response = redirect(redirect_to)

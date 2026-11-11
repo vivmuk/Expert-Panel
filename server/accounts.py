@@ -62,6 +62,31 @@ CREATE TABLE IF NOT EXISTS provider_run (
     billed_microusd bigint,
     provider text
 );
+CREATE TABLE IF NOT EXISTS connection (
+    id text PRIMARY KEY,
+    source text NOT NULL,
+    identity text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (source, identity)
+);
+CREATE TABLE IF NOT EXISTS usage_event (
+    id text PRIMARY KEY,
+    connection_id text NOT NULL REFERENCES connection (id),
+    source text NOT NULL,
+    kind text NOT NULL,
+    ref text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    reserved_microusd bigint,
+    calculated_microusd bigint,
+    billed_microusd bigint
+);
+CREATE TABLE IF NOT EXISTS stored_json (
+    kind text NOT NULL,
+    item_key text NOT NULL,
+    body jsonb NOT NULL,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (kind, item_key)
+);
 """
 
 
@@ -235,6 +260,23 @@ def revoke_session(token):
         connection.commit()
 
 
+def latest_question(user_id, chat_id):
+    """The question already charged for this chat, if the user has one."""
+    if not user_id or not chat_id:
+        return None
+    with connect() as connection:
+        row = connection.execute(
+            """SELECT question.id AS question_id, provider_run.id AS run_id, question.user_id
+               FROM question
+               JOIN provider_run ON provider_run.question_id = question.id
+               WHERE question.user_id = %s AND question.chat_id = %s
+               ORDER BY question.created_at DESC
+               LIMIT 1""",
+            (user_id, chat_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+
 def consume_question(user_id, route, chat_id=None):
     """Insert one question and a cost row whose amounts start as NULL.
 
@@ -351,5 +393,92 @@ def usage_report():
         "users": people,
         "questions": [dict(row) for row in questions],
         "runs": [dict(row) for row in runs],
+        **connection_report(),
     }
+
+
+def _cost(value):
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError("cost must be a non-negative integer or null")
+    return value
+
+
+def remember_connection(source, identity, kind, ref=None, reserved=None, calculated=None, billed=None):
+    """Upsert one principal and append one event. Unknown costs stay null."""
+    identity = " ".join(str(identity or "").split())[:200]
+    if source not in {"email", "keiki", "agent", "web"} or not identity:
+        return
+    with connect() as connection:
+        row = connection.execute(
+            "SELECT id FROM connection WHERE source = %s AND identity = %s",
+            (source, identity),
+        ).fetchone()
+        if row is None:
+            connection_id = secrets.token_hex(16)
+            connection.execute(
+                "INSERT INTO connection (id, source, identity) VALUES (%s, %s, %s)",
+                (connection_id, source, identity),
+            )
+        else:
+            connection_id = row["id"]
+        connection.execute(
+            """INSERT INTO usage_event (
+                   id, connection_id, source, kind, ref,
+                   reserved_microusd, calculated_microusd, billed_microusd
+               ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (
+                secrets.token_hex(16),
+                connection_id,
+                source,
+                kind[:40],
+                (ref or None),
+                _cost(reserved),
+                _cost(calculated),
+                _cost(billed),
+            ),
+        )
+        connection.commit()
+
+
+def connection_report():
+    with connect() as connection:
+        rows = connection.execute(
+            """SELECT source, identity, created_at,
+                      (SELECT count(*) FROM usage_event e WHERE e.connection_id = connection.id) AS events
+               FROM connection ORDER BY created_at"""
+        ).fetchall()
+    people = [dict(row) for row in rows]
+    sources = {}
+    for source in ("email", "keiki", "agent", "web"):
+        chosen = [item for item in people if item["source"] == source]
+        sources[source] = {"connections": len(chosen), "events": sum(int(item["events"]) for item in chosen)}
+    return {"sources": sources, "connections": people}
+
+
+def save_json(kind, item_key, body):
+    from psycopg.types.json import Jsonb
+
+    with connect() as connection:
+        connection.execute(
+            """INSERT INTO stored_json (kind, item_key, body, updated_at)
+               VALUES (%s, %s, %s, now())
+               ON CONFLICT (kind, item_key)
+               DO UPDATE SET body = EXCLUDED.body, updated_at = now()""",
+            (kind, item_key, Jsonb(body)),
+        )
+        connection.commit()
+
+
+def load_json(kind, item_key):
+    with connect() as connection:
+        row = connection.execute(
+            "SELECT body FROM stored_json WHERE kind = %s AND item_key = %s",
+            (kind, item_key),
+        ).fetchone()
+    if row is None:
+        return None
+    body = row["body"]
+    return body if isinstance(body, dict) else None
 

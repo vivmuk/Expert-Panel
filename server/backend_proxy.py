@@ -86,15 +86,18 @@ def forward_admin(partner_key):
     )
 
 
-def call_backend(method, path, payload):
+def call_backend(method, path, payload, headers=None):
     """JSON call used by the auth proxy. Returns (status, parsed object or None, raw)."""
     import json
 
     raw = json.dumps(payload).encode()
-    headers = {"Content-Type": "application/json"}
+    outbound = {"Content-Type": "application/json"}
+    if headers:
+        outbound.update(headers)
     token = session_token()
     if token:
-        headers[SESSION_HEADER] = token
+        outbound[SESSION_HEADER] = token
+    headers = outbound
     try:
         status, body, _content_type = _transport(method, path, raw, headers, "application/json")
     except BackendUnconfigured as exc:

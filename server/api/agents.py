@@ -90,7 +90,25 @@ def _public_base():
 
 
 def _turn(message, state):
-    return handle_turn(state or {}, message or "", complete_with_venice, recall, remember, exa_search)
+    from ..usage import active_actor, actor
+
+    if active_actor():
+        return handle_turn(state or {}, message or "", complete_with_venice, recall, remember, exa_search)
+    with actor("agent", _agent_name()):
+        return handle_turn(state or {}, message or "", complete_with_venice, recall, remember, exa_search)
+
+
+def _agent_name():
+    header = request.headers.get("Authorization", "")
+    token = header[7:].strip() if header.startswith("Bearer ") else ""
+    from ..keys import verify_key
+
+    payload = verify_key(token)
+    if isinstance(payload, dict) and payload.get("email"):
+        return str(payload["email"])[:200]
+    if token:
+        return "key:" + hashlib.sha256(token.encode()).hexdigest()[:12]
+    return "anonymous-agent"
 
 
 def _owner():
@@ -115,6 +133,9 @@ def _tool(name, arguments):
     if name == "start_job":
         seed = arguments.get("state") if isinstance(arguments.get("state"), dict) else {}
         result = _turn(arguments.get("message") or "", seed)
+        from ..usage import note_event
+
+        note_event("agent", _agent_name(), "run", result.get("state", {}).get("chat_id") if isinstance(result, dict) else None)
         job_id = mcpjobs.new_id()
         mcpjobs.save(_owner(), job_id, result.get("state") or {})
         return _ok({**result, "job_id": job_id})

@@ -485,6 +485,43 @@ def test_provider_reports_keep_only_the_newest_256():
         reset_reported()
 
 
+def test_research_workers_keep_the_open_question(monkeypatch):
+    from server.chat_send import allowed, user_chat_send
+    from server.chatjob import _research, fresh_state
+
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "test")
+    monkeypatch.delenv("VERCEL", raising=False)
+    state = fresh_state("chat-open")
+    state["problem"] = "Plant margins"
+    state["team"] = "finance"
+    state["tools"] = "spreadsheets"
+    state["maturity"] = 2
+    state["phase"] = "research"
+    seen = []
+
+    def search(query, limit=4):
+        seen.append(allowed())
+        return [{"title": "A", "url": "https://example.com/a", "content": "c", "date": ""}]
+
+    def complete(name, messages, schema, max_tokens):
+        return {"facts": ["stated fact"], "service_line": "ops", "queries": ["ops benchmarks", "ops rivals"]}
+
+    with user_chat_send():
+        _research(state, complete, search)
+    assert seen
+    assert all(seen)
+
+
+def test_forged_sign_in_client_proof_is_rejected():
+    from server.api.auth import sign_client_ip, verified_client_ip
+
+    proof = sign_client_ip("203.0.113.8")
+    assert verified_client_ip(proof) == "203.0.113.8"
+    flipped = proof[:-1] + ("0" if proof[-1] != "0" else "1")
+    assert verified_client_ip(flipped) == ""
+    assert verified_client_ip("v1.1.eA.not-a-mac") == ""
+
+
 def test_unknown_usage_cost_is_null_not_zero():
     from server.venice.usage import UsageLedger
 

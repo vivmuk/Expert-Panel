@@ -2,8 +2,10 @@
 
 A question is one user-submitted prompt that would call a paid provider:
 the product chat turn that leaves intake, a stateless POST /chat message,
-or one artifact generation. Intake and other unpaid steps do not count.
-Maritime and Vercel do not count locally; they forward the prompt.
+or one artifact generation. The browser then sends empty messages to walk
+the remaining phases of that same prompt. Those continuations reuse the
+question already charged for the chat. Intake does not count. Maritime and
+Vercel do not count locally; they forward the prompt.
 """
 from contextvars import ContextVar
 
@@ -53,14 +55,18 @@ def direct_send_allowed():
     return bool(row and row.get("allow_send"))
 
 
-def begin_question(route, chat_id=None):
-    """Consume one question, or raise SpendClosed. Nested calls reuse the open row."""
+def begin_question(route, chat_id=None, continuation=False):
+    """Consume one question, or raise SpendClosed. Nested calls reuse the open row.
+
+    `continuation` is an empty follow-up the browser sends while `next` is set.
+    It reuses the question already stored for this chat instead of charging another.
+    """
     existing = _open.get()
     if existing is not None:
         return None
     if account_role() != "authority" or not paid_sender():
         raise SpendClosed("paid_host_closed" if session_token() else "sign_in_required")
-    from .accounts import AccountsUnavailable, consume_question
+    from .accounts import AccountsUnavailable, consume_question, latest_question
 
     try:
         user = current_user()
@@ -69,11 +75,14 @@ def begin_question(route, chat_id=None):
     if user is None:
         raise SpendClosed("sign_in_required")
     try:
-        row = consume_question(user["id"], route, chat_id)
+        if continuation:
+            row = latest_question(user["id"], chat_id)
+        else:
+            row = consume_question(user["id"], route, chat_id)
     except AccountsUnavailable as exc:
         raise SpendClosed("accounts_unavailable") from exc
     if row is None:
-        raise SpendClosed("questions_exhausted")
+        raise SpendClosed("paid_path_blocked" if continuation else "questions_exhausted")
     row = dict(row)
     row["allow_send"] = True
     return _open.set(row)

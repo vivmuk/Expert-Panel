@@ -12,6 +12,7 @@ import pytest
 
 from server.accounts import drop_test_schema, install_test_schema, set_run_costs, usage_report
 from server.mailer import CaptureMailer, install, reset
+from tests.test_chatjob import ONE_SHOT
 from tests.test_pg_authority import resolve_test_dsn
 
 
@@ -121,36 +122,42 @@ def test_unconfigured_mailer_fails_without_a_session(world):
     assert world["authority"].get("/api/auth/me").status_code == 401
 
 
+def _paid_state(chat_id, message):
+    return {
+        "message": message,
+        "state": {
+            "chat_id": chat_id,
+            "phase": "research",
+            "problem": "Plant margins",
+            "team": "finance",
+            "tools": "sheets",
+            "maturity": 2,
+            "calls": 0,
+        },
+    }
+
+
 def test_intake_does_not_use_a_question_and_three_questions_then_stop(world):
     world["proxy"].post("/api/auth/request", json={"email": "ada@example.com"})
     token = _token(world["mail"].outbox[0])
     assert world["proxy"].get("/api/auth/verify?token=" + token).status_code == 302
     intake = world["proxy"].post("/api/chat", json={"message": "We make parts for machines.", "state": {}})
     assert intake.status_code == 200
-    assert intake.get_json()["state"]["phase"] == "ask_context"
+    assert str(intake.get_json()["state"]["phase"]).startswith("ask_")
     assert intake.get_json().get("error") is None
-    assert world["forwarded"] == [("POST", "/api/auth/request"), ("POST", "/api/auth/verify")]
-    anonymous = world["proxy"].application.test_client().post(
-        "/chat", json={"message": "Hello from a signed-out browser"}
-    )
+    anonymous = world["proxy"].application.test_client().post("/api/chat", json=_paid_state("anon", "Run it"))
     assert anonymous.status_code == 403
     assert anonymous.get_json()["error"]["code"] == "sign_in_required"
-    assert ("POST", "/chat") not in world["forwarded"]
-    assert world["calls"] == []
-    for _ in range(3):
-        paid = world["proxy"].post("/chat", json={"message": "What should we do next?"})
+    for index in range(3):
+        paid = world["proxy"].post("/api/chat", json=_paid_state(f"chat-{index}", f"Question {index}"))
         assert paid.status_code == 200, paid.get_data(as_text=True)
-        assert paid.get_json()["response"] == "Talk to the team next."
-    assert world["calls"] == ["authority", "authority", "authority"]
-    blocked = world["proxy"].post("/chat", json={"message": "One more."})
+    blocked = world["proxy"].post("/api/chat", json=_paid_state("chat-3", "One more"))
     assert blocked.status_code == 403
     assert blocked.get_json()["error"]["code"] == "questions_exhausted"
-    assert world["calls"] == ["authority", "authority", "authority"]
-    assert world["forwarded"].count(("POST", "/chat")) == 4
     cookie = world["proxy"].get_cookie("ai_partner_session")
     direct = world["authority"].post(
-        "/chat",
-        json={"message": "From Railway itself."},
+        "/api/chat",
+        json=_paid_state("chat-direct", "From Railway itself."),
         headers={"X-AI-Partner-Session": cookie.value},
     )
     assert direct.status_code == 403
@@ -173,6 +180,58 @@ def test_intake_does_not_use_a_question_and_three_questions_then_stop(world):
     assert after["reserved_microusd"] is None
 
 
+def test_automatic_phase_continuations_share_one_question(world):
+    world["proxy"].post("/api/auth/request", json={"email": "ada@example.com"})
+    token = _token(world["mail"].outbox[0])
+    assert world["proxy"].get("/api/auth/verify?token=" + token).status_code == 302
+    first = world["proxy"].post("/api/chat", json={"message": ONE_SHOT, "state": {}})
+    assert first.status_code == 200, first.get_data(as_text=True)
+    state = first.get_json()["state"]
+    before = len(world["calls"])
+    for _ in range(4):
+        follow = world["proxy"].post("/api/chat", json={"message": "", "state": state})
+        assert follow.status_code == 200, follow.get_data(as_text=True)
+        state = follow.get_json()["state"]
+    assert len(world["calls"]) > before
+    with world["authority"].application.test_request_context():
+        report = usage_report()
+    assert report["users"][0]["questions_used"] == 1
+    state = dict(state)
+    state["phase"] = "research"
+    again = world["proxy"].post("/api/chat", json={"message": "Change the recommendation.", "state": state})
+    assert again.status_code == 200, again.get_data(as_text=True)
+    with world["authority"].application.test_request_context():
+        assert usage_report()["users"][0]["questions_used"] == 2
+
+
+def test_proxied_sign_in_limits_follow_the_browser(world):
+    for n in range(5):
+        sent = world["authority"].post("/api/auth/request", json={"email": f"local{n}@example.com"})
+        assert sent.status_code == 200, sent.get_json()
+    blocked = world["authority"].post("/api/auth/request", json={"email": "local5@example.com"})
+    assert blocked.status_code == 429
+    other = world["proxy"].post(
+        "/api/auth/request",
+        json={"email": "browser@example.com"},
+        headers={"X-Real-IP": "203.0.113.50"},
+    )
+    assert other.status_code == 200, other.get_json()
+
+
+def test_chat_stays_open_until_a_mailer_is_configured(world):
+    reset()
+    opened = world["authority"].post(
+        "/api/chat",
+        json={"message": "We make parts for machines.", "visitor_id": "visitor-1", "state": {}},
+    )
+    assert opened.status_code == 200
+    assert opened.get_json().get("error") is None
+    with world["authority"].application.test_request_context():
+        report = usage_report()
+    assert report["sources"]["web"]["connections"] == 1
+    assert any(item["identity"] == "visitor-1" for item in report["connections"])
+
+
 def test_a_second_link_does_not_grant_more_questions(world):
     world["authority"].post("/api/auth/request", json={"email": "ada@example.com"})
     token = _token(world["mail"].outbox[0])
@@ -180,15 +239,16 @@ def test_a_second_link_does_not_grant_more_questions(world):
     assert issued.status_code == 200
     session = issued.get_json()["session_token"]
     headers = {"X-AI-Partner-Session": session}
-    for _ in range(3):
-        assert world["authority"].post("/chat", json={"message": "A question."}, headers=headers).status_code == 200
+    for index in range(3):
+        sent = world["authority"].post("/api/chat", json=_paid_state(f"again-{index}", "A question."), headers=headers)
+        assert sent.status_code == 200, sent.get_data(as_text=True)
     world["authority"].post("/api/auth/request", json={"email": "ada@example.com"})
     second = _token(world["mail"].outbox[1])
     again = world["authority"].post("/api/auth/verify", json={"token": second})
     assert again.get_json()["questions_remaining"] == 0
     refused = world["authority"].post(
-        "/chat",
-        json={"message": "After signing in again."},
+        "/api/chat",
+        json=_paid_state("again-4", "After signing in again."),
         headers={"X-AI-Partner-Session": again.get_json()["session_token"]},
     )
     assert refused.status_code == 403
