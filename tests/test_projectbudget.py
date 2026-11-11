@@ -44,6 +44,7 @@ def test_http_stays_closed_when_a_budget_file_and_prices_exist(monkeypatch, tmp_
     from server import create_app
 
     client = create_app().test_client()
+    monkeypatch.delenv("VENICE_API_KEY", raising=False)
     res = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
     assert res.status_code == 403
     assert res.get_json()["error"]["code"] == "currency_bound_unavailable"

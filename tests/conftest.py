@@ -61,9 +61,11 @@ requests.sessions.Session.request = _guarded_session_request
 def _fresh_limits():
     from server.api.chat import reset_limits
     from server.budget import reset
+    from server.chat_send import reset_reported
     from server.chatmemory import reset_written
 
     reset_limits()
     reset()
     reset_written()
+    reset_reported()
     yield

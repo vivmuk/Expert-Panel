@@ -71,13 +71,19 @@ class VeniceClient:
         self._session.headers.update({"Authorization": f"Bearer {self.api_key}"})
 
     # ------------------------------------------------------------------ http
-    def _request(self, method, path, *, json_body=None, timeout=None, stream=False, attempts=None):
+    def _request(self, method, path, *, json_body=None, timeout=None, stream=False, attempts=None, paid_chat=False):
         from ..spendguard import SpendClosed, claim_send, lose_send, operation_key, release_send
 
         if stream:
             raise SpendClosed("paid_path_blocked")
         if not self.journal_path:
-            raise SpendClosed("currency_bound_unavailable")
+            from ..chat_send import usable_secret
+
+            if not paid_chat or not usable_secret(self.api_key):
+                raise SpendClosed("currency_bound_unavailable")
+            return self._exchange(
+                method, path, json_body=json_body, timeout=timeout, stream=stream, attempts=attempts
+            )
         key = operation_key(method, path, json_body)
         claim_send(self.journal_path, key)
         try:
@@ -143,6 +149,7 @@ class VeniceClient:
         venice_params=None,
         ledger=None,
         stage=None,
+        paid_chat=False,
     ):
         """Chat completion constrained to a JSON schema. Returns parsed dict.
 
@@ -163,8 +170,14 @@ class VeniceClient:
                 "response_format": {"type": "json_object"},
                 "venice_parameters": params,
             }
-            resp = self._request("POST", "/chat/completions", json_body=payload, attempts=attempts)
+            resp = self._request(
+                "POST", "/chat/completions", json_body=payload, attempts=attempts, paid_chat=paid_chat
+            )
             data = resp.json()
+            if paid_chat:
+                from ..chat_send import note
+
+                note("venice", data if isinstance(data, dict) else None)
             choices = data.get("choices") or []
             if not choices:
                 raise VeniceError(f"No choices in response from {model}")

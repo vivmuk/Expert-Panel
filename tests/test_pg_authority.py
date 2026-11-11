@@ -505,6 +505,7 @@ def test_helpers_use_the_postgres_authority_and_http_does_not(authority, monkeyp
     from server import create_app
 
     client = create_app().test_client()
+    monkeypatch.delenv("VENICE_API_KEY", raising=False)
     response = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
     assert response.status_code == 403
     assert response.get_json()["error"]["code"] == "currency_bound_unavailable"

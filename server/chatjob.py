@@ -893,9 +893,12 @@ class TurnFailed(Exception):
 def _run_work(state, complete, recall, remember, search):
     try:
         if getattr(complete, "_spend_enforced", False):
+            from .chat_send import allowed
             from .spendguard import SpendClosed, run_paid_phase
 
             try:
+                if allowed():
+                    return _work(state, complete, recall, remember, search)
                 return run_paid_phase(state, lambda: _work(state, complete, recall, remember, search))
             except SpendClosed as exc:
                 return _pack(exc.message, state, None, {"code": exc.code, "message": exc.message})
@@ -1341,7 +1344,12 @@ def _research(state, complete, search, recall=None):
             logger.info("exa search failed")
             return query, []
 
-    with ThreadPoolExecutor(max_workers=6) as pool:
+    from .chat_send import allowed, open_worker
+
+    workers = {"max_workers": 6}
+    if allowed():
+        workers["initializer"] = open_worker
+    with ThreadPoolExecutor(**workers) as pool:
         results = list(pool.map(lookup, state["queries"][:6]))
     sources = []
     seen = set()
