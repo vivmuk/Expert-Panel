@@ -15,7 +15,7 @@ jobs:
       - name: Install declared requirements and pytest
         run: python -m pip install -r requirements.txt pytest
       - name: Run the suite
-        run: python -m pytest tests -q --ignore=tests/test_pg_authority.py
+        run: python -m pytest tests -q --ignore=tests/test_pg_authority.py --ignore=tests/test_accounts.py
         env:
           VENICE_API_KEY: test-not-a-real-key
           SUPERMEMORY_API_KEY: ""
@@ -57,7 +57,7 @@ jobs:
           EXPOSURE_TEST_DATABASE_URL: postgresql://exposure:exposure-test-only@127.0.0.1:5432/exposure_test
       - name: Run the Postgres authority tests
         run: |
-          python -m pytest tests/test_pg_authority.py -q --junitxml=pg-authority.xml
+          python -m pytest tests/test_pg_authority.py tests/test_accounts.py -q --junitxml=pg-authority.xml
           python -c "import xml.etree.ElementTree as ET; root=ET.parse('pg-authority.xml').getroot(); suite=root if root.tag=='testsuite' else root.find('testsuite'); skipped=int(suite.attrib.get('skipped',0)); tests=int(suite.attrib.get('tests',0)); failures=int(suite.attrib.get('failures',0)); errors=int(suite.attrib.get('errors',0)); assert skipped==0 and failures==0 and errors==0 and tests>=1, (tests, skipped, failures, errors)"
         env:
           EXPOSURE_PG_REQUIRED: "1"

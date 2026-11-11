@@ -1,18 +1,14 @@
 """Offline project accounting. Not runtime enforcement and not a provider bill.
 
-5000000 microusd is $5 of application accounting for reservations in one file.
-This module does not count engagement executions. A workflow can contain many
-stage calls, and Venice can retry inside one call, and neither is an attempt
-row here. `REQUESTED_ENGAGEMENT_ATTEMPT_CAP` is the owner's number. It is not
-applied.
-
-An uncertain step stops every new reservation in that file until
+There is no dollar ceiling. A reservation is stored as given. This module does
+not count engagement executions and does not stop a later reservation because
+of an amount. An uncertain step stops every new reservation in that file until
 `reconcile_uncertainty`. Reconciliation does not release the reservation.
 Reuse requires the same service, stage, and input fingerprint. That fingerprint
 stays in the file. It is not a secret and it is not written into the report.
 The report id is a random value stored with the row. Facts are inserted once.
-A file whose tables are not this version is refused before any new table is
-created, so an older ledger keeps its rows.
+A missing observation stays null. A file whose tables are not this version is
+refused before any new table is created, so an older ledger keeps its rows.
 
 A copied file or a restored earlier copy of a valid file is not detected.
 There is no monotonic anchor outside the file and no principal registry.
@@ -25,10 +21,8 @@ import secrets
 import sqlite3
 import threading
 
-APPLICATION_CEILING_MICROUSD = 5_000_000
-REQUESTED_ENGAGEMENT_ATTEMPT_CAP = 3
-SCHEMA_VERSION = 2
-_PROJECT_COLUMNS = ("project_id", "seal_hash", "ceiling_microusd")
+SCHEMA_VERSION = 3
+_PROJECT_COLUMNS = ("project_id", "seal_hash")
 _STEP_COLUMNS = (
     "project_id",
     "identity_hash",
@@ -104,8 +98,7 @@ def _create_schema(conn):
     conn.execute(
         """CREATE TABLE project (
             project_id TEXT PRIMARY KEY,
-            seal_hash TEXT NOT NULL,
-            ceiling_microusd INTEGER NOT NULL
+            seal_hash TEXT NOT NULL
         )"""
     )
     conn.execute(
@@ -194,8 +187,8 @@ def create_project(path):
             conn.execute("BEGIN IMMEDIATE")
             _create_schema(conn)
             conn.execute(
-                "INSERT INTO project (project_id, seal_hash, ceiling_microusd) VALUES (?, ?, ?)",
-                (project_id, _seal_hash(seal), APPLICATION_CEILING_MICROUSD),
+                "INSERT INTO project (project_id, seal_hash) VALUES (?, ?)",
+                (project_id, _seal_hash(seal)),
             )
             conn.execute("COMMIT")
         except Exception:
@@ -211,7 +204,7 @@ def create_project(path):
 
 def _project(conn, project_id, seal):
     row = conn.execute(
-        "SELECT project_id, seal_hash, ceiling_microusd FROM project WHERE project_id = ?",
+        "SELECT project_id, seal_hash FROM project WHERE project_id = ?",
         (project_id,),
     ).fetchone()
     if row is None or row["seal_hash"] != _seal_hash(seal):
@@ -256,7 +249,7 @@ def decide(path, project_id, seal, inputs, service, worst_case_microusd, stage="
             conn.execute("BEGIN IMMEDIATE")
             try:
                 _require_current_schema(conn)
-                project = _project(conn, project_id, seal)
+                _project(conn, project_id, seal)
             except BudgetStop:
                 conn.execute("ROLLBACK")
                 raise
@@ -279,10 +272,6 @@ def decide(path, project_id, seal, inputs, service, worst_case_microusd, stage="
             if _open_unreconciled(conn, project_id) is not None:
                 conn.execute("ROLLBACK")
                 raise BudgetStop("project_unreconciled")
-            _count, spent = _spent(conn, project_id)
-            if spent + worst_case_microusd > int(project["ceiling_microusd"]):
-                conn.execute("ROLLBACK")
-                raise BudgetStop("over_cap")
             conn.execute(
                 """INSERT INTO step (
                        project_id, identity_hash, service, stage, status, reconciled, reserved_microusd, result_json, report_id
@@ -519,7 +508,7 @@ def report(path, project_id, seal, label):
         try:
             conn.execute("BEGIN IMMEDIATE")
             _require_current_schema(conn)
-            project = _project(conn, project_id, seal)
+            _project(conn, project_id, seal)
             rows = list(conn.execute(
                 """SELECT identity_hash, report_id, service, stage, status, reserved_microusd
                    FROM step WHERE project_id = ? ORDER BY report_id""",
@@ -556,7 +545,6 @@ def report(path, project_id, seal, label):
             "billed_microusd": None if billed is None else int(billed),
         })
     reserved = sum(item["reserved_worst_case_microusd"] for item in steps)
-    ceiling = int(project["ceiling_microusd"])
 
     def bucket(pred):
         chosen = [item for item in steps if pred(item)]
@@ -587,10 +575,7 @@ def report(path, project_id, seal, label):
     return {
         "label": label,
         "runtime_enforcement": False,
-        "application_ceiling_microusd": ceiling,
-        "remaining_application_microusd": ceiling - reserved,
         "engagement_attempts": None,
-        "requested_engagement_attempt_cap": REQUESTED_ENGAGEMENT_ATTEMPT_CAP,
         "engagement_attempt_cap_enforced": False,
         "initial": bucket(lambda item: item["stage"] == "initial"),
         "recovery": bucket(lambda item: item["stage"] == "recovery"),

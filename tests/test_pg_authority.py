@@ -18,7 +18,6 @@ from server.api.voice import _planned, _transcribe
 from server.chatmemory import recall, remember
 from server.exa_search import exa_search
 from server.exposure import (
-    APPLICATION_CEILING_MICROUSD,
     MAX_ENGAGEMENT_ATTEMPTS,
     VENICE_UPSTREAM_TRIES,
     describe_venice,
@@ -264,9 +263,9 @@ def test_two_connections_cannot_cross_the_ceiling(authority):
         thread.start()
     for thread in threads:
         thread.join(10)
-    assert sorted(outcomes) == ["over_cap", "reserved"]
-    assert other.accounted(project["project_id"], project["seal"])["reserved_microusd"] == 3_000_000
-    assert other.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 1
+    assert sorted(outcomes) == ["reserved", "reserved"]
+    assert other.accounted(project["project_id"], project["seal"])["reserved_microusd"] == 6_000_000
+    assert other.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 2
 
 
 def test_fourth_execution_replay_and_duration(authority):

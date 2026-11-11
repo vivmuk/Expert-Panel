@@ -564,11 +564,11 @@ def test_pages_demos_voice_connect_and_signup(live):
     before = len(live["stub"].hits)
     plan = _post(live, "/api/voice/plan", {"text": "Open the Maritime demo"})
     assert plan.status_code == 403, plan.text[:300]
-    assert plan.json()["error"]["code"] == "currency_bound_unavailable"
+    assert plan.json()["error"]["code"] == "sign_in_required"
     assert LEAK not in plan.text
     audio = requests.post(origin + "/api/voice/turn", files={"audio": ("turn.webm", b"not-audio", "audio/webm")}, data={"duration": "1"}, timeout=15)
     assert audio.status_code == 403
-    assert audio.json()["error"]["code"] == "currency_bound_unavailable"
+    assert audio.json()["error"]["code"] == "sign_in_required"
     assert LEAK not in audio.text and "Traceback" not in audio.text
     assert len(live["stub"].hits) == before
 

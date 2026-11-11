@@ -59,13 +59,19 @@ requests.sessions.Session.request = _guarded_session_request
 
 @pytest.fixture(autouse=True)
 def _fresh_limits():
+    from server.api.auth import reset_limits as reset_auth
     from server.api.chat import reset_limits
     from server.budget import reset
     from server.chat_send import reset_reported
     from server.chatmemory import reset_written
+    from server.entitlement import _open
+    from server.mailer import reset as reset_mailer
 
     reset_limits()
+    reset_auth()
     reset()
     reset_written()
     reset_reported()
+    reset_mailer()
+    _open.set(None)
     yield

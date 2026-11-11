@@ -41,6 +41,10 @@ Models are **discovered live** from `GET /models` — new Venice models appear i
 Settings automatically, and every pipeline role is validated against capability
 flags (web search, X search, reasoning) with graceful fallbacks.
 
+### Sign-in and questions
+
+`POST /api/auth/request` emails a magic link when `SMTP_HOST` and `SMTP_FROM` are set. With no sender, the request fails and does not create a session. The account row is in Postgres on the Railway process (`DATABASE_URL` on that process only). An email includes three questions. A question is one signed-in prompt that starts paid work. Intake does not count. Maritime and Vercel forward login and paid prompts to `AI_PARTNER_RAILWAY_BACKEND_URL`, or to `https://ai-partner.up.railway.app` when that variable is unset. They do not open the database and they do not call a provider. `/admin/usage` shows signups and cost to a partner key. There is no per-project dollar ceiling. Unknown reserved, calculated, and billed amounts stay null.
+
 ### Cost governance
 
 Pre-run estimates (`POST /api/estimate`), a confirm dialog above $2, a live cost

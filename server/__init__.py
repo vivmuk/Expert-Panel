@@ -71,9 +71,21 @@ def create_app():
 
         init_db()
 
+    from .hostrole import bind_app
+
+    bind_app(app)
+
     from .api import register_blueprints
 
     register_blueprints(app)
+
+    if app.config.get("DATABASE_ALLOWED"):
+        try:
+            from .accounts import ensure_schema
+
+            ensure_schema()
+        except Exception:
+            logger.exception("user database is not ready")
 
     if os.environ.get("KEIKI_SELF_CHECK_URL") and os.environ.get("KEIKI_HARNESS_SIGNING_SECRET"):
         from .api.keiki import start_self_check

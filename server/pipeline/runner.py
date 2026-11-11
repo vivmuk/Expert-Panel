@@ -28,9 +28,7 @@ def start_run(payload):
     Returns (run, engagement_id, estimate)."""
     from ..spendguard import SpendClosed
 
-    # A legacy run is many model calls with no per-phase reservation. The 3×
-    # estimate breaker is a calculated check, and a missing price becomes 0
-    # inside the ledger. Neither is a bill cap, so the run is not started.
+    # The legacy engine is not the email-question path. It stays closed.
     raise SpendClosed("paid_path_blocked")
     mode = get_mode(payload.get("mode", "deep_dive"))
     if not mode.available:
@@ -76,9 +74,12 @@ def _execute(run, mode, payload, problem, panel_size, est):
     budget_limit = max(est["totalCostUsd"], 0.05) * Config.COST_CIRCUIT_BREAKER_MULTIPLIER
 
     def check_budget():
-        if ledger.total_cost_usd > budget_limit:
+        spent = ledger.total_cost_usd
+        if spent is None:
+            raise CostCircuitBreaker("Provider cost is unknown. It was not treated as zero.")
+        if spent > budget_limit:
             raise CostCircuitBreaker(
-                f"Run spend ${ledger.total_cost_usd:.2f} exceeded {Config.COST_CIRCUIT_BREAKER_MULTIPLIER}x "
+                f"Run spend ${spent:.2f} exceeded {Config.COST_CIRCUIT_BREAKER_MULTIPLIER}x "
                 f"the ${est['totalCostUsd']:.2f} estimate; aborting."
             )
 
@@ -298,8 +299,8 @@ def _stage_usage(ledger, stage):
     return {
         "promptTokens": totals.get("prompt_tokens", 0),
         "completionTokens": totals.get("completion_tokens", 0),
-        "costUsd": totals.get("cost_usd", 0.0),
-        "totalCostUsd": round(ledger.total_cost_usd, 6),
+        "costUsd": totals.get("cost_usd"),
+        "totalCostUsd": None if ledger.total_cost_usd is None else round(ledger.total_cost_usd, 6),
     }
 
 

@@ -6,8 +6,9 @@ frozen request. This module ships no verified prices. Caller-supplied
 one process, under one lock, standing in for a transaction that is not written
 yet. HTTP does not install an authority.
 
-5000000 microusd and 3 executions are the limits that lock enforces on that
-object. They are not a provider bill. A copied process is a second cap.
+There is no dollar ceiling. Three executions are still a limit on this
+in-process object. They are not a provider bill and not the email question
+quota. A copied process is a second counter.
 """
 import hashlib
 import json
@@ -18,7 +19,6 @@ from contextvars import ContextVar
 from .spendguard import SpendClosed, refuse_paid
 from .venice.client import MAX_ATTEMPTS as VENICE_UPSTREAM_TRIES
 
-APPLICATION_CEILING_MICROUSD = 5_000_000
 MAX_ENGAGEMENT_ATTEMPTS = 3
 POSTGRES_INTEGRATION = "pending"
 _SERVICES = frozenset({"venice", "exa", "memory", "voice", "image"})
@@ -228,9 +228,6 @@ class MemoryAuthority(ExposureAuthority):
                 raise ExposureStop("project_unreconciled")
             if len(self._open(project)) >= MAX_ENGAGEMENT_ATTEMPTS:
                 raise ExposureStop("attempts_exhausted")
-            spent = sum(item["reserved_microusd"] for item in self._open(project))
-            if spent + reserved > APPLICATION_CEILING_MICROUSD:
-                raise ExposureStop("over_cap")
             execution = {
                 "execution_id": secrets.token_hex(16),
                 "report_id": secrets.token_hex(16),
@@ -389,8 +386,6 @@ class MemoryAuthority(ExposureAuthority):
             "price_provenance": "synthetic",
             "verified_price": False,
             "provider_invoice_cap": False,
-            "application_ceiling_microusd": APPLICATION_CEILING_MICROUSD,
-            "remaining_application_microusd": APPLICATION_CEILING_MICROUSD - reserved,
             "engagement_attempts": len(executions),
             "engagement_attempt_cap": MAX_ENGAGEMENT_ATTEMPTS,
             "engagement_attempt_cap_enforced": True,

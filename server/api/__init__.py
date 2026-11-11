@@ -1,4 +1,6 @@
 def register_blueprints(app):
+    from .analytics import bp as analytics_bp
+    from .auth import bp as auth_bp
     from .agents import bp as agents_bp
     from .branding import bp as branding_bp
     from .chat import bp as chat_bp
@@ -15,6 +17,8 @@ def register_blueprints(app):
     from .static_serve import bp as static_bp
 
     app.register_blueprint(chat_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(analytics_bp)
     app.register_blueprint(onboard_bp)
     app.register_blueprint(demos_bp)
     app.register_blueprint(voice_bp)

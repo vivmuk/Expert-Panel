@@ -172,4 +172,5 @@ def _public_chart(chart):
 
 
 def _usage(ledger):
-    return {"totalCostUsd": round(ledger.total_cost_usd, 6)}
+    cost = ledger.total_cost_usd
+    return {"totalCostUsd": None if cost is None else round(cost, 6)}

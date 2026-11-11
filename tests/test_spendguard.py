@@ -84,7 +84,7 @@ def test_configured_prices_do_not_open_paid_routes(provider_spies, monkeypatch, 
 
     with pytest.raises(SpendClosed) as brand:
         _generate_slot("hero", prompt="other", model="other-model")
-    assert brand.value.code == "currency_bound_unavailable"
+    assert brand.value.code == "sign_in_required"
     from server.exa_search import exa_search
     from server.chatmemory import recall
 
@@ -161,7 +161,7 @@ def test_research_phase_without_a_signature_does_not_call_a_provider(provider_sp
         },
     )
     assert res.status_code == 403
-    assert res.get_json()["error"]["code"] == "currency_bound_unavailable"
+    assert res.get_json()["error"]["code"] == "sign_in_required"
     assert provider_spies == []
 
 
@@ -256,7 +256,7 @@ def test_direct_client_without_a_journal_does_not_send(provider_spies):
     client = VeniceClient(journal_path=None)
     with pytest.raises(SpendClosed) as exc:
         client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"})
-    assert exc.value.code == "currency_bound_unavailable"
+    assert exc.value.code == "sign_in_required"
     with pytest.raises(SpendClosed):
         claim_send(":memory:", "k")
     with pytest.raises(SpendClosed):
@@ -483,3 +483,30 @@ def test_provider_reports_keep_only_the_newest_256():
         assert rows[-1]["cost_usd"] == 258
     finally:
         reset_reported()
+
+
+def test_unknown_usage_cost_is_null_not_zero():
+    from server.venice.usage import UsageLedger
+
+    ledger = UsageLedger(pricing_lookup=lambda _model: None)
+    assert ledger.record("chat", "model", {"prompt_tokens": 10, "completion_tokens": 2}) is None
+    assert ledger.total_cost_usd is None
+    assert ledger.totals()["total_cost_usd"] is None
+    priced = UsageLedger(pricing_lookup=lambda _model: {"input": 3.0, "output": 5.0})
+    assert priced.record("chat", "model", {"prompt_tokens": 1_000_000, "completion_tokens": 0}) == 3.0
+
+
+def test_proxy_does_not_open_the_user_database(monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
+    monkeypatch.setenv("AI_PARTNER_ACCOUNT_ROLE", "proxy")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://exposure:secret@127.0.0.1:9/exposure_test")
+    calls = []
+    monkeypatch.setattr("psycopg.connect", lambda *_args, **_kwargs: calls.append("open") or None)
+    from server import create_app
+    from server.accounts import AccountsUnavailable, connect
+
+    create_app()
+    with pytest.raises(AccountsUnavailable):
+        connect()
+    assert calls == []

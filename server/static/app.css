@@ -736,3 +736,16 @@ details.more[open] summary .ico { transform: rotate(180deg); }
 .risk-list .levels { margin: 4px 0; }
 .risk-list.people .pill { vertical-align: middle; }
 @media (max-width: 760px) { .chart-cols.three { grid-template-columns: 1fr; } }
+
+.account-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 18px 0 0; color: var(--ink-2); font-size: 14px; }
+.account-bar form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.account-bar input[type="email"] { height: 40px; min-width: min(100%, 240px); padding: 0 12px; border-radius: 12px; border: 1px solid var(--rule-2); background: var(--white); font: inherit; }
+.account-bar input[type="email"]:focus { outline: 0; border-color: var(--cobalt); box-shadow: 0 0 0 4px rgba(0, 51, 204, .1); }
+.account-email { font-weight: 650; color: var(--ink); }
+.account-note { margin: 0; color: var(--ink-2); }
+.usage-summary { margin: 8px 0 28px; }
+.usage-count { font: 800 clamp(40px, 6vw, 72px)/1 var(--sans); letter-spacing: -.04em; color: var(--cobalt); margin: 0; }
+.usage-table { width: 100%; border-collapse: collapse; margin: 12px 0 32px; font-size: 14px; }
+.usage-table th, .usage-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.usage-table th { font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.status-line { margin: 0; color: var(--ink-2); font-size: 14px; }

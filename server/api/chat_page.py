@@ -35,10 +35,11 @@ def render_page(welcome, origin=""):
 <body class="home">
 {header("/chat")}
 <main class="wrap" id="main">
+  <div class="account-bar" id="account-bar">Checking sign-in.</div>
   <section class="home-stage" id="hero" aria-labelledby="home-title">
     {dots()}
     <h1 class="home-title" id="home-title">What problem is costing you <em>money</em>?</h1>
-    <p class="home-sub">AI Partner agents research it, 20 AI experts debate it, and your team gets the Top 5 moves, the options weighed, a risk register, a 90-day plan, the client deck, and the harness kit. Your first engagement is free.</p>
+    <p class="home-sub">AI Partner agents research it, 20 AI experts debate it, and your team gets the Top 5 moves, the options weighed, a risk register, a 90-day plan, the client deck, and the harness kit. Three questions are included.</p>
     <form id="form" class="composer gb" autocomplete="off">
       <label class="sr-only" for="box">Describe the business problem</label>
       <textarea id="box" rows="3" placeholder="{escape(EXAMPLES[0][2])}" enterkeyhint="send"></textarea>
@@ -85,6 +86,7 @@ def render_page(welcome, origin=""):
 <script src="/report.js" defer></script>
 <script src="/history.js" defer></script>
 <script src="/chat.js" data-endpoint="/api/chat" defer></script>
+<script src="/auth.js" defer></script>
 <script src="/onboard.js" defer></script>
 <script src="/keiki.js" defer></script>
 <script src="/voice.js"></script>

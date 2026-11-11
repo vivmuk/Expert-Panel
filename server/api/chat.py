@@ -190,6 +190,33 @@ def _bad(message):
     return jsonify({"error": {"code": "bad_request", "message": message}}), 400
 
 
+def proxy_paid_forward():
+    """Maritime and Vercel send a signed-in paid prompt to Railway.
+
+    Returns None when this process should keep going. A missing session is not
+    refused here: signature, rate, and intake checks still run, and the paid
+    boundary refuses an unsigned provider call. A test double that replaced
+    complete_with_venice is not a provider call and is not forwarded.
+    """
+    from ..hostrole import account_role
+
+    if account_role() != "proxy" or not getattr(complete_with_venice, "_spend_enforced", False):
+        return None
+    from ..entitlement import session_token
+
+    if not session_token():
+        return None
+    from ..backend_proxy import forward_current_request
+
+    return forward_current_request()
+
+
+def _paid_status(code):
+    if code in {"accounts_unavailable", "backend_unconfigured", "backend_unavailable", "not_configured"}:
+        return 503
+    return 403
+
+
 REPLY_SCHEMA = {
     "type": "object",
     "properties": {"response": {"type": "string"}},
@@ -306,6 +333,9 @@ def post_root_chat():
         return jsonify({"response": NOT_CONFIGURED_REPLY}), 503
     if not allow_in_this_process(client_ip()):
         return jsonify({"response": RATE_REPLY}), 429
+    closed = proxy_paid_forward()
+    if closed is not None:
+        return closed
     message = raw.get("message")
     if not isinstance(message, str) or not message.strip():
         return _bad("message is required")
@@ -333,8 +363,10 @@ def post_root_chat():
     except Exception as exc:
         from ..spendguard import SpendClosed
 
+        from ..spendguard import SpendClosed
+
         if isinstance(exc, SpendClosed):
-            return jsonify({"response": exc.message, "error": {"code": exc.code, "message": exc.message}}), 403
+            return jsonify({"response": exc.message, "error": {"code": exc.code, "message": exc.message}}), _paid_status(exc.code)
         logger.exception("stateless chat failed")
         if out_of_credit(exc):
             return jsonify({"response": SPEND_LIMIT_REPLY}), 503
@@ -359,12 +391,18 @@ def post_chat():
     if raw.get("uploads"):
         incoming = dict(incoming)
         incoming["uploads"] = take_uploads(raw.get("uploads"), incoming.get("uploads") or [])
+    from ..chatjob import turn_uses_paid_work
+
     if not signing_secrets():
         return _refuse(incoming, "not_configured", NOT_CONFIGURED_REPLY, 503)
     code, limit_message, chat_id = spend_block(incoming)
     if code:
         return _refuse(incoming, code, limit_message, 429)
     incoming = {**incoming, "chat_id": chat_id}
+    if turn_uses_paid_work(incoming, message):
+        closed = proxy_paid_forward()
+        if closed is not None:
+            return closed
     scoped_recall, scoped_remember = _memory_for(raw)
     from ..chat_send import user_chat_send
 
@@ -398,9 +436,12 @@ def post_chat():
         "budget": 429,
         "not_configured": 503,
         "spend_ledger_unavailable": 403,
-        "currency_bound_unavailable": 403,
-        "calculated_price_unavailable": 403,
-        "calculated_ceiling_exceeded": 403,
+        "sign_in_required": 403,
+        "questions_exhausted": 403,
+        "paid_host_closed": 403,
+        "accounts_unavailable": 503,
+        "backend_unconfigured": 503,
+        "backend_unavailable": 503,
         "phase_uncertain": 409,
         "paid_path_blocked": 403,
     }.get(code, 200)
@@ -488,8 +529,9 @@ def chat_artifact():
             status = 503 if exc.code == "not_configured" else 400 if exc.code in ("unknown", "tamper", "limit", "budget") else 403 if exc.code in (
                 "spend_ledger_unavailable",
                 "currency_bound_unavailable",
-                "calculated_price_unavailable",
-                "calculated_ceiling_exceeded",
+                "sign_in_required",
+                "questions_exhausted",
+                "paid_host_closed",
                 "phase_uncertain",
                 "paid_path_blocked",
             ) else 502
@@ -498,7 +540,7 @@ def chat_artifact():
             from ..spendguard import SpendClosed
 
             if isinstance(exc, SpendClosed):
-                return jsonify({"error": {"code": exc.code, "message": exc.message}}), 403
+                return jsonify({"error": {"code": exc.code, "message": exc.message}}), _paid_status(exc.code)
             logger.exception("artifact %s failed", artifact_id)
             if out_of_credit(exc):
                 return jsonify({"error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY}}), 503

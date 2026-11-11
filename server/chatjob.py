@@ -812,6 +812,29 @@ def _chat_lock(chat_id):
         return lock
 
 
+def turn_uses_paid_work(raw_state, message):
+    """True when this prompt would call a provider. Intake-only turns are false.
+
+    A proxy uses this to decide whether to forward. It does not call a model.
+    """
+    raw = raw_state if isinstance(raw_state, dict) else {}
+    state = dict(load_state(raw))
+    message = _str(message or "", 8000)
+    if state["phase"] == "done":
+        if len(message) <= 15:
+            return False
+        state = fresh_state(state["chat_id"])
+    if state["phase"] == "ask_size":
+        if not message:
+            return False
+        _note_size(state, message)
+        return bool(state.get("size"))
+    if state["phase"] in ("ask_problem", "ask_context", "ask_maturity"):
+        _reply, state = _intake(state, message)
+        return state["phase"] in AUTO
+    return True
+
+
 def handle_turn(raw_state, message, complete, recall=None, remember=None, search=None):
     """Advance one job. `complete(name, messages, schema, max_tokens)` calls the model.
 
