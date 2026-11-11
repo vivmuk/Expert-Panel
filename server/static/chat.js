@@ -56,9 +56,6 @@
     report: ["/api/chat/report", "report.md"],
     pptx: ["/api/chat/deck.pptx", "client-deck.pptx"]
   };
-  var MATURITY = [["1", "Invoice-led"], ["2", "Pilot-led"], ["3", "Hybrid"], ["4", "Machine-led"]];
-  var SIZES = [["small", "Small", "one team"], ["medium", "Medium", "several teams"], ["large", "Large", "company-wide"]];
-
   var form = document.getElementById("form");
   var box = document.getElementById("box");
   var send = form.querySelector(".send");
@@ -519,14 +516,6 @@
     return h("img", { class: "av", src: "/img/brand/avatar.webp", alt: "", width: "32", height: "32" });
   }
 
-  function quick(kind) {
-    var rows = kind === "maturity" ? MATURITY.map(function (m) { return [m[0], m[0] + " · " + m[1]]; })
-      : SIZES.map(function (s) { return [s[0], s[1] + " · " + s[2]]; });
-    return h("div", { class: "quick" }, rows.map(function (r) {
-      return h("button", { type: "button", class: "chip", "data-quick": r[0], onclick: function () { if (!running) submit(r[0]); } }, [r[1]]);
-    }));
-  }
-
   function renderItem(item, index) {
     try {
       return renderKnownItem(item, index);
@@ -543,12 +532,7 @@
       return card ? h("li", { class: "msg card-msg" }, [avatarImg(), h("div", { class: "body" }, [card])]) : null;
     }
     if (item.role === "error") return h("li", { class: "msg" }, [avatarImg(), errorCard(item, index)]);
-    var last = index === items.length - 1;
-    var phase = state && state.phase;
-    var extra = null;
-    if (last && item.ask === "maturity" && phase === "ask_maturity") extra = quick("maturity");
-    if (last && item.ask === "size" && phase === "ask_size") extra = quick("size");
-    return h("li", { class: "msg" }, [avatarImg(), h("div", {}, [h("div", { class: "bubble", text: typeof item.text === "string" ? item.text : "" }), extra])]);
+    return h("li", { class: "msg" }, [avatarImg(), h("div", {}, [h("div", { class: "bubble", text: typeof item.text === "string" ? item.text : "" })])]);
   }
 
   function errorCard(item, index) {
@@ -688,9 +672,6 @@
 
   function placeholder() {
     var phase = state && state.phase;
-    if (phase === "ask_context") return "Who is on the team, and which tools do they use?";
-    if (phase === "ask_maturity") return "Score 1 to 4, or pick one above.";
-    if (phase === "ask_size") return "Small, medium, or large.";
     if (phase === "done") return "Describe a new problem to start another engagement.";
     return "Message AI Partner";
   }
@@ -775,10 +756,9 @@
     }
     if (data.card) {
       append({ role: "card", card: data.card });
-      if (data.card.kind === "chart" && state && state.phase === "ask_size") append({ role: "assistant", text: tail(data.reply), ask: "size" });
+      if (data.card.kind === "chart" && state && state.phase === "ask_size") append({ role: "assistant", text: tail(data.reply) });
     } else if (data.reply) {
-      var phase = state && state.phase;
-      append({ role: "assistant", text: data.reply, ask: phase === "ask_maturity" ? "maturity" : phase === "ask_size" ? "size" : null });
+      append({ role: "assistant", text: data.reply });
     }
     paintRail();
     return data.next || null;
@@ -786,7 +766,7 @@
 
   function tail(reply) {
     var parts = String(reply || "").split("\n\n");
-    return parts[parts.length - 1] || "Is the client small, medium, or large?";
+    return parts[parts.length - 1] || "How big is the group that would run this?";
   }
 
   function run(message) {

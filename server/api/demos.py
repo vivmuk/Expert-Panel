@@ -345,6 +345,15 @@ def _hero_kicker(demo):
 
 
 def _hero_actions(demo):
+    share = demo.get("share")
+    if share:
+        base = escape(share)
+        return (
+            f'<a class="btn primary" href="{base}/deck">{icon("monitor-play")}Open the client deck</a>'
+            f'<a class="btn ghost" href="{base}/deck.pptx">{icon("download")}Download .pptx</a>'
+            f'<a class="btn ghost" href="#top5">{icon("trophy")}Jump to the Top 5</a>'
+            f'<a class="btn ghost" href="{base}/kit.zip">{icon("package")}Harness kit</a>'
+        )
     if demo.get("live"):
         return (
             f'<button type="button" class="btn primary deck-btn" data-artifact="deck">{icon("monitor-play")}Open the client deck</button>'
@@ -703,12 +712,21 @@ def _kit(demo):
     if files:
         out += f'<h3 class="sub-head">Kit files</h3><ul class="kit-files">{files}</ul>'
     if demo.get("live"):
-        return out + (
-            f'<div class="hero-actions"><button type="button" class="btn primary" data-download="kit">{icon("package")}Download the harness kit</button>'
-            f'<button type="button" class="btn ghost" data-download="skill-pack">{icon("puzzle")}Skill pack zip</button>'
-            f'<button type="button" class="btn ghost" data-download="report">{icon("file-text")}Report .md</button>'
-            f'<a class="btn ghost" href="/connect">{icon("plug")}Run it in your own agent</a></div>'
-        )
+        share = demo.get("share")
+        if share:
+            base = escape(share)
+            actions = (
+                f'<a class="btn primary" href="{base}/kit.zip">{icon("package")}Download the harness kit</a>'
+                f'<a class="btn ghost" href="{base}/skill-pack.zip">{icon("puzzle")}Skill pack zip</a>'
+                f'<a class="btn ghost" href="{base}/report.md">{icon("file-text")}Report .md</a>'
+            )
+        else:
+            actions = (
+                f'<button type="button" class="btn primary" data-download="kit">{icon("package")}Download the harness kit</button>'
+                f'<button type="button" class="btn ghost" data-download="skill-pack">{icon("puzzle")}Skill pack zip</button>'
+                f'<button type="button" class="btn ghost" data-download="report">{icon("file-text")}Report .md</button>'
+            )
+        return out + f'<div class="hero-actions">{actions}<a class="btn ghost" href="/connect">{icon("plug")}Run it in your own agent</a></div>'
     out += f'<div class="hero-actions"><a class="btn primary" href="/demos/{slug}/kit.zip" download>{icon("download")}Download the kit zip</a>{_deck_button(demo["slug"]).replace("btn primary", "btn ghost")}<a class="btn ghost" href="/connect">{icon("plug")}Run it in your own agent</a></div>'
     return out
 
@@ -737,8 +755,26 @@ def _thumb(path):
 
 def _deliverables(demo):
     cards = []
+    share = demo.get("share")
     for item in demo.get("artifacts") or []:
         key = escape(item["id"])
+        if share:
+            base = escape(share)
+            file_href = f"{base}/deck.pptx" if item["id"] == "deck" else f"{base}/{key}"
+            cards.append(
+                f"""<article class="deliverable gb spot{' hero' if item['id'] == 'deck' else ''}">
+  <a class="thumb-btn" href="{base}/{key}">{_thumb(item.get("thumb"))}</a>
+  <div class="deliverable-copy">
+    <h3>{escape(item["title"])}</h3>
+    <p>{escape(item.get("purpose") or "")}</p>
+    <div class="deliverable-actions">
+      <a class="btn small primary" href="{base}/{key}">{icon("eye")}View</a>
+      <a class="btn small ghost" href="{file_href}">{icon("download")}Download</a>
+    </div>
+  </div>
+</article>"""
+            )
+            continue
         kind = ".pptx" if item["id"] == "deck" else ".html"
         cards.append(
             f"""<article class="deliverable gb spot{' hero' if item['id'] == 'deck' else ''}" data-card="{key}">

@@ -9,7 +9,7 @@ from server.chatjob import handle_turn
 from server.exa_search import EXA_URL, exa_search
 from server.skillpack import MAX_SKILLS, STRATEGY_SKILLS, pack_files
 from server.uploads import take_uploads
-from tests.test_chatjob import ONE_SHOT, fake_model, run_until_stop
+from tests.test_chatjob import ONE_SHOT, drive_intake, fake_model, run_until_stop
 
 
 def _chart(count):
@@ -167,7 +167,7 @@ def test_research_keeps_exa_urls_through_the_skill_pack():
         ]
 
     complete = fake_model(calls)
-    researched = handle_turn({}, ONE_SHOT + " The client is small.", complete, search=search)
+    researched = drive_intake(ONE_SHOT + " The client is small.", complete, search=search)
     assert "https://example.com/gba" in researched["reply"]
     briefed = handle_turn(researched["state"], "", complete, search=search)
     assert "https://example.com/gba" in briefed["reply"]

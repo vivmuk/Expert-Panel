@@ -494,8 +494,9 @@ def test_http_does_not_install_an_authority_or_open_a_cost_route(monkeypatch):
     client = create_app().test_client()
     monkeypatch.delenv("VENICE_API_KEY", raising=False)
     res = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
-    assert res.status_code == 403
-    assert res.get_json()["error"]["code"] == "currency_bound_unavailable"
+    assert res.status_code == 200
+    assert res.get_json()["state"]["phase"] == "ask_followup"
+    assert res.get_json().get("error") is None
     rules = [rule.rule for rule in client.application.url_map.iter_rules()]
     assert not any("cost" in rule or "budget" in rule or "exposure" in rule for rule in rules)
     with pytest.raises(SpendClosed):

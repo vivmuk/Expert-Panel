@@ -507,8 +507,8 @@ def test_helpers_use_the_postgres_authority_and_http_does_not(authority, monkeyp
     client = create_app().test_client()
     monkeypatch.delenv("VENICE_API_KEY", raising=False)
     response = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
-    assert response.status_code == 403
-    assert response.get_json()["error"]["code"] == "currency_bound_unavailable"
+    assert response.status_code == 200
+    assert response.get_json()["state"]["phase"] == "ask_followup"
     assert _schemas(authority._dsn) == before
     rules = [rule.rule for rule in client.application.url_map.iter_rules()]
     assert not any("cost" in rule or "budget" in rule or "exposure" in rule for rule in rules)

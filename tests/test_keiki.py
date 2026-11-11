@@ -91,9 +91,14 @@ def test_turn_follows_engine_steps(monkeypatch):
     keiki.run_turn(dict(PAYLOAD, conversationId="steps"), "ht_x")
     assert [m for m, _ in seen] == ["We run a clinic", "", ""]
     assert seen[2][1] == {"n": 2}
-    assert [c.get("text") for c in calls] == ["Researching.", "Panel seated.", "Top 5 ready.", None]
-    assert len({c.get("idempotencyKey") for c in calls[:3]}) == 3
-    assert calls[-1] == {"status": "completed"}
+    texts = [c.get("text") for c in calls if "text" in c]
+    assert texts[0].startswith("Hi, this is AI Partner")
+    assert "about 4 minutes" in texts[0]
+    assert "Researching." not in texts
+    assert "Panel seated." not in texts
+    assert "Top 5 ready." not in texts
+    assert "snag" in texts[-1]
+    assert calls[-1] == {"status": "failed"}
 
 
 def test_engine_failure_completes_failed(monkeypatch):
@@ -103,8 +108,10 @@ def test_engine_failure_completes_failed(monkeypatch):
     monkeypatch.setattr(keiki, "_engine", lambda m, s: (_ for _ in ()).throw(RuntimeError("x")))
     monkeypatch.setattr(keiki, "_post", lambda url, tok, body: calls.append(body))
     keiki.run_turn(PAYLOAD, "ht_x")
-    assert calls[-1] == {"status": "failed", "error": "RuntimeError"}
-    assert "x" not in json.dumps(calls)
+    assert calls[-1] == {"status": "failed"}
+    assert "snag" in calls[0]["text"]
+    assert "RuntimeError" not in json.dumps(calls)
+    assert "Traceback" not in json.dumps(calls)
 
 
 def test_replay_of_a_signed_turn_is_rejected(client, monkeypatch):
@@ -146,7 +153,9 @@ def test_turn_stops_at_the_deadline_without_leaking_the_error(monkeypatch):
     monkeypatch.setattr(keiki, "_engine", lambda *a: pytest.fail("the deadline is already past"))
     monkeypatch.setattr(keiki, "_post", lambda url, tok, body: calls.append(body))
     keiki.run_turn(PAYLOAD, "ht_x")
-    assert calls == [{"status": "failed", "error": "TimeoutError"}]
+    assert calls[-1] == {"status": "failed"}
+    assert "snag" in calls[0]["text"]
+    assert "TimeoutError" not in json.dumps(calls)
 
 
 def test_cancellation_accepted(client):

@@ -100,9 +100,16 @@ def _flask_post(client):
 
 def _drive(post, message, visitor_id, has_history=False):
     body = _turn(post, message, visitor_id, has_history)
-    for _ in range(16):
+    for _ in range(24):
         if (body.get("card") or {}).get("kind") == "top5":
             return body
+        phase = (body.get("state") or {}).get("phase")
+        if phase == "ask_followup":
+            body = _turn(post, "The commercial lead owns the bottleneck.", visitor_id, has_history, body["state"])
+            continue
+        if phase == "ask_size":
+            body = _turn(post, "one team", visitor_id, has_history, body["state"])
+            continue
         if not body.get("next"):
             return body
         body = _turn(post, "", visitor_id, has_history, body["state"])
@@ -292,15 +299,20 @@ def test_one_engagement_posts_a_single_document(client, monkeypatch):
     stub = _install(monkeypatch)
     post = _flask_post(client)
     body = _turn(post, ONE_SHOT, "alpha")
-    for _ in range(20):
+    for _ in range(24):
+        phase = body["state"]["phase"]
+        if phase == "ask_followup":
+            body = _turn(post, "The commercial lead owns the bottleneck.", "alpha", False, body["state"])
+            continue
+        if phase == "ask_size":
+            body = _turn(post, "12 people", "alpha", False, body["state"])
+            continue
         if not body.get("next"):
             break
         body = _turn(post, "", "alpha", False, body["state"])
     else:
         raise AssertionError(body["state"]["phase"])
-    assert body["state"]["phase"] == "ask_size"
-    done = _turn(post, "12 people", "alpha", False, body["state"])
-    assert done["state"]["phase"] == "done"
+    assert body["state"]["phase"] == "done"
     assert stub.calls == []
 
 

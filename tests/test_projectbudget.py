@@ -46,8 +46,8 @@ def test_http_stays_closed_when_a_budget_file_and_prices_exist(monkeypatch, tmp_
     client = create_app().test_client()
     monkeypatch.delenv("VENICE_API_KEY", raising=False)
     res = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
-    assert res.status_code == 403
-    assert res.get_json()["error"]["code"] == "currency_bound_unavailable"
+    assert res.status_code == 200
+    assert res.get_json()["state"]["phase"] == "ask_followup"
     assert calls == []
     assert accounted(str(tmp_path / "budget.db"), created["project_id"], created["seal"])["step_rows"] == 0
     assert "no_authoritative_attempt_price" in activation_blockers()

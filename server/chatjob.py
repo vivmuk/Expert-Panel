@@ -31,6 +31,7 @@ MATURITY_MEANING = {
 
 PHASES = (
     "ask_problem",
+    "ask_followup",
     "ask_context",
     "ask_maturity",
     "research",
@@ -66,10 +67,13 @@ ASK_MATURITY = (
     "Add the words red team if you want an adversarial pass."
 )
 
-ASK_SIZE = (
-    "Is the client small, medium, or large? "
-    "Small is one team. Medium is several teams. Large is a company-wide process."
-)
+OPENER = "Hi, this is AI Partner. Tell me the problem you want this engagement to take on."
+
+FALLBACK_QUESTION = "What's the specific bottleneck, and who on the team would own the fix?"
+
+FALLBACK_SIZE = "Is this one team, a few teams, or the whole company?"
+
+ASK_SIZE = FALLBACK_SIZE
 
 BUDGET_REPLY = (
     f"This job hit the demo budget of {MAX_MODEL_CALLS} model calls. "
@@ -145,6 +149,11 @@ def fresh_state(chat_id):
         "skill_notes": {},
         "pack": None,
         "depth": "strategy",
+        "followups": [],
+        "queued": [],
+        "maturity_hint": None,
+        "size_hint": "",
+        "size_question": "",
     }
 
 
@@ -431,12 +440,21 @@ def _research_step(state):
     return "synthesize" if (state.get("queries") or state.get("sources")) else "research"
 
 
+def _open_followup(state):
+    rows = state.get("followups") or []
+    return bool(rows) and rows[-1].get("a") == ""
+
+
 def _frontier(state):
     """The first step this job has not finished. Research, then 20 experts, two debate rounds, and the judge."""
     if not state["problem"]:
         return "ask_problem"
+    if _open_followup(state) or state.get("queued"):
+        return "ask_followup"
     if state["maturity"] not in MATURITY:
-        return "ask_maturity"
+        return "ask_followup"
+    if not state.get("size") and not state.get("chart"):
+        return "ask_size"
     if not state["panel"]:
         if not state.get("brief"):
             return _research_step(state)
@@ -460,11 +478,8 @@ def _frontier(state):
     return "done"
 
 
-def _rewind(state, phase):
-    frontier = _frontier(state)
-    if frontier == "ask_maturity" and phase == "ask_context":
-        return "ask_context"
-    return frontier
+def _rewind(state, _phase):
+    return _frontier(state)
 
 
 def load_state(raw):
@@ -516,9 +531,32 @@ def load_state(raw):
     if isinstance(pack, dict) and pack.get("tier") in ("small", "medium", "large"):
         state["pack"] = {"tier": pack["tier"]}
     state["artifacts"] = _artifacts(raw.get("artifacts"))
+    state["followups"] = _followups(raw.get("followups"))
+    state["queued"] = _texts(raw.get("queued"), 2, 240)
+    hint = raw.get("maturity_hint")
+    if isinstance(hint, str) and hint.isdigit():
+        hint = int(hint)
+    state["maturity_hint"] = hint if hint in MATURITY else None
+    size_hint = raw.get("size_hint")
+    state["size_hint"] = size_hint if size_hint in ("small", "medium", "large") else ""
+    state["size_question"] = _str(raw.get("size_question"), 240)
     phase = raw.get("phase")
     state["phase"] = _rewind(state, phase if phase in PHASES else "ask_problem")
     return state
+
+
+def _followups(raw):
+    if not isinstance(raw, list):
+        return []
+    found = []
+    for item in raw[:2]:
+        if not isinstance(item, dict):
+            continue
+        question = _str(item.get("q"), 240)
+        if not question:
+            continue
+        found.append({"q": question, "a": _str(item.get("a"), 2000)})
+    return found
 
 
 def _texts(raw, count, limit):
@@ -678,11 +716,11 @@ def wants_red_team(text):
 
 def parse_size(text):
     lowered = " ".join(text.lower().split())
-    if re.search(r"\b(enterprise|global|multinational|large)\b", lowered):
+    if re.search(r"\b(whole company|entire company|company-wide|company wide|enterprise|global|multinational|large)\b", lowered):
         return "large"
-    if re.search(r"\b(mid-market|mid market|mid-size|mid size|medium)\b", lowered):
+    if re.search(r"\b(a few teams|few teams|several teams|multiple teams|mid-market|mid market|mid-size|mid size|medium)\b", lowered):
         return "medium"
-    if re.search(r"\b(startup|boutique|small)\b", lowered):
+    if re.search(r"\b(one team|a single team|single team|startup|boutique|small)\b", lowered):
         return "small"
     matched = re.search(r"\b(\d{1,6})\s*[- ]?(?:person|people|employee|employees|staff)\b", lowered)
     if not matched:
@@ -722,7 +760,7 @@ def _pack(reply, state, nxt, error=None, card=None):
 def _advance(reply, state, card=None):
     state["phase"] = _frontier(state)
     if state["phase"] == "ask_size":
-        return _pack(reply + "\n\n" + ASK_SIZE, state, None, card=card)
+        return _pack(reply + "\n\n" + (state.get("size_question") or FALLBACK_SIZE), state, None, card=card)
     return _pack(reply, state, state["phase"] if state["phase"] in AUTO else None, card=card)
 
 
@@ -817,69 +855,155 @@ def _turn_locked(raw_state, message, complete, recall=None, remember=None, searc
             return handle_turn(restarted, message, complete, recall, remember, search)
         return _pack(DONE_REPLY, state, None)
     if state["phase"] == "ask_size":
+        question = state.get("size_question") or FALLBACK_SIZE
         if not message:
-            return _pack(ASK_SIZE, state, None)
+            return _pack(question, state, None)
         _note_size(state, message)
         if not state["size"]:
-            return _pack(ASK_SIZE, state, None)
+            return _pack(question, state, None)
         state["phase"] = _frontier(state)
         return _run_work(state, complete, recall, remember, search)
-    if state["phase"] in ("ask_problem", "ask_context", "ask_maturity"):
-        reply, state = _intake(state, message)
-        if state["phase"] not in AUTO:
-            return _pack(reply, state, None)
-        return _run_work(state, complete, recall, remember, search)
+    if state["phase"] in ("ask_problem", "ask_followup", "ask_context", "ask_maturity"):
+        return _intake(state, message, complete, recall, remember, search)
     return _run_work(state, complete, recall, remember, search)
 
 
-def _intake(state, message):
-    phase = state["phase"]
-    if phase == "ask_problem":
-        if not message or re.fullmatch(r"[1-4]", message):
-            return WELCOME, state
-        state["problem"] = message
-        state["red_team"] = wants_red_team(message)
-        _note_size(state, message)
-        maturity = parse_maturity(message, phase)
-        if _has_context(message):
-            team, tools = split_team_tools(message)
-            state["team"] = team[:1000]
-            state["tools"] = tools[:1000]
-            if maturity:
-                state["maturity"] = maturity
-                state["phase"] = _frontier(state)
-                return "", state
-            state["phase"] = "ask_maturity"
-            return ASK_MATURITY, state
-        state["phase"] = "ask_context"
-        return ASK_CONTEXT, state
+_GREETING = re.compile(r"^(hi|hello|hey|hiya|thanks|thank you|yo)[.! ]*$", re.I)
 
-    if phase == "ask_context":
-        if not message:
-            return ASK_CONTEXT, state
-        team, tools = split_team_tools(message)
-        state["team"] = (team or message)[:1000]
-        state["tools"] = tools[:1000]
-        state["red_team"] = state["red_team"] or wants_red_team(message)
-        _note_size(state, message)
-        maturity = parse_maturity(message, phase)
-        if maturity:
-            state["maturity"] = maturity
-            state["phase"] = _frontier(state)
-            return "", state
-        state["phase"] = "ask_maturity"
-        return ASK_MATURITY, state
 
-    if not message:
-        return ASK_MATURITY, state
-    state["red_team"] = state["red_team"] or wants_red_team(message)
+def _plain(text):
+    text = re.sub(r"\[(.+?)\]\([^)]*\)", r"\1", str(text or ""))
+    text = re.sub(r"[*_`#]", "", text)
+    return " ".join(text.split())
+
+
+def _absorb(state, message):
+    state["red_team"] = state.get("red_team") or wants_red_team(message)
     _note_size(state, message)
-    maturity = parse_maturity(message, phase)
-    if not maturity:
-        return ASK_MATURITY, state
-    state["maturity"] = maturity
+    team, tools = split_team_tools(message)
+    if team and not state["team"]:
+        state["team"] = team[:1000]
+    if tools and not state["tools"]:
+        state["tools"] = tools[:1000]
+
+
+def _conversation(state):
+    parts = [state.get("problem") or "", state.get("team") or "", state.get("tools") or ""]
+    parts += [row.get("a") or "" for row in state.get("followups") or []]
+    return "\n".join(part for part in parts if part)
+
+
+def _intake_call(state, complete):
+    system = (
+        "You prepare one strategy engagement. "
+        "Return 1 or 2 short follow-up questions tailored to what they wrote. "
+        "Ask about the industry, the bottleneck, a constraint, what they have tried, or who is involved. "
+        "Plain sentences. No markdown and no numbered menu. "
+        "Infer maturity as an integer from 1 to 4. 1 is invoice-led, 2 is pilot-led, 3 is hybrid, 4 is machine-led. "
+        "Set size to small, medium, or large when the text makes the group plain, otherwise an empty string. "
+        "When size is empty, write one short size_question about that group. Not a menu. "
+        "Fill team and tools when the text names them, otherwise empty strings."
+    )
+    try:
+        data = complete(
+            "ChatIntake",
+            [{"role": "system", "content": system}, {"role": "user", "content": untrusted("Problem", state["problem"])}],
+            INTAKE_SCHEMA,
+            400,
+        )
+    except Exception:
+        return None
+    state["calls"] = (state.get("calls") or 0) + 1
+    return data if isinstance(data, dict) else None
+
+
+def _apply_reading(state, data):
+    if not isinstance(data, dict):
+        data = {}
+    questions = []
+    for item in (data.get("questions") or [])[:2]:
+        text = _plain(item)[:240]
+        if text:
+            questions.append(text)
+    if not questions:
+        questions = [FALLBACK_QUESTION]
+    maturity = data.get("maturity")
+    if isinstance(maturity, str) and maturity.isdigit():
+        maturity = int(maturity)
+    state["maturity_hint"] = maturity if maturity in MATURITY else state.get("maturity_hint")
+    size = data.get("size")
+    if size in ("small", "medium", "large") and not state.get("size"):
+        state["size_hint"] = size
+    question = _plain(data.get("size_question"))[:240]
+    if question:
+        state["size_question"] = question
+    team = _str(data.get("team"), 1000)
+    tools = _str(data.get("tools"), 1000)
+    if team and not state["team"]:
+        state["team"] = team
+    if tools and not state["tools"]:
+        state["tools"] = tools
+    state["queued"] = questions[1:]
+    state["followups"] = [{"q": questions[0], "a": ""}]
+    state["phase"] = "ask_followup"
+    return _pack(questions[0], state, None)
+
+
+def _pose(state, complete):
+    reading = _intake_call(state, complete)
+    if reading is None:
+        state["queued"] = []
+        state["followups"] = [{"q": FALLBACK_QUESTION, "a": ""}]
+        state["size_question"] = state.get("size_question") or FALLBACK_SIZE
+        state["phase"] = "ask_followup"
+        return _pack(FALLBACK_QUESTION, state, None)
+    return _apply_reading(state, reading)
+
+
+def _finish_intake(state, complete, recall, remember, search):
+    blob = _conversation(state)
+    explicit = parse_maturity(blob, "ask_problem")
+    hint = state.get("maturity_hint")
+    state["maturity"] = explicit or (hint if hint in MATURITY else 2)
+    if not state.get("size"):
+        state["size"] = parse_size(blob) or state.get("size_hint") or ""
+    state["queued"] = []
+    if not state["size"]:
+        state["phase"] = "ask_size"
+        return _pack(state.get("size_question") or FALLBACK_SIZE, state, None)
     state["phase"] = _frontier(state)
-    return "", state
+    if state["phase"] in AUTO:
+        return _run_work(state, complete, recall, remember, search)
+    return _pack("", state, None)
+
+
+def _intake(state, message, complete, recall, remember, search):
+    phase = state["phase"]
+    if phase in ("ask_context", "ask_maturity"):
+        phase = "ask_followup"
+        state["phase"] = phase
+    if phase == "ask_problem":
+        if not message or _GREETING.match(message):
+            return _pack(OPENER, state, None)
+        state["problem"] = message
+        _absorb(state, message)
+        return _pose(state, complete)
+    if _open_followup(state):
+        if not message:
+            return _pack(state["followups"][-1]["q"], state, None)
+        state["followups"][-1]["a"] = message
+        _absorb(state, message)
+        if state.get("queued"):
+            question = state["queued"].pop(0)
+            state["followups"].append({"q": question, "a": ""})
+            state["phase"] = "ask_followup"
+            return _pack(question, state, None)
+        return _finish_intake(state, complete, recall, remember, search)
+    if message:
+        _absorb(state, message)
+    if state.get("followups"):
+        return _finish_intake(state, complete, recall, remember, search)
+    return _pose(state, complete)
 
 
 class TurnFailed(Exception):
@@ -1737,6 +1861,18 @@ _STEP_LIST = {"type": "array", "items": _STEP, "minItems": 3, "maxItems": 6}
 CHART_SCHEMA = _schema(
     {"current": _STEP_LIST, "future": _STEP_LIST, "summary": {"type": "string"}},
     ["current", "future", "summary"],
+)
+
+INTAKE_SCHEMA = _schema(
+    {
+        "questions": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 2},
+        "maturity": {"type": "integer"},
+        "size": {"type": "string"},
+        "size_question": {"type": "string"},
+        "team": {"type": "string"},
+        "tools": {"type": "string"},
+    },
+    ["questions", "maturity", "size", "size_question", "team", "tools"],
 )
 
 RESEARCH_SCHEMA = _schema(

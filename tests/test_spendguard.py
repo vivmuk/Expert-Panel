@@ -62,7 +62,7 @@ def test_unpaid_intake_does_not_call_a_provider(provider_spies):
     res = _client().post("/api/chat", json={"message": "We make parts for machines.", "state": {}})
     body = res.get_json()
     assert res.status_code == 200
-    assert body["state"]["phase"] == "ask_context"
+    assert body["state"]["phase"] == "ask_followup"
     assert body.get("error") is None
     assert provider_spies == []
 
@@ -94,8 +94,8 @@ def test_configured_prices_do_not_open_paid_routes(provider_spies, monkeypatch, 
         recall("chat", "query")
     assert provider_spies == []
     paid = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
-    assert paid.status_code != 403
-    assert paid.get_json()["error"]["code"] != "currency_bound_unavailable"
+    assert paid.status_code == 200
+    assert (paid.get_json().get("error") or {}).get("code") != "currency_bound_unavailable"
     assert provider_spies
     held = len(provider_spies)
     artifact = client.post(
@@ -155,6 +155,7 @@ def test_research_phase_without_a_signature_does_not_call_a_provider(provider_sp
                 "team": "finance",
                 "tools": "spreadsheets",
                 "maturity": 2,
+                "size": "small",
                 "calls": 0,
             },
         },
@@ -180,7 +181,8 @@ def test_v1_and_mcp_paid_tools_stay_closed(provider_spies, monkeypatch):
     )
     assert paid.status_code == 200
     text = paid.get_json()["choices"][0]["message"]["content"]
-    assert "not sent" in text.lower() or "Paid work is stopped" in text
+    assert "bottleneck" in text.lower()
+    assert "Paid work is stopped" not in text
     session = client.post(
         "/mcp",
         json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
@@ -198,13 +200,19 @@ def test_v1_and_mcp_paid_tools_stay_closed(provider_spies, monkeypatch):
     )
     assert tool.status_code == 200
     body = tool.get_json()["result"]["content"][0]["text"]
-    assert "Paid work is stopped" in body
+    assert "bottleneck" in body.lower()
+    assert "Paid work is stopped" not in body
     assert provider_spies == []
 
 
-def test_signed_keiki_turn_does_not_call_a_provider(provider_spies, monkeypatch):
+def test_signed_keiki_turn_on_a_closed_host_does_not_call_a_provider(provider_spies, monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
     monkeypatch.setenv("KEIKI_HARNESS_SIGNING_SECRET", "whsec_test")
     monkeypatch.setenv("KEIKI_AGENT_ID", "agent-1")
+    from server.chat_send import RAILWAY_MARKERS
+
+    for name in RAILWAY_MARKERS:
+        monkeypatch.delenv(name, raising=False)
     from server.api import keiki
 
     posted = []
@@ -238,7 +246,9 @@ def test_signed_keiki_turn_does_not_call_a_provider(provider_spies, monkeypatch)
         if any(item.get("status") == "completed" for item in posted):
             break
         time.sleep(0.02)
-    assert any("Paid work is stopped" in str(item.get("text") or "") for item in posted)
+    texts = [str(item.get("text") or "") for item in posted if item.get("text")]
+    assert texts and "Paid work is stopped" not in texts[0]
+    assert "about 4 minutes" not in texts[0]
     assert provider_spies == []
 
 
