@@ -114,29 +114,104 @@ def recall(chat_id, query, visitor_id=None, has_history=False):
     from .exposure import current
 
     active = current()
-    if active is None:
+    if active is not None:
+        from .exposure import describe_recall
+
+        transport, bound = active.consume(describe_recall(chat_id, query, visitor_id, has_history))
+        return transport.recall(bound)
+    from .chat_send import allowed
+
+    if not allowed():
         from .spendguard import refuse_paid
 
         refuse_paid()
-    from .exposure import describe_recall
-
-    transport, bound = active.consume(describe_recall(chat_id, query, visitor_id, has_history))
-    return transport.recall(bound)
+    return _recall_live(chat_id, query, visitor_id, has_history, key)
 
 
 def remember(chat_id, content, visitor_id=None):
-    """Memory writes stay closed unless an offline execution reserved this call."""
     key = _key()
     if not key or not content:
         return
     from .exposure import current
 
     active = current()
-    if active is None:
+    if active is not None:
+        from .exposure import describe_remember
+
+        transport, bound = active.consume(describe_remember(chat_id, content, visitor_id))
+        return transport.remember(bound)
+    from .chat_send import allowed
+
+    if not allowed():
         from .spendguard import refuse_paid
 
         refuse_paid()
-    from .exposure import describe_remember
+    return _remember_live(chat_id, content, visitor_id, key)
 
-    transport, bound = active.consume(describe_remember(chat_id, content, visitor_id))
-    return transport.remember(bound)
+
+def _recall_live(chat_id, query, visitor_id, has_history, key):
+    ns = memory_namespace(chat_id, visitor_id)
+    if not _may_search(ns, has_history):
+        return ""
+    try:
+        response = requests.post(
+            f"https://api.supermemory.ai/ns/{ns}/search",
+            headers=_headers(key),
+            json={"query": query[:500], "searchMode": "hybrid", "limit": 3},
+            timeout=TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except Exception:
+        logger.info("supermemory recall failed for %s", ns)
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    from .chat_send import note
+
+    note("memory", payload)
+    parts = []
+    for item in (payload.get("results") or [])[:3]:
+        if not isinstance(item, dict):
+            continue
+        text = item.get("memory") or item.get("chunk") or ""
+        if isinstance(text, str) and text.strip():
+            parts.append(" ".join(text.split()))
+    return "\n".join(parts)[:800]
+
+
+def _remember_live(chat_id, content, visitor_id, key):
+    ns = memory_namespace(chat_id, visitor_id)
+    text = content[:8000]
+    doc_id = _custom_id(ns, chat_id)
+    if _same_snapshot(doc_id, text):
+        return
+    body = {
+        "content": text,
+        "customId": doc_id,
+        "containerTags": [ns],
+        "metadata": _scalar_metadata({"type": "engagement"}),
+    }
+    response = None
+    try:
+        response = requests.post(
+            WRITE_URL,
+            headers=_headers(key),
+            json=body,
+            timeout=TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except Exception:
+        logger.info(
+            "supermemory remember failed for %s status=%s body=%s",
+            ns,
+            getattr(response, "status_code", None),
+            _response_body(response, key),
+        )
+        return
+    from .chat_send import note
+
+    note("memory", payload if isinstance(payload, dict) else None)
+    _note_snapshot(doc_id, text)
+    _note_written(ns)

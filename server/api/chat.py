@@ -131,13 +131,29 @@ def complete_with_venice(name, messages, schema, max_tokens):
     from ..exposure import current, describe_venice
 
     active = current()
-    if active is None:
-        del name, messages, schema, max_tokens
-        from ..spendguard import refuse_paid
+    if active is not None:
+        transport, bound = active.consume(describe_venice(name, messages, schema, max_tokens))
+        return transport.venice(bound)
+    from ..chat_send import allowed, secret_text
+    from ..spendguard import refuse_paid
 
+    key = secret_text(os.environ.get("VENICE_API_KEY", ""))
+    if not allowed() or not key:
+        del name, messages, schema, max_tokens
         refuse_paid()
-    transport, bound = active.consume(describe_venice(name, messages, schema, max_tokens))
-    return transport.venice(bound)
+    from ..config import Config
+    from ..venice.client import VeniceClient
+
+    model = Config.MODEL_ROLE_DEFAULTS["workchart"] if name == "ChatChart" else Config.MODEL_ROLE_DEFAULTS["expert"]
+    return VeniceClient(api_key=key).structured(
+        model,
+        messages,
+        name,
+        schema,
+        temperature=0.3,
+        max_completion_tokens=max_tokens,
+        paid_chat=True,
+    )
 
 
 complete_with_venice._spend_enforced = True
@@ -350,29 +366,32 @@ def post_chat():
         return _refuse(incoming, code, limit_message, 429)
     incoming = {**incoming, "chat_id": chat_id}
     scoped_recall, scoped_remember = _memory_for(raw)
-    try:
-        result = handle_turn(incoming, message, complete_with_venice, scoped_recall, scoped_remember, exa_search)
-    except Exception as exc:
-        state = exc.state if isinstance(exc, TurnFailed) else load_state(incoming)
-        logger.exception("chat turn failed at phase %s", state.get("phase"))
-        if out_of_credit(exc):
+    from ..chat_send import user_chat_send
+
+    with user_chat_send():
+        try:
+            result = handle_turn(incoming, message, complete_with_venice, scoped_recall, scoped_remember, exa_search)
+        except Exception as exc:
+            state = exc.state if isinstance(exc, TurnFailed) else load_state(incoming)
+            logger.exception("chat turn failed at phase %s", state.get("phase"))
+            if out_of_credit(exc):
+                return jsonify(
+                    {
+                        "reply": SPEND_LIMIT_REPLY,
+                        "state": state,
+                        "next": None,
+                        "error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY},
+                    }
+                ), 503
+            reply = "The model call failed. Your earlier answers are still here. Send the message again."
             return jsonify(
                 {
-                    "reply": SPEND_LIMIT_REPLY,
+                    "reply": reply,
                     "state": state,
                     "next": None,
-                    "error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY},
+                    "error": {"code": "model", "message": reply},
                 }
-            ), 503
-        reply = "The model call failed. Your earlier answers are still here. Send the message again."
-        return jsonify(
-            {
-                "reply": reply,
-                "state": state,
-                "next": None,
-                "error": {"code": "model", "message": reply},
-            }
-        ), 502
+            ), 502
     code = (result.get("error") or {}).get("code")
     status = {
         "tamper": 400,
@@ -460,27 +479,30 @@ def chat_artifact():
     if code:
         return jsonify({"error": {"code": code, "message": message}}), 429
     incoming = {**incoming, "chat_id": chat_id}
-    try:
-        result = generate_artifact(incoming, artifact_id.strip(), complete_with_venice)
-    except ArtifactError as exc:
-        status = 503 if exc.code == "not_configured" else 400 if exc.code in ("unknown", "tamper", "limit", "budget") else 403 if exc.code in (
-            "spend_ledger_unavailable",
-            "currency_bound_unavailable",
-            "calculated_price_unavailable",
-            "calculated_ceiling_exceeded",
-            "phase_uncertain",
-            "paid_path_blocked",
-        ) else 502
-        return jsonify({"error": {"code": exc.code, "message": str(exc)}}), status
-    except Exception as exc:
-        from ..spendguard import SpendClosed
+    from ..chat_send import user_chat_send
 
-        if isinstance(exc, SpendClosed):
-            return jsonify({"error": {"code": exc.code, "message": exc.message}}), 403
-        logger.exception("artifact %s failed", artifact_id)
-        if out_of_credit(exc):
-            return jsonify({"error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY}}), 503
-        return jsonify({"error": {"code": "model", "message": "The model call failed. Try again."}}), 502
+    with user_chat_send():
+        try:
+            result = generate_artifact(incoming, artifact_id.strip(), complete_with_venice)
+        except ArtifactError as exc:
+            status = 503 if exc.code == "not_configured" else 400 if exc.code in ("unknown", "tamper", "limit", "budget") else 403 if exc.code in (
+                "spend_ledger_unavailable",
+                "currency_bound_unavailable",
+                "calculated_price_unavailable",
+                "calculated_ceiling_exceeded",
+                "phase_uncertain",
+                "paid_path_blocked",
+            ) else 502
+            return jsonify({"error": {"code": exc.code, "message": str(exc)}}), status
+        except Exception as exc:
+            from ..spendguard import SpendClosed
+
+            if isinstance(exc, SpendClosed):
+                return jsonify({"error": {"code": exc.code, "message": exc.message}}), 403
+            logger.exception("artifact %s failed", artifact_id)
+            if out_of_credit(exc):
+                return jsonify({"error": {"code": "spend_limit", "message": SPEND_LIMIT_REPLY}}), 503
+            return jsonify({"error": {"code": "model", "message": "The model call failed. Try again."}}), 502
     result["html"] = as_html(by_id(artifact_id.strip())["title"], result["markdown"])
     return jsonify(result)
 

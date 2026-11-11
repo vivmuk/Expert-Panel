@@ -72,17 +72,9 @@ def test_configured_prices_do_not_open_paid_routes(provider_spies, monkeypatch, 
     monkeypatch.setenv("VENICE_API_KEY", "present")
     monkeypatch.setenv("SUPERMEMORY_API_KEY", "present")
     client = _client()
-    paid = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
-    assert paid.status_code == 403
-    assert paid.get_json()["error"]["code"] == "currency_bound_unavailable"
     stateless = client.post("/chat", json={"message": "Hello from a channel", "source": "maritime"})
     assert stateless.status_code == 403
     assert stateless.get_json()["error"]["code"] == "currency_bound_unavailable"
-    artifact = client.post(
-        "/api/chat/artifact",
-        json={"artifact_id": "research-brief", "state": {"problem": "Parts", "phase": "done"}},
-    )
-    assert artifact.status_code == 403
     voice = client.post("/api/voice/plan", json={"text": "open the deck"})
     assert voice.status_code == 403
     models = client.get("/api/models")
@@ -101,6 +93,17 @@ def test_configured_prices_do_not_open_paid_routes(provider_spies, monkeypatch, 
     with pytest.raises(SpendClosed):
         recall("chat", "query")
     assert provider_spies == []
+    paid = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
+    assert paid.status_code != 403
+    assert paid.get_json()["error"]["code"] != "currency_bound_unavailable"
+    assert provider_spies
+    held = len(provider_spies)
+    artifact = client.post(
+        "/api/chat/artifact",
+        json={"artifact_id": "research-brief", "state": {"problem": "Parts", "phase": "done"}},
+    )
+    assert artifact.status_code != 403
+    assert len(provider_spies) > held
 
 
 def test_legacy_run_and_auth_boundary(provider_spies, monkeypatch):
