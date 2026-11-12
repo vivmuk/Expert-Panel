@@ -1,3 +1,4 @@
+import contextvars
 import logging
 import re
 import threading
@@ -812,6 +813,23 @@ def _chat_lock(chat_id):
         return lock
 
 
+def turn_uses_paid_work(raw_state, message):
+    """True when a signed-in proxy should hand this prompt to Railway.
+
+    Empty intake prompts stay on the host. A message, or a phase already doing
+    provider work, is forwarded. This does not run the intake model.
+    """
+    raw = raw_state if isinstance(raw_state, dict) else {}
+    state = load_state(raw)
+    text = _str(message or "", 8000)
+    phase = state.get("phase") or "ask_problem"
+    if phase == "done":
+        return len(text) > 15
+    if phase in ("ask_problem", "ask_followup", "ask_context", "ask_maturity", "ask_size"):
+        return bool(text)
+    return True
+
+
 def handle_turn(raw_state, message, complete, recall=None, remember=None, search=None):
     """Advance one job. `complete(name, messages, schema, max_tokens)` calls the model.
 
@@ -862,10 +880,10 @@ def _turn_locked(raw_state, message, complete, recall=None, remember=None, searc
         if not state["size"]:
             return _pack(question, state, None)
         state["phase"] = _frontier(state)
-        return _run_work(state, complete, recall, remember, search)
+        return _run_work(state, complete, recall, remember, search, message)
     if state["phase"] in ("ask_problem", "ask_followup", "ask_context", "ask_maturity"):
         return _intake(state, message, complete, recall, remember, search)
-    return _run_work(state, complete, recall, remember, search)
+    return _run_work(state, complete, recall, remember, search, message)
 
 
 _GREETING = re.compile(r"^(hi|hello|hey|hiya|thanks|thank you|yo)[.! ]*$", re.I)
@@ -1014,18 +1032,26 @@ class TurnFailed(Exception):
         self.state = state
 
 
-def _run_work(state, complete, recall, remember, search):
+def _run_work(state, complete, recall, remember, search, message=""):
     try:
         if getattr(complete, "_spend_enforced", False):
             from .chat_send import allowed
             from .spendguard import SpendClosed, run_paid_phase
 
+            from .entitlement import end_question
+
+            token = None
             try:
                 if allowed():
+                    from .usage import note_chat
+
+                    token = note_chat(state, message)
                     return _work(state, complete, recall, remember, search)
                 return run_paid_phase(state, lambda: _work(state, complete, recall, remember, search))
             except SpendClosed as exc:
                 return _pack(exc.message, state, None, {"code": exc.code, "message": exc.message})
+            finally:
+                end_question(token)
         return _work(state, complete, recall, remember, search)
     except Exception as exc:
         raise TurnFailed(_pack("", state, None)["state"]) from exc
@@ -1461,12 +1487,18 @@ def _research(state, complete, search, recall=None):
         state["service_line"] = _str(data.get("service_line"), 120)
     state["queries"] = _queries(data if isinstance(data, dict) else {}, state)
 
+    parent = contextvars.copy_context()
+
     def lookup(query):
-        try:
-            return query, search(query, limit=4) or []
-        except Exception:
-            logger.info("exa search failed")
-            return query, []
+        def run():
+            try:
+                return query, search(query, limit=4) or []
+            except Exception:
+                logger.info("exa search failed")
+                return query, []
+
+        # Each worker needs its own copy. One Context cannot be entered by two threads.
+        return parent.copy().run(run)
 
     from .chat_send import allowed, open_worker
 

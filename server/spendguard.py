@@ -1,15 +1,10 @@
-"""Paid provider execution stays closed.
+"""Paid provider calls run only on the Railway authority, and only inside an
+open question for a signed-in email.
 
-No authoritative provider bill is available in this process. A configured
-positive integer is not that bill, so HTTP routes do not send provider work.
-Voice, images, the model catalog, and legacy runs stay closed for the same
-reason.
-
-`claim_send` is only a file note that a non-streaming call may write once.
-It is not permission to run a chat, not a currency cap, and not a stored
-result. `release_send` deletes that note, so the same key can be claimed
-again. A new process can claim again after the file is replaced or truncated.
-Those limits are activation blockers. HTTP routes do not pass a journal.
+Unsigned calls stay closed. A host that is not Railway does not send. There
+is no per-project dollar ceiling. `claim_send` is only a file note that a
+non-streaming call may write once. It is not a currency cap. HTTP routes do
+not pass a journal.
 """
 import hashlib
 import json
@@ -19,8 +14,26 @@ import stat
 
 CLOSED = {
     "currency_bound_unavailable": (
-        "Paid work is stopped. No authoritative provider bill bound is available. "
-        "A configured number is not a bill. This step was not sent."
+        "Paid work is stopped. This call is outside a configured chat send. This step was not sent."
+    ),
+    "sign_in_required": (
+        "Sign in with your email to use a question. This step was not sent."
+    ),
+    "questions_exhausted": (
+        "This account has used its three free questions. Paid work stays off until a plan is added. "
+        "This step was not sent."
+    ),
+    "paid_host_closed": (
+        "Paid work runs on the Railway backend. This host did not call a provider."
+    ),
+    "accounts_unavailable": (
+        "The user database is not available. This step was not sent."
+    ),
+    "backend_unconfigured": (
+        "This host has no Railway backend configured. This step was not sent."
+    ),
+    "backend_unavailable": (
+        "The Railway backend did not answer. This host did not call a provider."
     ),
     "spend_ledger_unavailable": (
         "Paid work is stopped. This process has no durable file that can record an "
@@ -31,7 +44,7 @@ CLOSED = {
         "not stored. It was not sent again."
     ),
     "paid_path_blocked": (
-        "Paid work is stopped. This provider call is outside a reserved send. "
+        "Paid work is stopped. This provider call is outside an open question. "
         "It was not sent."
     ),
 }
@@ -48,19 +61,27 @@ class SpendClosed(Exception):
 
 
 def refuse_paid():
-    """Production entry points call this before any provider I/O.
+    """Refuse a provider call that is not an open chat send.
 
-    `projectbudget.activation_blockers` names why a $5 ledger is not consulted
-    here. A calculated price does not open this call.
+    Email sign-in is required only when a mailer is configured. Otherwise the
+    refusal is the same closed-send error the chat host already uses.
     """
-    raise SpendClosed("currency_bound_unavailable")
+    from .entitlement import direct_send_allowed, refusal_for_closed_call
+    from .mailer import get_mailer
+
+    if direct_send_allowed():
+        return
+    if get_mailer() is None:
+        raise SpendClosed("currency_bound_unavailable")
+    raise SpendClosed(refusal_for_closed_call())
 
 
 def run_paid_phase(state, fn):
-    """Call fn only inside an offline execution. HTTP does not start one."""
+    """Run fn for an offline execution, or for an open question on Railway."""
+    from .entitlement import direct_send_allowed
     from .exposure import current
 
-    if current() is None:
+    if current() is None and not direct_send_allowed():
         del state, fn
         refuse_paid()
     return fn()

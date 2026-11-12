@@ -164,30 +164,62 @@ def _chat_path(key):
     return os.path.join(_chat_dir(), digest + ".json")
 
 
-def _load_chat(key):
-    with _lock:
-        cached = _states.get(key)
-    if isinstance(cached, dict):
-        return cached
+def _blob_key(key):
+    return hashlib.sha256(f"{key[0]}\n{key[1]}".encode()).hexdigest()
+
+
+def _read_chat_file(key):
     try:
         with open(_chat_path(key), encoding="utf-8") as handle:
             state = json.load(handle)
     except (OSError, ValueError):
-        return {}
-    if not isinstance(state, dict):
-        return {}
-    with _lock:
-        _states[key] = state
-    return state
+        return None
+    return state if isinstance(state, dict) else None
 
 
-def _save_chat(key, state):
+def _write_chat_file(key, state):
     path = _chat_path(key)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     temp = path + ".tmp"
     with open(temp, "w", encoding="utf-8") as handle:
         json.dump(state, handle)
     os.replace(temp, path)
+
+
+def _load_chat(key):
+    with _lock:
+        cached = _states.get(key)
+    if isinstance(cached, dict):
+        return cached
+    from ..hostrole import database_allowed
+
+    state = None
+    if database_allowed():
+        try:
+            from ..accounts import load_json
+
+            state = load_json("keiki", _blob_key(key))
+        except Exception:
+            state = None
+    if not isinstance(state, dict):
+        state = _read_chat_file(key) or {}
+    with _lock:
+        _states[key] = state
+    return state
+
+
+def _save_chat(key, state):
+    from ..hostrole import database_allowed
+
+    if database_allowed():
+        try:
+            from ..accounts import save_json
+
+            save_json("keiki", _blob_key(key), state)
+        except Exception:
+            _write_chat_file(key, state)
+    else:
+        _write_chat_file(key, state)
     with _lock:
         _states.pop(key, None)
         _states[key] = state
@@ -255,12 +287,16 @@ def _run_turn(payload, token):
     acked = False
     try:
         if text and not payload.get("silent"):
+            from ..usage import actor, note_event
+
+            note_event("keiki", key[1], "conversation", turn_id)
             state = _load_chat(key)
             message = text
             for _step in range(MAX_STEPS):
                 if time.monotonic() - started >= TURN_DEADLINE:
                     raise TimeoutError("turn deadline")
-                result = _engine(message, state)
+                with actor("keiki", key[1]):
+                    result = _engine(message, state)
                 message = ""
                 state = result.get("state") or state
                 _save_chat(key, state)

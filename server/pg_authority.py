@@ -19,7 +19,6 @@ _LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 _AMBIENT_ROUTING = ("PGHOST", "PGHOSTADDR", "PGPORT", "PGDATABASE", "PGSERVICE", "PGSERVICEFILE")
 
 from .exposure import (
-    APPLICATION_CEILING_MICROUSD,
     MAX_ENGAGEMENT_ATTEMPTS,
     ExposureAuthority,
     ExposureStop,
@@ -37,8 +36,7 @@ CREATE TABLE principal (
 CREATE TABLE project (
     id text PRIMARY KEY,
     principal_id text NOT NULL UNIQUE REFERENCES principal (id),
-    seal text NOT NULL,
-    ceiling_microusd bigint NOT NULL
+    seal text NOT NULL
 );
 CREATE TABLE execution (
     id text PRIMARY KEY,
@@ -162,9 +160,9 @@ class PostgresAuthority(ExposureAuthority):
                     (principal_id, label),
                 )
                 connection.execute(
-                    """INSERT INTO project (id, principal_id, seal, ceiling_microusd)
-                       VALUES (%s, %s, %s, %s)""",
-                    (project_id, principal_id, seal, APPLICATION_CEILING_MICROUSD),
+                    """INSERT INTO project (id, principal_id, seal)
+                       VALUES (%s, %s, %s)""",
+                    (project_id, principal_id, seal),
                 )
                 connection.commit()
                 return {"project_id": project_id, "seal": seal}
@@ -187,7 +185,7 @@ class PostgresAuthority(ExposureAuthority):
 
     def _lock_project(self, connection, project_id, seal):
         row = connection.execute(
-            "SELECT id, seal, ceiling_microusd FROM project WHERE id = %s FOR UPDATE",
+            "SELECT id, seal FROM project WHERE id = %s FOR UPDATE",
             (project_id,),
         ).fetchone()
         if row is None:
@@ -244,9 +242,6 @@ class PostgresAuthority(ExposureAuthority):
                 live = [item for item in rows if item["status"] != "void"]
                 if len(live) >= MAX_ENGAGEMENT_ATTEMPTS:
                     raise ExposureStop("attempts_exhausted")
-                spent = sum(int(item["reserved_microusd"]) for item in live)
-                if spent + reserved > APPLICATION_CEILING_MICROUSD:
-                    raise ExposureStop("over_cap")
                 execution_id = secrets.token_hex(16)
                 capability = secrets.token_hex(16)
                 connection.execute(
@@ -517,8 +512,6 @@ class PostgresAuthority(ExposureAuthority):
             "price_provenance": "synthetic",
             "verified_price": False,
             "provider_invoice_cap": False,
-            "application_ceiling_microusd": APPLICATION_CEILING_MICROUSD,
-            "remaining_application_microusd": APPLICATION_CEILING_MICROUSD - reserved,
             "engagement_attempts": len(executions),
             "engagement_attempt_cap": MAX_ENGAGEMENT_ATTEMPTS,
             "engagement_attempt_cap_enforced": True,

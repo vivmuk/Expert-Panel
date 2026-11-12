@@ -11,6 +11,11 @@ MAX_SECONDS = 30
 
 @bp.post("/api/voice/turn")
 def turn():
+    from .chat import proxy_paid_forward
+
+    closed = proxy_paid_forward()
+    if closed is not None:
+        return closed
     if not allow_in_this_process(client_ip()):
         return jsonify({"error": {"code": "rate", "message": "Too many voice turns."}}), 429
     upload = request.files.get("audio")
@@ -35,6 +40,11 @@ def turn():
 
 @bp.post("/api/voice/plan")
 def plan():
+    from .chat import proxy_paid_forward
+
+    closed = proxy_paid_forward()
+    if closed is not None:
+        return closed
     if not allow_in_this_process(client_ip()):
         return jsonify({"error": {"code": "rate", "message": "Too many voice turns."}}), 429
     body = request.get_json(silent=True) or {}

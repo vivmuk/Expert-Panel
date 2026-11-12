@@ -30,12 +30,16 @@ class UsageLedger:
         return cost
 
     def _cost(self, model, prompt_tokens, completion_tokens):
+        """Return a dollar amount only when both token prices are known.
+
+        A missing price is None. It is not zero.
+        """
         pricing = self._pricing_lookup(model) if self._pricing_lookup else None
-        if not pricing:
-            return 0.0
-        return (prompt_tokens / 1e6) * pricing.get("input", 0.0) + (
-            completion_tokens / 1e6
-        ) * pricing.get("output", 0.0)
+        if not isinstance(pricing, dict):
+            return None
+        if "input" not in pricing or "output" not in pricing:
+            return None
+        return (prompt_tokens / 1e6) * pricing["input"] + (completion_tokens / 1e6) * pricing["output"]
 
     def totals(self):
         with self._lock:
@@ -44,25 +48,33 @@ class UsageLedger:
         for e in entries:
             s = by_stage.setdefault(
                 e["stage"],
-                {"prompt_tokens": 0, "completion_tokens": 0, "cost_usd": 0.0, "calls": 0, "models": set()},
+                {"prompt_tokens": 0, "completion_tokens": 0, "cost_usd": 0.0, "calls": 0, "models": set(), "cost_known": True},
             )
             s["prompt_tokens"] += e["prompt_tokens"]
             s["completion_tokens"] += e["completion_tokens"]
-            s["cost_usd"] += e["cost_usd"]
+            if e["cost_usd"] is None:
+                s["cost_known"] = False
+            else:
+                s["cost_usd"] += e["cost_usd"]
             s["calls"] += 1
             s["models"].add(e["model"])
         for s in by_stage.values():
             s["models"] = sorted(s["models"])
-            s["cost_usd"] = round(s["cost_usd"], 6)
+            s["cost_usd"] = round(s["cost_usd"], 6) if s.pop("cost_known") else None
+        costs = [e["cost_usd"] for e in entries]
+        total = None if any(item is None for item in costs) else round(sum(costs), 6)
         return {
             "by_stage": by_stage,
             "total_prompt_tokens": sum(e["prompt_tokens"] for e in entries),
             "total_completion_tokens": sum(e["completion_tokens"] for e in entries),
-            "total_cost_usd": round(sum(e["cost_usd"] for e in entries), 6),
+            "total_cost_usd": total,
             "total_calls": len(entries),
         }
 
     @property
     def total_cost_usd(self):
         with self._lock:
-            return sum(e["cost_usd"] for e in self._entries)
+            costs = [e["cost_usd"] for e in self._entries]
+        if any(item is None for item in costs):
+            return None
+        return sum(costs)

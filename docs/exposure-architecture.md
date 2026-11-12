@@ -1,6 +1,8 @@
 # Exposure architecture
 
-Corrected proposal. Not approved. Not deployed. Database price unknown. `d71add1` remains an offline prototype; its tests do not make a production cap.
+Corrected proposal. Not approved. Not deployed. The per-project dollar ceiling is gone. Email accounts, the three-question quota, and cost rows live in Postgres on the Railway process. Maritime and Vercel call that process for login, session, entitlement, and usage. They do not receive `DATABASE_URL`. Paid provider calls stay on Railway.
+
+`d71add1` remains an offline prototype; its tests do not make a production cap.
 
 Source for the topology and the current gates: `README.md` (Railway `https://ai-partner.up.railway.app`, Vercel `https://ai-partner-hq.vercel.app`, Maritime `https://74da9def-954d-4df0-9234-04a7301c4740.mtm.sh`), `Dockerfile.railway` (one gunicorn worker, 16 threads, `DATA_DIR=/data`), `vercel.json` (`api/index.py`, 60 second limit), `start.py` (Maritime falls back to `/tmp/ai-partner`), `server/db/__init__.py` (SQLite off when `VERCEL` is set), `server/api/access.py` (one shared partner-key list), `server/keys.py` and `server/api/onboard.py` (signup stores nothing and issues a new `ap_` token for the same email), `server/venice/client.py` (`MAX_ATTEMPTS` and `_request` before `_exchange`), `server/exa_search.py` and `scripts/gen_voice.py` (Exa and voice use `VENICE_API_KEY`), `server/chatmemory.py` (`SUPERMEMORY_API_KEY`), `server/config.py` (image and chat use the Venice key). `server/exposure.py` is the in-process contract only.
 

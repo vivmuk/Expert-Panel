@@ -1,7 +1,7 @@
-"""Offline $5 application accounting. These tests do not call a provider.
+"""Offline project accounting. These tests do not call a provider.
 
-5000000 microusd is $5 of accounting, not a provider bill. This file does not
-count engagement executions. HTTP routes stay closed.
+There is no dollar ceiling. This file does not count engagement executions.
+HTTP routes stay closed until an email session has a question left.
 """
 import hashlib
 import json
@@ -15,7 +15,6 @@ import threading
 import pytest
 
 from server.projectbudget import (
-    APPLICATION_CEILING_MICROUSD,
     BudgetStop,
     accounted,
     activation_blockers,
@@ -57,17 +56,16 @@ def _open(tmp_path, name="budget.db"):
     return str(tmp_path / name), create_project(str(tmp_path / name))
 
 
-def test_exact_ceiling_and_one_more_microusd_stops(tmp_path):
+def test_a_large_reservation_does_not_stop_the_next_one(tmp_path):
     path, project = _open(tmp_path)
-    first = decide(path, project["project_id"], project["seal"], "step-a", "venice", APPLICATION_CEILING_MICROUSD)
+    first = decide(path, project["project_id"], project["seal"], "step-a", "venice", 8_000_000)
+    second = decide(path, project["project_id"], project["seal"], "step-b", "exa", 1)
     assert first["kind"] == "reserved"
-    with pytest.raises(BudgetStop) as exc:
-        decide(path, project["project_id"], project["seal"], "step-b", "exa", 1)
-    assert exc.value.code == "over_cap"
-    assert accounted(path, project["project_id"], project["seal"])["reserved_microusd"] == APPLICATION_CEILING_MICROUSD
+    assert second["kind"] == "reserved"
+    assert accounted(path, project["project_id"], project["seal"])["reserved_microusd"] == 8_000_001
 
 
-def test_two_reservations_cannot_cross_the_ceiling(tmp_path):
+def test_two_reservations_are_both_stored(tmp_path):
     """One process and one file. This is not an external anchor or a principal registry."""
     path, project = _open(tmp_path)
     barrier = threading.Barrier(2)
@@ -85,8 +83,8 @@ def test_two_reservations_cannot_cross_the_ceiling(tmp_path):
         thread.start()
     for thread in threads:
         thread.join(5)
-    assert sorted(outcomes) == ["over_cap", "reserved"]
-    assert accounted(path, project["project_id"], project["seal"])["reserved_microusd"] == 3_000_000
+    assert sorted(outcomes) == ["reserved", "reserved"]
+    assert accounted(path, project["project_id"], project["seal"])["reserved_microusd"] == 6_000_000
     assert "no_external_monotonic_anchor" in activation_blockers()
     assert "no_shared_principal_registry" in activation_blockers()
 
@@ -244,7 +242,8 @@ def test_synthetic_cost_report_keeps_four_amounts_apart(tmp_path):
     assert view["label"] == "synthetic"
     assert view["initial"]["reserved_worst_case_microusd"] == 107
     assert view["recovery"]["reserved_worst_case_microusd"] == 40
-    assert view["remaining_application_microusd"] == APPLICATION_CEILING_MICROUSD - 147
+    assert "application_ceiling_microusd" not in view
+    assert "remaining_application_microusd" not in view
     assert view["successful_delivery_reserved_microusd"] == 100
     assert view["inflight_reserved_microusd"] == 7
     assert view["uncertain_reserved_microusd"] == 40
@@ -427,11 +426,11 @@ def test_reservation_does_not_multiply_hidden_provider_retries(tmp_path):
 def test_restored_valid_snapshot_spends_the_old_remainder_unsolved(tmp_path):
     """UNSOLVED. An earlier valid copy is accepted. This expects the hole."""
     path, project = _open(tmp_path)
-    decide(path, project["project_id"], project["seal"], "first", "venice", 3_000_000)
+    decide(path, project["project_id"], project["seal"], "first", "venice", 100)
     settle(path, project["project_id"], project["seal"], "first", "venice", "{\"ok\":true}")
     _checkpoint(path)
     snapshot = open(path, "rb").read()
-    decide(path, project["project_id"], project["seal"], "second", "venice", 1_000_000)
+    decide(path, project["project_id"], project["seal"], "second", "venice", 40)
     for suffix in ("-wal", "-shm"):
         extra = path + suffix
         if os.path.exists(extra):
@@ -442,7 +441,7 @@ def test_restored_valid_snapshot_spends_the_old_remainder_unsolved(tmp_path):
 import os, sys
 sys.path.insert(0, os.environ["REPO"])
 from server.projectbudget import accounted, decide
-decision = decide(os.environ["JOURNAL"], os.environ["PROJECT"], os.environ["SEAL"], "third", "venice", 2000000)
+decision = decide(os.environ["JOURNAL"], os.environ["PROJECT"], os.environ["SEAL"], "third", "venice", 25)
 state = accounted(os.environ["JOURNAL"], os.environ["PROJECT"], os.environ["SEAL"])
 print(decision["kind"])
 print(state["reserved_microusd"])
@@ -453,7 +452,7 @@ print(state["step_rows"])
     assert completed.returncode == 0, completed.stderr
     kind, reserved, rows = completed.stdout.splitlines()
     assert kind == "reserved"
-    assert reserved == "5000000"
+    assert reserved == "125"
     assert rows == "2"
 
 
@@ -465,10 +464,10 @@ def test_copying_the_file_forks_the_budget_unsolved(tmp_path):
     fork = str(tmp_path / "fork.db")
     shutil.copy(path, fork)
     assert accounted(fork, project["project_id"], project["seal"])["reserved_microusd"] == 100
-    assert decide(path, project["project_id"], project["seal"], "more", "venice", 4_999_900)["kind"] == "reserved"
-    assert decide(fork, project["project_id"], project["seal"], "more-fork", "venice", 4_999_900)["kind"] == "reserved"
-    assert accounted(path, project["project_id"], project["seal"])["reserved_microusd"] == APPLICATION_CEILING_MICROUSD
-    assert accounted(fork, project["project_id"], project["seal"])["reserved_microusd"] == APPLICATION_CEILING_MICROUSD
+    assert decide(path, project["project_id"], project["seal"], "more", "venice", 250)["kind"] == "reserved"
+    assert decide(fork, project["project_id"], project["seal"], "more-fork", "venice", 250)["kind"] == "reserved"
+    assert accounted(path, project["project_id"], project["seal"])["reserved_microusd"] == 350
+    assert accounted(fork, project["project_id"], project["seal"])["reserved_microusd"] == 350
 
 
 def _legacy_rows(path):
@@ -520,7 +519,7 @@ def test_original_schema_with_reservations_is_refused_and_left_intact(tmp_path):
     )
     conn.execute(
         "INSERT INTO project (project_id, seal_hash, ceiling_microusd, max_attempts) VALUES (?, ?, ?, ?)",
-        (project_id, seal_hash, APPLICATION_CEILING_MICROUSD, 3),
+        (project_id, seal_hash, 5000000, 3),
     )
     legacy_rows = (
         ("inflight", "exa", "recovery", "reserved", 1_000_000, None),
@@ -572,7 +571,7 @@ for call in calls:
 
 
 def test_deleting_the_file_mints_another_budget_unsolved(tmp_path):
-    """UNSOLVED. No shared principal registry. A new file is another $5."""
+    """UNSOLVED. No shared principal registry. A new file is a new ledger."""
     path, project = _open(tmp_path)
     decide(path, project["project_id"], project["seal"], "first", "venice", 100)
     os.remove(path)
@@ -582,4 +581,4 @@ def test_deleting_the_file_mints_another_budget_unsolved(tmp_path):
             os.remove(extra)
     minted = create_project(path)
     assert minted["project_id"] != project["project_id"]
-    assert decide(path, minted["project_id"], minted["seal"], "again", "venice", APPLICATION_CEILING_MICROUSD)["kind"] == "reserved"
+    assert decide(path, minted["project_id"], minted["seal"], "again", "venice", 100)["kind"] == "reserved"

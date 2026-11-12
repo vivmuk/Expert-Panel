@@ -15,7 +15,6 @@ from server.api.voice import _planned, _transcribe
 from server.chatmemory import recall, remember
 from server.exa_search import exa_search
 from server.exposure import (
-    APPLICATION_CEILING_MICROUSD,
     MAX_ENGAGEMENT_ATTEMPTS,
     POSTGRES_INTEGRATION,
     ExposureStop,
@@ -286,21 +285,26 @@ def test_fourth_distinct_request_stops_before_transport():
     assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 3
 
 
-def test_schedule_ceiling_and_a_missing_row_do_not_send():
-    schedule = [_row("venice", APPLICATION_CEILING_MICROUSD, VENICE_UPSTREAM_TRIES, 1)]
+def test_a_large_reservation_is_kept_and_a_missing_row_does_not_send():
+    unit = 9_000_000
+    schedule = [_row("venice", unit, VENICE_UPSTREAM_TRIES, 1)]
     authority = MemoryAuthority(schedule)
     project = authority.register_project()
     transport = Recording(authority, project)
-    with pytest.raises(ExposureStop) as exc:
-        run_execution(authority, project["project_id"], project["seal"], [_req("venice", "big")], transport, _work)
-    assert exc.value.code == "over_cap"
+    done = run_execution(
+        authority, project["project_id"], project["seal"], [_req("venice", "big")], transport, _venice_work("big")
+    )
+    assert done["kind"] == "settled"
+    assert done["reserved_microusd"] == unit * (VENICE_UPSTREAM_TRIES + 1)
+    assert transport.calls == ["venice"]
     bare = MemoryAuthority([_row("voice", 5, 1, 0)])
     other = bare.register_project()
+    quiet = Recording(bare, other)
     with pytest.raises(ExposureStop) as missing:
-        run_execution(bare, other["project_id"], other["seal"], [_req("exa", "q")], transport, _work)
+        run_execution(bare, other["project_id"], other["seal"], [_req("exa", "q")], quiet, _work)
     assert missing.value.code == "price_unknown"
-    assert transport.calls == []
-    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 0
+    assert quiet.calls == []
+    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 1
 
 
 def test_uncertain_execution_blocks_a_different_request_until_reconcile(monkeypatch):
@@ -521,7 +525,7 @@ def test_an_error_before_any_send_does_not_consume_an_attempt():
     assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 0
 
 
-def test_parallel_begins_cannot_both_cross_the_ceiling():
+def test_parallel_begins_are_not_stopped_by_a_dollar_amount():
     authority = MemoryAuthority([_row("memory", 3_000_000, 1, 0)])
     project = authority.register_project()
     barrier = threading.Barrier(2)
@@ -541,9 +545,9 @@ def test_parallel_begins_cannot_both_cross_the_ceiling():
         thread.start()
     for thread in threads:
         thread.join(5)
-    assert sorted(outcomes) == ["over_cap", "reserved"]
-    assert authority.accounted(project["project_id"], project["seal"])["reserved_microusd"] == 3_000_000
-    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 1
+    assert sorted(outcomes) == ["reserved", "reserved"]
+    assert authority.accounted(project["project_id"], project["seal"])["reserved_microusd"] == 6_000_000
+    assert authority.accounted(project["project_id"], project["seal"])["engagement_attempts"] == 2
 
 
 def test_helper_arguments_must_match_the_reserved_line():

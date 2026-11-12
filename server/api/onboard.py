@@ -134,4 +134,7 @@ def signup():
         key = mint_key(email, plan)
     except RuntimeError:
         return jsonify({"error": {"code": "paused", "message": "Sign-ups are paused."}}), 503
+    from ..usage import note_event
+
+    note_event("agent", email, "connect")
     return jsonify({"key": key, "plan": plan, "email": email})

@@ -483,3 +483,67 @@ def test_provider_reports_keep_only_the_newest_256():
         assert rows[-1]["cost_usd"] == 258
     finally:
         reset_reported()
+
+
+def test_research_workers_keep_the_open_question(monkeypatch):
+    from server.chat_send import allowed, user_chat_send
+    from server.chatjob import _research, fresh_state
+
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "test")
+    monkeypatch.delenv("VERCEL", raising=False)
+    state = fresh_state("chat-open")
+    state["problem"] = "Plant margins"
+    state["team"] = "finance"
+    state["tools"] = "spreadsheets"
+    state["maturity"] = 2
+    state["phase"] = "research"
+    seen = []
+
+    def search(query, limit=4):
+        seen.append(allowed())
+        return [{"title": "A", "url": "https://example.com/a", "content": "c", "date": ""}]
+
+    def complete(name, messages, schema, max_tokens):
+        return {"facts": ["stated fact"], "service_line": "ops", "queries": ["ops benchmarks", "ops rivals"]}
+
+    with user_chat_send():
+        _research(state, complete, search)
+    assert seen
+    assert all(seen)
+
+
+def test_forged_sign_in_client_proof_is_rejected():
+    from server.api.auth import sign_client_ip, verified_client_ip
+
+    proof = sign_client_ip("203.0.113.8")
+    assert verified_client_ip(proof) == "203.0.113.8"
+    flipped = proof[:-1] + ("0" if proof[-1] != "0" else "1")
+    assert verified_client_ip(flipped) == ""
+    assert verified_client_ip("v1.1.eA.not-a-mac") == ""
+
+
+def test_unknown_usage_cost_is_null_not_zero():
+    from server.venice.usage import UsageLedger
+
+    ledger = UsageLedger(pricing_lookup=lambda _model: None)
+    assert ledger.record("chat", "model", {"prompt_tokens": 10, "completion_tokens": 2}) is None
+    assert ledger.total_cost_usd is None
+    assert ledger.totals()["total_cost_usd"] is None
+    priced = UsageLedger(pricing_lookup=lambda _model: {"input": 3.0, "output": 5.0})
+    assert priced.record("chat", "model", {"prompt_tokens": 1_000_000, "completion_tokens": 0}) == 3.0
+
+
+def test_proxy_does_not_open_the_user_database(monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
+    monkeypatch.setenv("AI_PARTNER_ACCOUNT_ROLE", "proxy")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://exposure:secret@127.0.0.1:9/exposure_test")
+    calls = []
+    monkeypatch.setattr("psycopg.connect", lambda *_args, **_kwargs: calls.append("open") or None)
+    from server import create_app
+    from server.accounts import AccountsUnavailable, connect
+
+    create_app()
+    with pytest.raises(AccountsUnavailable):
+        connect()
+    assert calls == []
