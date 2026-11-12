@@ -814,25 +814,19 @@ def _chat_lock(chat_id):
 
 
 def turn_uses_paid_work(raw_state, message):
-    """True when this prompt would call a provider. Intake-only turns are false.
+    """True when a signed-in proxy should hand this prompt to Railway.
 
-    A proxy uses this to decide whether to forward. It does not call a model.
+    Empty intake prompts stay on the host. A message, or a phase already doing
+    provider work, is forwarded. This does not run the intake model.
     """
     raw = raw_state if isinstance(raw_state, dict) else {}
-    state = dict(load_state(raw))
-    message = _str(message or "", 8000)
-    if state["phase"] == "done":
-        if len(message) <= 15:
-            return False
-        state = fresh_state(state["chat_id"])
-    if state["phase"] == "ask_size":
-        if not message:
-            return False
-        _note_size(state, message)
-        return bool(state.get("size"))
-    if state["phase"] in ("ask_problem", "ask_context", "ask_maturity"):
-        _reply, state = _intake(state, message)
-        return state["phase"] in AUTO
+    state = load_state(raw)
+    text = _str(message or "", 8000)
+    phase = state.get("phase") or "ask_problem"
+    if phase == "done":
+        return len(text) > 15
+    if phase in ("ask_problem", "ask_followup", "ask_context", "ask_maturity", "ask_size"):
+        return bool(text)
     return True
 
 
@@ -1044,15 +1038,20 @@ def _run_work(state, complete, recall, remember, search, message=""):
             from .chat_send import allowed
             from .spendguard import SpendClosed, run_paid_phase
 
+            from .entitlement import end_question
+
+            token = None
             try:
                 if allowed():
                     from .usage import note_chat
 
-                    note_chat(state, message)
+                    token = note_chat(state, message)
                     return _work(state, complete, recall, remember, search)
                 return run_paid_phase(state, lambda: _work(state, complete, recall, remember, search))
             except SpendClosed as exc:
                 return _pack(exc.message, state, None, {"code": exc.code, "message": exc.message})
+            finally:
+                end_question(token)
         return _work(state, complete, recall, remember, search)
     except Exception as exc:
         raise TurnFailed(_pack("", state, None)["state"]) from exc

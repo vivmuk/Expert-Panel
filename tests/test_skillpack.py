@@ -148,7 +148,7 @@ def test_exa_request_matches_the_documented_shape(monkeypatch):
 
     with pytest.raises(SpendClosed) as exc:
         exa_search("german reimbursement", limit=25)
-    assert exc.value.code == "sign_in_required"
+    assert exc.value.code == "currency_bound_unavailable"
     assert seen == {}
 
 

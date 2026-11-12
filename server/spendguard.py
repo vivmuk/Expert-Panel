@@ -13,6 +13,9 @@ import sqlite3
 import stat
 
 CLOSED = {
+    "currency_bound_unavailable": (
+        "Paid work is stopped. This call is outside a configured chat send. This step was not sent."
+    ),
     "sign_in_required": (
         "Sign in with your email to use a question. This step was not sent."
     ),
@@ -58,11 +61,18 @@ class SpendClosed(Exception):
 
 
 def refuse_paid():
-    """Refuse a provider call that is not an open question on Railway."""
+    """Refuse a provider call that is not an open chat send.
+
+    Email sign-in is required only when a mailer is configured. Otherwise the
+    refusal is the same closed-send error the chat host already uses.
+    """
     from .entitlement import direct_send_allowed, refusal_for_closed_call
+    from .mailer import get_mailer
 
     if direct_send_allowed():
         return
+    if get_mailer() is None:
+        raise SpendClosed("currency_bound_unavailable")
     raise SpendClosed(refusal_for_closed_call())
 
 

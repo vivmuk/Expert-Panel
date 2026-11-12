@@ -84,7 +84,7 @@ def test_configured_prices_do_not_open_paid_routes(provider_spies, monkeypatch, 
 
     with pytest.raises(SpendClosed) as brand:
         _generate_slot("hero", prompt="other", model="other-model")
-    assert brand.value.code == "sign_in_required"
+    assert brand.value.code == "currency_bound_unavailable"
     from server.exa_search import exa_search
     from server.chatmemory import recall
 
@@ -161,7 +161,7 @@ def test_research_phase_without_a_signature_does_not_call_a_provider(provider_sp
         },
     )
     assert res.status_code == 403
-    assert res.get_json()["error"]["code"] == "sign_in_required"
+    assert res.get_json()["error"]["code"] == "currency_bound_unavailable"
     assert provider_spies == []
 
 
@@ -256,7 +256,7 @@ def test_direct_client_without_a_journal_does_not_send(provider_spies):
     client = VeniceClient(journal_path=None)
     with pytest.raises(SpendClosed) as exc:
         client.structured("model", [{"role": "user", "content": "Hi"}], "Chat", {"type": "object"})
-    assert exc.value.code == "sign_in_required"
+    assert exc.value.code == "currency_bound_unavailable"
     with pytest.raises(SpendClosed):
         claim_send(":memory:", "k")
     with pytest.raises(SpendClosed):

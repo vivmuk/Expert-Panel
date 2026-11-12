@@ -151,7 +151,7 @@ def test_text_plan_stays_closed(monkeypatch):
     client = create_app().test_client()
     res = client.post("/api/voice/plan", json={"text": "show keiki"})
     assert res.status_code == 403
-    assert res.get_json()["error"]["code"] == "sign_in_required"
+    assert res.get_json()["error"]["code"] == "currency_bound_unavailable"
 
 
 def _client(monkeypatch):

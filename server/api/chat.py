@@ -438,6 +438,7 @@ def post_chat():
         "budget": 429,
         "not_configured": 503,
         "spend_ledger_unavailable": 403,
+        "currency_bound_unavailable": 403,
         "sign_in_required": 403,
         "questions_exhausted": 403,
         "paid_host_closed": 403,

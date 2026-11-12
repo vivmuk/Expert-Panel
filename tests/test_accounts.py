@@ -33,6 +33,7 @@ def world(monkeypatch):
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "test")
     monkeypatch.delenv("VERCEL", raising=False)
     monkeypatch.setenv("AI_PARTNER_API_KEYS", "partner-test-key")
+    monkeypatch.setenv("AI_PARTNER_DAILY_ENGAGEMENTS", "100")
     box = CaptureMailer()
     install(box)
     calls = []
@@ -67,6 +68,7 @@ def world(monkeypatch):
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
     proxy = create_app()
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "test")
     forwarded = []
 
     def transport(method, path, data, headers, content_type):
@@ -132,6 +134,7 @@ def _paid_state(chat_id, message):
             "team": "finance",
             "tools": "sheets",
             "maturity": 2,
+            "size": "small",
             "calls": 0,
         },
     }
@@ -184,7 +187,7 @@ def test_automatic_phase_continuations_share_one_question(world):
     world["proxy"].post("/api/auth/request", json={"email": "ada@example.com"})
     token = _token(world["mail"].outbox[0])
     assert world["proxy"].get("/api/auth/verify?token=" + token).status_code == 302
-    first = world["proxy"].post("/api/chat", json={"message": ONE_SHOT, "state": {}})
+    first = world["proxy"].post("/api/chat", json=_paid_state("same-chat", ONE_SHOT))
     assert first.status_code == 200, first.get_data(as_text=True)
     state = first.get_json()["state"]
     before = len(world["calls"])

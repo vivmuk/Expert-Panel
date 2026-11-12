@@ -38,11 +38,14 @@ def note_chat(state, message):
         if get_mailer() is not None:
             from .entitlement import begin_question, current_user
 
-            begin_question("chat", (state or {}).get("chat_id"), continuation=continuation)
+            token = begin_question("chat", (state or {}).get("chat_id"), continuation=continuation)
             user = current_user()
             if user:
                 source, identity = "email", user["email"]
+            _remember(source, identity, "run" if continuation else "question", (state or {}).get("chat_id"))
+            return token
     _remember(source, identity, "run" if continuation else "question", (state or {}).get("chat_id"))
+    return None
 
 
 def note_event(source, identity, kind, ref=None):
