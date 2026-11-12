@@ -533,6 +533,19 @@ def test_unknown_usage_cost_is_null_not_zero():
     assert priced.record("chat", "model", {"prompt_tokens": 1_000_000, "completion_tokens": 0}) == 3.0
 
 
+def test_railway_owns_accounts_when_vercel_is_also_set(monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
+    monkeypatch.delenv("AI_PARTNER_ACCOUNT_ROLE", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    from server import create_app
+
+    app = create_app()
+    assert app.config["ACCOUNT_ROLE"] == "authority"
+    assert app.config["DATABASE_ALLOWED"] is True
+    assert app.config["PAID_SENDER"] is True
+
+
 def test_proxy_does_not_open_the_user_database(monkeypatch):
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)

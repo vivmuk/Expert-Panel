@@ -15,11 +15,18 @@ from flask import current_app, has_request_context
 DEFAULT_RAILWAY_BACKEND = "https://ai-partner.up.railway.app"
 
 
+def _railway_process():
+    """The live Railway service also sets VERCEL=1. That flag does not demote it."""
+    from .chat_send import RAILWAY_MARKERS, _present
+
+    return any(_present(name) for name in RAILWAY_MARKERS)
+
+
 def role_from_env():
     role = os.environ.get("AI_PARTNER_ACCOUNT_ROLE", "").strip().lower()
     if role in {"authority", "proxy"}:
         return role
-    if os.environ.get("RAILWAY_ENVIRONMENT") and not os.environ.get("VERCEL"):
+    if _railway_process():
         return "authority"
     return "proxy"
 
@@ -27,8 +34,7 @@ def role_from_env():
 def bind_app(app):
     """Freeze the role for this process. A later env change does not retarget it."""
     role = role_from_env()
-    vercel = bool(os.environ.get("VERCEL"))
-    railway = bool(os.environ.get("RAILWAY_ENVIRONMENT")) and not vercel
+    railway = _railway_process()
     app.config["ACCOUNT_ROLE"] = role
     # Paid sockets and the user database stay on the Railway authority process.
     app.config["PAID_SENDER"] = role == "authority" and railway
@@ -43,11 +49,9 @@ def _configured(name):
 
 def _env_authority():
     """Startup path, before a request exists. A proxy env never qualifies."""
-    if os.environ.get("VERCEL"):
-        return False
     if os.environ.get("AI_PARTNER_ACCOUNT_ROLE", "").strip().lower() == "proxy":
         return False
-    return bool(os.environ.get("RAILWAY_ENVIRONMENT"))
+    return _railway_process()
 
 
 def account_role():
