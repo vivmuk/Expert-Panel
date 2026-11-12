@@ -120,7 +120,7 @@ def test_connect_page_has_the_keiki_setup(client):
 
 def test_mcp_job_id_keeps_state_on_the_server_per_key(client):
     error, started = _call(client, "key-one", "start_job", {"message": "Pricing for a B2B analytics product"})
-    assert not error and started["job_id"].startswith("job_") and started["state"]["phase"] == "ask_context"
+    assert not error and started["job_id"].startswith("job_") and started["state"]["phase"] == "ask_followup"
     error, turned = _call(client, "key-one", "chat_turn", {"job_id": started["job_id"], "message": "Four engineers on GitHub."})
     assert not error and "state" not in turned and turned["job_id"] == started["job_id"] and turned["reply"]
     error, chart = _call(client, "key-one", "get_work_chart", {"job_id": started["job_id"]})

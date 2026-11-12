@@ -206,6 +206,7 @@ def test_two_tabs_cannot_both_spend_the_last_call():
         "team": "4 analysts",
         "tools": "Excel",
         "maturity": 2,
+        "size": "small",
         "calls": MAX_MODEL_CALLS - 1,
         "sig": sign_calls("two-tabs", MAX_MODEL_CALLS - 1),
     }
@@ -243,7 +244,7 @@ def test_v1_stops_at_the_rate_limit_before_a_second_model_call(client, monkeypat
     second = client.post("/v1/chat/completions", json=body, headers=PARTNER)
     assert second.status_code == 429
     assert second.get_json()["error"]["type"] == "rate"
-    assert called == ["ChatResearch"]
+    assert called == ["ChatIntake"]
 
 
 def test_v1_stream_and_json_return_the_allowlisted_model(client):

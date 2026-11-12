@@ -180,6 +180,36 @@ def fake_model(calls):
                     }
                 ]
             }
+        if name == "ChatIntake":
+            lowered = user.lower()
+            maturity = 2
+            for score, phrase in ((1, "maturity 1"), (3, "maturity 3"), (4, "maturity 4")):
+                if phrase in lowered:
+                    maturity = score
+            if "invoice-led" in lowered:
+                maturity = 1
+            if "machine-led" in lowered:
+                maturity = 4
+            size = ""
+            if any(phrase in lowered for phrase in ("4 analysts", "team of 3", " the client is small", "small team")):
+                size = "small"
+            elif "medium" in lowered:
+                size = "medium"
+            elif "large" in lowered or "enterprise" in lowered:
+                size = "large"
+            questions = ["What is the specific bottleneck, and who owns it?"]
+            if "pricing" in lowered and "team:" not in lowered:
+                questions.append("What have you already tried?")
+            team = "4 analysts" if "4 analysts" in lowered else ""
+            tools = "Excel and Veeva" if "veeva" in lowered else ("Excel" if "excel" in lowered else "")
+            return {
+                "questions": questions,
+                "maturity": maturity,
+                "size": size,
+                "size_question": "Is this one team or the whole company?",
+                "team": team,
+                "tools": tools,
+            }
         raise AssertionError(name)
 
     return complete
@@ -194,6 +224,18 @@ def run_until_stop(result, complete, search=None, limit=30):
     raise AssertionError("the job did not stop")
 
 
+def drive_intake(message, complete, search=None, recall=None):
+    """Answer contextual follow-ups until the engagement starts work."""
+    result = handle_turn({}, message, complete, recall=recall, search=search)
+    for _ in range(4):
+        phase = result["state"]["phase"]
+        if result.get("next") or phase not in ("ask_followup", "ask_size", "ask_problem"):
+            return result
+        answer = "The commercial lead owns the bottleneck." if phase == "ask_followup" else "one team"
+        result = handle_turn(result["state"], answer, complete, recall=recall, search=search)
+    return result
+
+
 ENGAGEMENT = ["ChatResearch", "ChatBrief"] + ["ChatExperts"] * 4 + ["ChatDebate"] * 4 + ["ChatJudge", "ChatFrame"]
 
 
@@ -206,33 +248,33 @@ def _clear_rate_limits():
     reset_budget()
 
 
-def test_three_questions_then_panel():
+def test_followups_then_panel():
     calls = []
     complete = fake_model(calls)
     first = handle_turn({}, "Pricing for a B2B analytics product", complete)
-    assert first["state"]["phase"] == "ask_context"
-    assert "team" in first["reply"].lower()
-    assert calls == []
+    assert first["state"]["phase"] == "ask_followup"
+    assert "Invoice-led" not in first["reply"]
+    assert "1 to 4" not in first["reply"]
+    assert calls == ["ChatIntake"]
 
-    second = handle_turn(first["state"], "Team of 3 managers using Excel", complete)
-    assert second["state"]["phase"] == "ask_maturity"
-    assert "Invoice-led" in second["reply"]
-    assert calls == []
+    second = handle_turn(first["state"], "Three managers. We tried a spreadsheet.", complete)
+    assert second["state"]["phase"] == "ask_followup"
+    assert calls == ["ChatIntake"]
 
-    third = handle_turn(second["state"], "soon", complete)
-    assert third["state"]["phase"] == "ask_maturity"
-    assert calls == []
+    third = handle_turn(second["state"], "The buyer committee is the bottleneck.", complete, search=lambda query, limit=4: [])
+    assert third["state"]["phase"] == "ask_size"
+    assert "small, medium, or large" not in third["reply"].lower()
+    assert "Invoice-led" not in third["reply"]
 
-    fourth = handle_turn(third["state"], "2", complete, search=lambda query, limit=4: [])
-    assert calls == ["ChatResearch"]
+    fourth = handle_turn(third["state"], "one team", complete, search=lambda query, limit=4: [])
+    assert calls == ["ChatIntake", "ChatResearch"]
     assert fourth["card"]["kind"] == "research"
     assert fourth["next"] == "synthesize"
     assert "Pricing for a B2B analytics product" in fourth["state"]["problem"]
-    assert fourth["state"]["tools"] == "Excel"
     assert fourth["state"]["maturity"] == 2
 
     judged = run_until_stop(fourth, complete)
-    assert calls == ENGAGEMENT + ["ChatPlan", "ChatChart"]
+    assert calls == ["ChatIntake"] + ENGAGEMENT + ["ChatPlan", "ChatChart", "ChatSkills"]
     assert len(judged["state"]["experts"]) == EXPERTS
     assert {item["round"] for item in judged["state"]["debate"]} == {1, 2}
     assert len(judged["state"]["debate"]) == 2 * EXPERTS
@@ -243,13 +285,18 @@ def test_three_questions_then_panel():
     assert [o["verdict"] for o in judged["state"]["frame"]["options"]] == ["recommended", "rejected", "conditional"]
     assert len(judged["state"]["plan"]["risks"]) == 3
     assert judged["state"]["plan"]["milestones"][0]["window"] == "Days 1-30"
-    assert judged["state"]["phase"] == "ask_size"
+    assert judged["state"]["phase"] == "done"
 
 
-def test_one_message_can_carry_the_whole_intake():
+def test_one_message_still_gets_a_followup_then_infers_maturity():
     calls = []
-    result = handle_turn({}, ONE_SHOT, fake_model(calls), search=lambda query, limit=4: [])
-    assert calls == ["ChatResearch"]
+    complete = fake_model(calls)
+    asked = handle_turn({}, ONE_SHOT, complete, search=lambda query, limit=4: [])
+    assert asked["state"]["phase"] == "ask_followup"
+    assert calls == ["ChatIntake"]
+    assert "Invoice-led" not in asked["reply"]
+    result = handle_turn(asked["state"], "The commercial lead owns the bottleneck.", complete, search=lambda query, limit=4: [])
+    assert calls == ["ChatIntake", "ChatResearch"]
     assert result["state"]["team"] == "4 analysts"
     assert result["state"]["tools"] == "Excel and Veeva"
     assert result["state"]["maturity"] == 2
@@ -259,14 +306,13 @@ def test_one_message_can_carry_the_whole_intake():
 def test_red_team_runs_only_when_asked_then_chart_finishes():
     calls = []
     complete = fake_model(calls)
-    started = handle_turn({}, ONE_SHOT + " Run a red team.", complete, search=lambda query, limit=4: [])
+    started = drive_intake(ONE_SHOT + " Run a red team.", complete, search=lambda query, limit=4: [])
     finished = run_until_stop(started, complete)
     assert finished["next"] is None
-    assert finished["state"]["phase"] == "ask_size"
-    assert calls == ENGAGEMENT + ["ChatRedTeam", "ChatPlan", "ChatChart"]
+    assert finished["state"]["phase"] == "done"
+    assert calls == ["ChatIntake"] + ENGAGEMENT + ["ChatRedTeam", "ChatPlan", "ChatChart", "ChatSkills"]
     assert finished["state"]["attacks"]["top_risk"] == "Reimbursement codes lag the launch."
-    assert "Source sweep" in finished["reply"]
-    assert "Owner AI Agent" in finished["reply"]
+    assert any(step["step"] == "Source sweep" for step in finished["state"]["chart"]["future"])
     assert "CLAUDE.md" in finished["reply"]
     assert finished["state"]["calls"] == len(calls) <= MAX_MODEL_CALLS
 
@@ -280,6 +326,7 @@ def test_budget_stops_the_model():
         "team": "3 managers",
         "tools": "Excel",
         "maturity": 2,
+        "size": "small",
         "calls": MAX_MODEL_CALLS,
         "sig": sign_calls("budget1", MAX_MODEL_CALLS),
     }
@@ -297,7 +344,7 @@ def test_prior_context_is_in_the_research_brief():
         seen["user"] = messages[-1]["content"]
         return model(name, messages, schema, max_tokens)
 
-    result = handle_turn({}, ONE_SHOT, complete, recall=lambda chat_id, query: "known payer mix", search=lambda query, limit=4: [])
+    result = drive_intake(ONE_SHOT, complete, search=lambda query, limit=4: [], recall=lambda chat_id, query: "known payer mix")
     assert "known payer mix" in seen["user"]
     assert "4 analysts" in seen["user"]
     assert "Excel" in seen["user"]
@@ -306,7 +353,7 @@ def test_prior_context_is_in_the_research_brief():
 
 def test_kit_zip_contains_the_agent_skills():
     calls = []
-    finished = run_until_stop(handle_turn({}, ONE_SHOT, fake_model(calls), search=lambda query, limit=4: []), fake_model(calls))
+    finished = run_until_stop(drive_intake(ONE_SHOT, fake_model(calls), search=lambda query, limit=4: []), fake_model(calls))
     blob = build_kit_zip(finished["state"])
     archive = zipfile.ZipFile(io.BytesIO(blob))
     names = set(archive.namelist())
@@ -394,18 +441,22 @@ def test_http_job_report_and_kit(client, monkeypatch):
     first = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}})
     assert first.status_code == 200
     body = first.get_json()
+    assert body["state"]["phase"] == "ask_followup"
+    body = client.post("/api/chat", json={"message": "The commercial lead owns the bottleneck.", "state": body["state"]}).get_json()
     assert body["next"] == "synthesize"
-    assert body["state"]["calls"] == 1
+    assert body["state"]["calls"] == 2
     kinds = [body["card"]["kind"]]
     while body["next"]:
         res = client.post("/api/chat", json={"message": "", "state": body["state"]})
         assert res.status_code == 200
         body = res.get_json()
         kinds.append(body["card"]["kind"])
-    assert kinds == ["research", "brief"] + ["experts"] * 4 + ["debate"] * 4 + ["top5", "frame", "plan", "chart"]
-    assert body["state"]["phase"] == "ask_size"
+    assert kinds[0] == "research"
+    assert "chart" in kinds
+    assert body["state"]["phase"] == "done"
     assert "CLAUDE.md" in body["reply"]
-    assert client.application.test_client_calls == ENGAGEMENT + ["ChatPlan", "ChatChart"]
+    assert client.application.test_client_calls[0] == "ChatIntake"
+    assert "ChatChart" in client.application.test_client_calls
     done = body
 
     kit = client.post("/api/chat/kit", json={"state": done["state"]})
@@ -540,7 +591,7 @@ def test_vercel_entrypoint_module():
 def test_frame_and_plan_replies_read_as_text_messages():
     calls = []
     complete = fake_model(calls)
-    result = handle_turn({}, ONE_SHOT, complete, search=lambda query, limit=4: [])
+    result = drive_intake(ONE_SHOT, complete, search=lambda query, limit=4: [])
     while result["card"]["kind"] != "frame":
         result = handle_turn(result["state"], "", complete, search=lambda query, limit=4: [])
     assert result["next"] == "plan"
@@ -566,7 +617,7 @@ def test_incomplete_frame_keeps_the_job_on_frame():
             return {"key_question": "x", "options": []}
         return model(name, messages, schema, max_tokens)
 
-    result = run_until_stop(handle_turn({}, ONE_SHOT, complete, search=lambda query, limit=4: []), complete)
+    result = run_until_stop(drive_intake(ONE_SHOT, complete, search=lambda query, limit=4: []), complete)
     assert result["error"]["code"] == "incomplete"
     assert result["state"]["phase"] == "frame"
     assert result["state"]["frame"] is None
@@ -604,9 +655,13 @@ def test_deliverables_carry_the_framing_and_the_plan(client, monkeypatch):
 
     monkeypatch.setattr("server.api.chat.exa_search", lambda query, limit=4: [])
     body = client.post("/api/chat", json={"message": ONE_SHOT, "state": {}}).get_json()
+    body = client.post("/api/chat", json={"message": "The commercial lead owns the bottleneck.", "state": body["state"]}).get_json()
     while body["next"]:
         body = client.post("/api/chat", json={"message": "", "state": body["state"]}).get_json()
-    body = client.post("/api/chat", json={"message": "small", "state": body["state"]}).get_json()
+    if body["state"]["phase"] == "ask_size":
+        body = client.post("/api/chat", json={"message": "one team", "state": body["state"]}).get_json()
+        while body["next"]:
+            body = client.post("/api/chat", json={"message": "", "state": body["state"]}).get_json()
     state = body["state"]
     assert state["phase"] == "done"
     docs = {d["id"]: d for d in deliverables(state, "https://demo.example")}

@@ -64,6 +64,8 @@ def _answer(raw):
         name = "ChatPlan"
     elif "map one consulting process" in blob:
         name = "ChatChart"
+    elif "Return 1 or 2 short follow-up questions tailored to what they wrote" in blob:
+        name = "ChatIntake"
     if name is None:
         raise AssertionError("no stub for " + blob[:180])
     return json.dumps(fake_model([])(name, [{"role": "user", "content": user}], {}, 1600))
@@ -316,8 +318,11 @@ def _drive(live, message):
         if data.get("next"):
             response = _post(live, "/api/chat", {"message": "", "state": state})
             continue
+        if state.get("phase") == "ask_followup":
+            response = _post(live, "/api/chat", {"message": "The commercial lead owns the bottleneck.", "state": state})
+            continue
         if state.get("phase") == "ask_size":
-            response = _post(live, "/api/chat", {"message": "medium", "state": state})
+            response = _post(live, "/api/chat", {"message": "one team", "state": state})
             continue
         return data
     raise AssertionError("the engagement did not finish: " + json.dumps(data)[:500])
@@ -327,12 +332,13 @@ def test_unconfigured_chat_refuses_before_the_stub(live, monkeypatch):
     before = len(live["stub"].hits)
     monkeypatch.delenv("VENICE_API_KEY", raising=False)
     missing = _post(live, "/api/chat", {"message": ONE_SHOT, "state": {}})
-    assert missing.status_code == 403, missing.text[:300]
-    assert missing.json()["error"]["code"] == "currency_bound_unavailable"
+    assert missing.status_code == 200, missing.text[:300]
+    assert missing.json()["state"]["phase"] == "ask_followup"
+    assert missing.json().get("error") is None
     monkeypatch.setenv("VENICE_API_KEY", "not a key")
     invalid = _post(live, "/api/chat", {"message": ONE_SHOT, "state": {"chat_id": "invalid-key"}})
-    assert invalid.status_code == 403, invalid.text[:300]
-    assert invalid.json()["error"]["code"] == "currency_bound_unavailable"
+    assert invalid.status_code == 200, invalid.text[:300]
+    assert invalid.json()["state"]["phase"] == "ask_followup"
     monkeypatch.setenv("VENICE_API_KEY", "test-not-a-real-key")
     channel = _post(live, "/chat", {"message": "Hello from a channel", "source": "maritime"})
     assert channel.status_code == 403, channel.text[:300]
@@ -344,8 +350,9 @@ def test_unconfigured_chat_refuses_before_the_stub(live, monkeypatch):
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "  ")
     hosted = _post(live, "/api/chat", {"message": ONE_SHOT, "state": {"chat_id": "vercel-closed"}})
-    assert hosted.status_code == 403, hosted.text[:300]
-    assert hosted.json()["error"]["code"] == "currency_bound_unavailable"
+    assert hosted.status_code == 200, hosted.text[:300]
+    assert hosted.json()["state"]["phase"] == "ask_followup"
+    assert hosted.json().get("error") is None
     assert len(live["stub"].hits) == before
     assert live["stub"].errors == []
 
@@ -381,6 +388,9 @@ def test_configured_chat_completes_a_paid_step(live):
         assert body.get("error") is None
         sent = live["stub"].hits[before:]
         assert any(path.endswith("/chat/completions") for path in sent)
+        followed = _post(live, "/api/chat", {"message": "The commercial lead owns the bottleneck.", "state": body["state"]})
+        assert followed.status_code == 200, followed.text[:400]
+        sent = live["stub"].hits[before:]
         assert any(path.endswith("/augment/search") for path in sent)
         venice = [row for row in reported() if row["service"] == "venice"]
         assert venice[0]["usage"] == {"prompt_tokens": 11, "completion_tokens": 4}
@@ -440,6 +450,17 @@ def test_configured_memory_is_sent_from_chat(live, monkeypatch):
         },
     )
     assert res.status_code == 200, res.text[:300]
+    res = _post(
+        live,
+        "/api/chat",
+        {
+            "message": "The commercial lead owns the bottleneck.",
+            "visitor_id": "visitormemory1",
+            "has_history": True,
+            "state": res.json()["state"],
+        },
+    )
+    assert res.status_code == 200, res.text[:300]
     assert seen
     assert "supermemory.ai" in seen[0][0]
     assert seen[0][1].get("Authorization") == "Bearer memory-test-key"
@@ -486,7 +507,23 @@ def test_upstream_faults_do_not_leak_from_chat(live):
             ("garbage", "fault-garbage", 502),
         ):
             live["stub"].venice_mode = mode
-            res = _post(live, "/api/chat", {"message": ONE_SHOT, "state": {"chat_id": chat_id}})
+            res = _post(
+                live,
+                "/api/chat",
+                {
+                    "message": "",
+                    "state": {
+                        "chat_id": chat_id,
+                        "phase": "research",
+                        "problem": "Market entry for a medtech device into Germany.",
+                        "team": "4 analysts",
+                        "tools": "Excel and Veeva",
+                        "maturity": 2,
+                        "size": "small",
+                        "calls": 0,
+                    },
+                },
+            )
             assert res.status_code == status, (mode, res.status_code, res.text[:300])
             assert res.json()["error"]["code"] != "currency_bound_unavailable"
             assert LEAK not in res.text and "Traceback" not in res.text

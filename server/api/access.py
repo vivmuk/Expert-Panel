@@ -60,6 +60,20 @@ def request_origin():
     return os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
 
 
+def public_base():
+    """Link host for texts sent outside a browser. Railway's domain wins over a stale PUBLIC_BASE_URL."""
+    domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "").strip()
+    if domain:
+        if "://" not in domain:
+            domain = "https://" + domain.lstrip("/")
+        return domain.rstrip("/")
+    if has_request_context():
+        host = (request.host_url or "").strip().rstrip("/")
+        if host:
+            return host
+    return os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+
 def origin_allowed():
     origin = request.headers.get("Origin", "").strip()
     if not origin:

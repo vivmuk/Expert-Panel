@@ -91,7 +91,8 @@ def test_mcp_handshake_and_start_job(keyed):
     assert result["isError"] is False
     payload = json.loads(result["content"][0]["text"])
     assert "team" in payload["reply"].lower()
-    assert payload["state"]["phase"] == "ask_context"
+    assert payload["state"]["phase"] == "ask_followup"
+    assert "Invoice-led" not in payload["reply"]
     missing = keyed.post(
         "/mcp",
         headers=headers,

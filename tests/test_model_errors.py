@@ -28,10 +28,22 @@ def _raise(exc):
     return complete
 
 
+RESEARCH = {
+    "chat_id": "errchat00000001",
+    "phase": "research",
+    "problem": "Market entry for a medtech device into Germany.",
+    "team": "4 analysts",
+    "tools": "Excel and Veeva",
+    "maturity": 2,
+    "size": "small",
+    "calls": 0,
+}
+
+
 def test_spend_limit_returns_503_and_keeps_the_answers(app, monkeypatch):
     error = VeniceError("HTTP 402 from /chat/completions: insufficient balance", 402, "{}")
     monkeypatch.setattr("server.api.chat.complete_with_venice", _raise(error))
-    res = app.test_client().post("/api/chat", json={"message": ONE_SHOT, "state": {}})
+    res = app.test_client().post("/api/chat", json={"message": "", "state": RESEARCH})
     assert res.status_code == 503
     data = res.get_json()
     assert data["error"]["code"] == "spend_limit"
@@ -39,6 +51,16 @@ def test_spend_limit_returns_503_and_keeps_the_answers(app, monkeypatch):
     assert "answers are saved" in data["reply"]
     assert data["state"]["problem"].startswith("Market entry")
     assert data["next"] is None
+
+
+def test_intake_call_failure_asks_a_generic_question(app, monkeypatch):
+    monkeypatch.setattr("server.api.chat.complete_with_venice", _raise(VeniceError("HTTP 402", 402)))
+    res = app.test_client().post("/api/chat", json={"message": ONE_SHOT, "state": {}})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["state"]["phase"] == "ask_followup"
+    assert "Invoice-led" not in data["reply"]
+    assert data.get("error") is None
 
 
 def test_spend_limit_is_found_through_a_wrapped_error(app, monkeypatch):
@@ -49,13 +71,13 @@ def test_spend_limit_is_found_through_a_wrapped_error(app, monkeypatch):
             raise RuntimeError("structured call failed") from exc
 
     monkeypatch.setattr("server.api.chat.complete_with_venice", complete)
-    res = app.test_client().post("/api/chat", json={"message": ONE_SHOT, "state": {}})
+    res = app.test_client().post("/api/chat", json={"message": "", "state": RESEARCH})
     assert res.status_code == 503
 
 
 def test_other_model_errors_return_502(app, monkeypatch):
     monkeypatch.setattr("server.api.chat.complete_with_venice", _raise(VeniceError("HTTP 400", 400)))
-    res = app.test_client().post("/api/chat", json={"message": ONE_SHOT, "state": {}})
+    res = app.test_client().post("/api/chat", json={"message": "", "state": RESEARCH})
     assert res.status_code == 502
     data = res.get_json()
     assert data["error"]["code"] == "model"

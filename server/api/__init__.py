@@ -8,6 +8,7 @@ def register_blueprints(app):
     from .engagements import bp as engagements_bp
     from .keiki import bp as keiki_bp
     from .keiki_connect import bp as keiki_connect_bp
+    from .results import bp as results_bp
     from .meta import bp as meta_bp
     from .onboard import bp as onboard_bp
     from .runs import bp as runs_bp
@@ -21,6 +22,7 @@ def register_blueprints(app):
     app.register_blueprint(deck_bp)
     app.register_blueprint(keiki_bp)
     app.register_blueprint(keiki_connect_bp)
+    app.register_blueprint(results_bp)
     app.register_blueprint(meta_bp, url_prefix="/api")
     app.register_blueprint(branding_bp, url_prefix="/api")
     app.register_blueprint(engagements_bp, url_prefix="/api")

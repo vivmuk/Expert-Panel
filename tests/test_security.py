@@ -30,6 +30,7 @@ def test_call_budget_does_not_fall_when_the_client_sends_zero():
         "team": "3 managers",
         "tools": "Excel",
         "maturity": 2,
+        "size": "small",
         "calls": MAX_MODEL_CALLS,
         "sig": sign_calls("budget-tamper", MAX_MODEL_CALLS),
     }
