@@ -749,7 +749,7 @@ def split_team_tools(text):
     team = _short_field(team, text)
     tools = _short_field(tools, text)
     if not team:
-        team = _short_field(_headcount_phrase(text), text)
+        team = _short_field(_headcount_phrase(text))
     return team, tools
 
 
@@ -985,13 +985,42 @@ def _intake_call(state, complete):
     return data if isinstance(data, dict) else None
 
 
+_DENIAL = r"(?:not|no|don't|dont|do not|unknown|unsure|unclear|haven't|have not|hasn't|has not|never|without)"
+
+
+def _denied(sentence, term):
+    return bool(re.search(rf"\b{_DENIAL}\b.{{0,48}}{term}", sentence)) or bool(
+        re.search(rf"{term}.{{0,24}}\b(?:unknown|unclear|unsure|missing)\b", sentence)
+    )
+
+
 def _known_facts(text):
     blob = " ".join(str(text or "").lower().split())
-    return {
-        "bottleneck": bool(re.search(r"\bbottleneck\b|\bconstraint\b", blob)),
-        "owner": bool(re.search(r"\bown(?:s|er|ed)\b", blob)),
-        "tried": bool(re.search(r"\btried\b|\balready tried\b", blob)),
-    }
+    bottleneck = False
+    owner = False
+    tried = False
+    for sentence in re.split(r"[.!?]+", blob):
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        if re.search(r"\b(?:bottleneck|constraint)\s+(?:is|was|:)\s+[a-z0-9]", sentence) and not _denied(
+            sentence, r"\b(?:bottleneck|constraint)\b"
+        ):
+            bottleneck = True
+        if not _denied(sentence, r"\bown") and (
+            re.search(r"\bowner\b[, ]+[a-z]{2,}", sentence)
+            or re.search(r"\b[a-z]{2,},?\s+would own\b", sentence)
+            or re.search(r"\b[a-z]{2,}\s+owns\b", sentence)
+            or re.search(r"\bowned by\s+[a-z0-9]", sentence)
+        ):
+            owner = True
+        if (
+            re.search(r"\btried\b", sentence)
+            and not _denied(sentence, r"\btried\b")
+            and not re.search(r"\btried\s+(?:nothing|anything)\b", sentence)
+        ):
+            tried = True
+    return {"bottleneck": bottleneck, "owner": owner, "tried": tried}
 
 
 def _repeats_known(question, text):

@@ -158,6 +158,20 @@ def test_single_location_shop_is_small_even_when_the_model_says_large():
     assert "bottleneck" not in opened["reply"].lower()
 
 
+def test_unknown_topics_stay_questions():
+    brief = "A small shop. We do not know the bottleneck or owner. We have not tried anything."
+    opened = handle_turn({}, brief, _bad_intake)
+    assert opened["state"]["phase"] == "ask_followup"
+    assert "bottleneck" in opened["reply"].lower()
+
+
+def test_headcount_only_answer_is_stored_as_the_team():
+    opened = handle_turn({}, "Pricing for a B2B analytics product", _bad_intake)
+    for answer, team in (("3-6 staff", "3-6 staff"), ("4 analysts", "4 analysts"), ("team of 3", "team of 3")):
+        result = handle_turn(opened["state"], answer, _bad_intake)
+        assert result["state"]["team"] == team
+
+
 def test_ambiguous_size_is_asked_instead_of_assumed_large():
     opened = handle_turn({}, "We should improve how the shop runs.", _bad_intake)
     assert "bottleneck" in opened["reply"].lower()
