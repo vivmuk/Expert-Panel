@@ -552,6 +552,21 @@ def chat_artifact():
     return jsonify(result)
 
 
+@bp.post("/api/chat/share")
+def chat_share():
+    raw = _body()
+    if raw is None:
+        return _bad("Send a JSON object.")
+    state = raw.get("state") if isinstance(raw.get("state"), dict) else {}
+    from .results import share_report
+
+    try:
+        report = share_report(state)
+    except ValueError:
+        return jsonify({"error": {"code": "not_ready", "message": "The report is not ready yet."}}), 400
+    return jsonify(report)
+
+
 @bp.post("/api/chat/view")
 def chat_view():
     from .access import request_origin
