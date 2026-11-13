@@ -362,7 +362,8 @@
         h("button", { type: "button", class: "btn small", "data-download": "pptx" }, [ico("presentation"), "Client deck .pptx"]),
         h("button", { type: "button", class: "btn small", "data-download": "skill-pack" }, [ico("puzzle"), "Skill pack"]),
         h("button", { type: "button", class: "btn small ghost", "data-download": "report" }, [ico("file-text"), "Report .md"]),
-        h("button", { type: "button", class: "btn small ghost", onclick: saveJson }, [ico("download"), "JSON"])
+        h("button", { type: "button", class: "btn small ghost", onclick: saveJson }, [ico("download"), "JSON"]),
+        s.phase === "done" ? h("button", { type: "button", class: "btn small", "data-share": "link" }, [ico("link"), "Copy link"]) : null
       ]),
       doneStatus
     ]);
@@ -436,12 +437,36 @@
     else blobSave(doc.html, name + ".html", "text/html");
   }
 
+  function copyShare(button) {
+    fetch("/api/chat/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state: state || {} })
+    }).then(read).then(function (data) {
+      if (!data.ok || !data.url) {
+        if (doneStatus) doneStatus.textContent = (data.error && data.error.message) || "The link was not created.";
+        return;
+      }
+      var copied = function () {
+        button.textContent = "";
+        button.appendChild(ico("check"));
+        button.appendChild(document.createTextNode(" Copied"));
+      };
+      var show = function () { if (doneStatus) doneStatus.textContent = data.url; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(data.url).then(copied, show);
+      else show();
+    }).catch(function () {
+      if (doneStatus) doneStatus.textContent = "The link was not created.";
+    });
+  }
+
   log.addEventListener("click", function (ev) {
-    var el = ev.target.closest("[data-artifact],[data-open],[data-save],[data-download]");
+    var el = ev.target.closest("[data-artifact],[data-open],[data-save],[data-download],[data-share]");
     if (!el || !log.contains(el)) return;
     if (el.hasAttribute("data-artifact")) showDoc(el.getAttribute("data-artifact"));
     else if (el.hasAttribute("data-open")) openDoc(el.getAttribute("data-open"));
     else if (el.hasAttribute("data-save")) saveDoc(el.getAttribute("data-save"), el.getAttribute("data-kind"));
+    else if (el.hasAttribute("data-share")) copyShare(el);
     else if (DOWNLOADS[el.getAttribute("data-download")]) {
       var d = DOWNLOADS[el.getAttribute("data-download")];
       download(d[0], d[1], statusLine());

@@ -20,6 +20,17 @@ _FILES = {
 }
 
 
+def share_report(state, job_id=None):
+    from ..results import save_shared_result
+    from .access import public_base
+
+    token = save_shared_result(state, job_id)
+    base = (public_base() or "").rstrip("/")
+    root = f"{base}/r/{token}" if base else f"/r/{token}"
+    names = tuple(_FILES) + tuple(BUILDERS)
+    return {"url": root, "files": {name: f"{root}/{name}" for name in names}}
+
+
 def _missing():
     return not_found_page(), 404, {"Content-Type": "text/html; charset=utf-8"}
 
