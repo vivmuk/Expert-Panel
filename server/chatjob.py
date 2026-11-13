@@ -697,17 +697,60 @@ def _cut_tail(value):
     return value.strip(" .;")
 
 
+def _band(count):
+    if count <= 40:
+        return "small"
+    if count <= 500:
+        return "medium"
+    return "large"
+
+
+def _short_field(value, problem=""):
+    raw = str(value or "")
+    text = " ".join(raw.split())
+    if not text or len(text) > 160 or "<<<" in raw:
+        return ""
+    problem = " ".join(str(problem or "").split())
+    if problem and text == problem:
+        return ""
+    return text
+
+
+def _headcount_phrase(text):
+    matched = re.search(
+        r"\b(\d{1,6}(?:\s*(?:-|–|—|to)\s*\d{1,6})?)\s*(?:person|people|staff|employees?|analysts|managers|members|crew)\b",
+        str(text or ""),
+        flags=re.I,
+    )
+    if matched:
+        return " ".join(matched.group(0).split())
+    led = re.search(
+        r"\b(?:staff|team|crew|employees?)\s+of\s+(\d{1,6}(?:\s*(?:-|–|—|to)\s*\d{1,6})?)\b",
+        str(text or ""),
+        flags=re.I,
+    )
+    if not led:
+        return ""
+    return " ".join(led.group(0).split())
+
+
 def split_team_tools(text):
     team_match = re.search(r"\bteam\s*:\s*(.+)", text, flags=re.I)
     tool_match = re.search(r"\btools?\s*:\s*(.+)", text, flags=re.I)
+    team = ""
+    tools = ""
     if team_match or tool_match:
         team = _cut_tail(team_match.group(1)) if team_match else ""
         tools = _cut_tail(tool_match.group(1)) if tool_match else ""
-        return team, tools
-    parts = re.split(r"\busing\b", text, maxsplit=1, flags=re.I)
-    if len(parts) == 2 and parts[1].strip():
-        return parts[0].strip(" .;"), _cut_tail(parts[1])
-    return text.strip(), ""
+    else:
+        parts = re.split(r"\busing\b", text, maxsplit=1, flags=re.I)
+        if len(parts) == 2 and parts[1].strip():
+            tools = _cut_tail(parts[1])
+    team = _short_field(team, text)
+    tools = _short_field(tools, text)
+    if not team:
+        team = _short_field(_headcount_phrase(text))
+    return team, tools
 
 
 def wants_red_team(text):
@@ -721,17 +764,24 @@ def parse_size(text):
         return "large"
     if re.search(r"\b(a few teams|few teams|several teams|multiple teams|mid-market|mid market|mid-size|mid size|medium)\b", lowered):
         return "medium"
-    if re.search(r"\b(one team|a single team|single team|startup|boutique|small)\b", lowered):
+    if re.search(
+        r"\b(single[- ]location|one location|one shop|one store|one site|one team|a single team|single team|startup|boutique|small)\b",
+        lowered,
+    ):
         return "small"
-    matched = re.search(r"\b(\d{1,6})\s*[- ]?(?:person|people|employee|employees|staff)\b", lowered)
+    led = re.search(
+        r"\b(?:staff|team|crew|employees?)\s+of\s+(\d{1,6})(?:\s*(?:-|–|—|to)\s*(\d{1,6}))?\b",
+        lowered,
+    )
+    if led:
+        return _band(int(led.group(2) or led.group(1)))
+    matched = re.search(
+        r"\b(\d{1,6})(?:\s*(?:-|–|—|to)\s*(\d{1,6}))?\s*[- ]?\s*(?:person|people|employee|employees|staff)\b",
+        lowered,
+    )
     if not matched:
         return None
-    count = int(matched.group(1))
-    if count <= 40:
-        return "small"
-    if count <= 500:
-        return "medium"
-    return "large"
+    return _band(int(matched.group(2) or matched.group(1)))
 
 
 def _note_size(state, text):
@@ -935,47 +985,119 @@ def _intake_call(state, complete):
     return data if isinstance(data, dict) else None
 
 
-def _apply_reading(state, data):
+_DENIAL = r"(?:not|no|don't|dont|do not|unknown|unsure|unclear|haven't|have not|hasn't|has not|never|without)"
+
+
+def _denied(sentence, term):
+    return bool(re.search(rf"\b{_DENIAL}\b.{{0,48}}{term}", sentence)) or bool(
+        re.search(rf"{term}.{{0,24}}\b(?:unknown|unclear|unsure|missing)\b", sentence)
+    )
+
+
+def _known_facts(text):
+    blob = " ".join(str(text or "").lower().split())
+    bottleneck = False
+    owner = False
+    tried = False
+    for sentence in re.split(r"[.!?]+", blob):
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        if re.search(r"\b(?:bottleneck|constraint)\s+(?:is|was|:)\s+[a-z0-9]", sentence) and not _denied(
+            sentence, r"\b(?:bottleneck|constraint)\b"
+        ):
+            bottleneck = True
+        if not _denied(sentence, r"\bown") and (
+            re.search(r"\bowner\b[, ]+[a-z]{2,}", sentence)
+            or re.search(r"\b[a-z]{2,},?\s+would own\b", sentence)
+            or re.search(r"\b[a-z]{2,}\s+owns\b", sentence)
+            or re.search(r"\bowned by\s+[a-z0-9]", sentence)
+        ):
+            owner = True
+        if (
+            re.search(r"\btried\b", sentence)
+            and not _denied(sentence, r"\btried\b")
+            and not re.search(r"\btried\s+(?:nothing|anything)\b", sentence)
+        ):
+            tried = True
+    return {"bottleneck": bottleneck, "owner": owner, "tried": tried}
+
+
+def _repeats_known(question, text):
+    facts = _known_facts(text)
+    asked = " ".join(question.lower().split())
+    asks_bottleneck = bool(re.search(r"\bbottleneck\b|\bconstraint\b", asked))
+    asks_owner = bool(re.search(r"\bown", asked))
+    if asks_bottleneck and asks_owner:
+        return facts["bottleneck"] and facts["owner"]
+    if asks_bottleneck:
+        return facts["bottleneck"]
+    if asks_owner:
+        return facts["owner"]
+    if "tried" in asked:
+        return facts["tried"]
+    return False
+
+
+def _select_questions(candidates, text):
+    kept = []
+    for item in candidates:
+        if item and item not in kept and not _repeats_known(item, text):
+            kept.append(item)
+    if kept:
+        return kept[:2]
+    if not _known_facts(text)["tried"]:
+        return ["What have you already tried?"]
+    return []
+
+
+def _apply_reading(state, data, complete, recall, remember, search):
     if not isinstance(data, dict):
         data = {}
-    questions = []
+    raw_questions = []
     for item in (data.get("questions") or [])[:2]:
         text = _plain(item)[:240]
         if text:
-            questions.append(text)
-    if not questions:
-        questions = [FALLBACK_QUESTION]
+            raw_questions.append(text)
+    if not raw_questions:
+        raw_questions = [FALLBACK_QUESTION]
+    questions = _select_questions(raw_questions, _conversation(state))
     maturity = data.get("maturity")
     if isinstance(maturity, str) and maturity.isdigit():
         maturity = int(maturity)
     state["maturity_hint"] = maturity if maturity in MATURITY else state.get("maturity_hint")
     size = data.get("size")
-    if size in ("small", "medium", "large") and not state.get("size"):
+    if size in ("small", "medium") and not state.get("size"):
         state["size_hint"] = size
     question = _plain(data.get("size_question"))[:240]
     if question:
         state["size_question"] = question
-    team = _str(data.get("team"), 1000)
-    tools = _str(data.get("tools"), 1000)
+    team = _short_field(_str(data.get("team"), 1000), state.get("problem"))
+    tools = _short_field(_str(data.get("tools"), 1000), state.get("problem"))
     if team and not state["team"]:
         state["team"] = team
     if tools and not state["tools"]:
         state["tools"] = tools
+    if not questions:
+        return _finish_intake(state, complete, recall, remember, search)
     state["queued"] = questions[1:]
     state["followups"] = [{"q": questions[0], "a": ""}]
     state["phase"] = "ask_followup"
     return _pack(questions[0], state, None)
 
 
-def _pose(state, complete):
+def _pose(state, complete, recall, remember, search):
     reading = _intake_call(state, complete)
     if reading is None:
-        state["queued"] = []
-        state["followups"] = [{"q": FALLBACK_QUESTION, "a": ""}]
+        questions = _select_questions([FALLBACK_QUESTION], _conversation(state))
+        if not questions:
+            return _finish_intake(state, complete, recall, remember, search)
+        state["queued"] = questions[1:]
+        state["followups"] = [{"q": questions[0], "a": ""}]
         state["size_question"] = state.get("size_question") or FALLBACK_SIZE
         state["phase"] = "ask_followup"
-        return _pack(FALLBACK_QUESTION, state, None)
-    return _apply_reading(state, reading)
+        return _pack(questions[0], state, None)
+    return _apply_reading(state, reading, complete, recall, remember, search)
 
 
 def _finish_intake(state, complete, recall, remember, search):
@@ -984,7 +1106,11 @@ def _finish_intake(state, complete, recall, remember, search):
     hint = state.get("maturity_hint")
     state["maturity"] = explicit or (hint if hint in MATURITY else 2)
     if not state.get("size"):
-        state["size"] = parse_size(blob) or state.get("size_hint") or ""
+        found = parse_size(blob)
+        if found:
+            state["size"] = found
+        elif state.get("size_hint") in ("small", "medium"):
+            state["size"] = state["size_hint"]
     state["queued"] = []
     if not state["size"]:
         state["phase"] = "ask_size"
@@ -1005,7 +1131,7 @@ def _intake(state, message, complete, recall, remember, search):
             return _pack(OPENER, state, None)
         state["problem"] = message
         _absorb(state, message)
-        return _pose(state, complete)
+        return _pose(state, complete, recall, remember, search)
     if _open_followup(state):
         if not message:
             return _pack(state["followups"][-1]["q"], state, None)
@@ -1021,7 +1147,7 @@ def _intake(state, message, complete, recall, remember, search):
         _absorb(state, message)
     if state.get("followups"):
         return _finish_intake(state, complete, recall, remember, search)
-    return _pose(state, complete)
+    return _pose(state, complete, recall, remember, search)
 
 
 class TurnFailed(Exception):

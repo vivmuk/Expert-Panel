@@ -89,13 +89,37 @@ def _public_base():
     return request_origin()
 
 
-def _turn(message, state):
+def _in_chat_send(fn):
+    from ..chat_send import user_chat_send
     from ..usage import active_actor, actor
 
+    def run():
+        with user_chat_send():
+            return fn()
+
     if active_actor():
-        return handle_turn(state or {}, message or "", complete_with_venice, recall, remember, exa_search)
+        return run()
     with actor("agent", _agent_name()):
-        return handle_turn(state or {}, message or "", complete_with_venice, recall, remember, exa_search)
+        return run()
+
+
+def _turn(message, state):
+    return _in_chat_send(
+        lambda: handle_turn(state or {}, message or "", complete_with_venice, recall, remember, exa_search)
+    )
+
+
+def _generate(state, artifact_id):
+    def run():
+        from ..chat_send import allowed
+
+        if allowed():
+            from ..usage import note_chat
+
+            note_chat(state if isinstance(state, dict) else {}, artifact_id or "artifact")
+        return generate_artifact(state, artifact_id or "", complete_with_venice)
+
+    return _in_chat_send(run)
 
 
 def _agent_name():
@@ -155,7 +179,7 @@ def _tool(name, arguments):
         return _ok({"groups": groups()})
     if name == "generate_artifact":
         try:
-            result = generate_artifact(state, arguments.get("artifact_id") or "", complete_with_venice)
+            result = _generate(state, arguments.get("artifact_id") or "")
         except ArtifactError as exc:
             return _err(str(exc))
         except SpendClosed as exc:
