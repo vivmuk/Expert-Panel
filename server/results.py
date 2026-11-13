@@ -97,15 +97,6 @@ def _read_map_file(key):
     return body if isinstance(body, dict) else None
 
 
-def _write_map_file(key, body):
-    path = _map_path(key)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    temp = path + ".tmp"
-    with open(temp, "w", encoding="utf-8") as handle:
-        json.dump(body, handle)
-    os.replace(temp, path)
-
-
 def _read_map(key):
     from .hostrole import database_allowed
 
@@ -121,27 +112,36 @@ def _read_map(key):
     return _token_of(_read_map_file(key))
 
 
-def _write_map(key, token):
+def _claim_map_file(key, token):
+    path = _map_path(key)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temp = f"{path}.{token}.tmp"
+    with open(temp, "w", encoding="utf-8") as handle:
+        json.dump({"token": token}, handle)
+        handle.flush()
+        os.fsync(handle.fileno())
+    try:
+        os.link(temp, path)
+    except FileExistsError:
+        os.remove(temp)
+        return _token_of(_read_map_file(key)) or token
+    os.remove(temp)
+    return token
+
+
+def _claim_map(key, token):
     from .hostrole import database_allowed
 
-    body = {"token": token}
     if database_allowed():
         try:
-            from .accounts import save_json
+            from .accounts import claim_json
 
-            save_json("result", "map:" + key, body)
-            return
+            found = _token_of(claim_json("result", "map:" + key, {"token": token}))
+            if found:
+                return found
         except Exception:
             pass
-    _write_map_file(key, body)
-
-
-def _bind_absent(key, token):
-    current = _read_map(key)
-    if current:
-        return current
-    _write_map(key, token)
-    return _read_map(key) or token
+    return _claim_map_file(key, token)
 
 
 def _find_token(keys):
@@ -158,15 +158,18 @@ def save_shared_result(state, job_id=None):
     keys = _job_keys(state, job_id)
     if not keys:
         raise ValueError("missing job")
-    token = _find_token(keys)
-    if token is None:
-        token = new_token()
+    existing = _find_token(keys)
+    if existing:
         for key in keys:
-            token = _bind_absent(key, token)
-    _persist(token, state)
-    for key in keys:
-        _bind_absent(key, token)
-    return _find_token(keys) or token
+            _claim_map(key, existing)
+        return _find_token(keys) or existing
+    minted = new_token()
+    winner = _claim_map(keys[0], minted)
+    if winner == minted:
+        _persist(minted, state)
+    for key in keys[1:]:
+        _claim_map(key, winner)
+    return _find_token(keys) or winner
 
 
 def load_result(token):

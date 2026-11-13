@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import threading
 
 from server.catalog import by_id
 from server.config import Config
@@ -162,7 +163,19 @@ def test_share_reuses_the_same_link_as_get_report(monkeypatch, tmp_path):
     assert first.get_json()["url"] == report["url"]
     assert second.get_json()["url"] == report["url"]
     page = client.get(_path(report["url"]))
-    assert "Updated line." in page.get_data(as_text=True)
+    html = page.get_data(as_text=True)
+    assert state["problem"] in html
+    assert "Updated line." not in html
+    forged = client.post(
+        "/api/chat/share",
+        json={"state": {"phase": "done", "chat_id": state["chat_id"], "problem": "replaced"}},
+    )
+    assert forged.status_code == 200
+    assert forged.get_json()["url"] == report["url"]
+    kept = client.get(_path(report["url"]))
+    assert kept.status_code == 200
+    assert state["problem"] in kept.get_data(as_text=True)
+    assert "replaced" not in kept.get_data(as_text=True)
     early = client.post("/api/chat/share", json={"state": {"phase": "ask_problem", "chat_id": state["chat_id"], "problem": "no"}})
     assert early.status_code == 400
     assert early.get_json()["error"]["code"] == "not_ready"
@@ -228,3 +241,25 @@ def test_finished_chat_offers_copy_link():
     assert 's.phase === "done"' in script
     assert "Copy link" in script
     assert "/api/chat/share" in script
+
+
+def test_overlapping_first_saves_keep_one_token(monkeypatch, tmp_path):
+    monkeypatch.setattr(Config, "DATA_DIR", str(tmp_path))
+    from server.results import save_shared_result
+
+    state = _state()
+    barrier = threading.Barrier(8)
+    found = []
+
+    def run():
+        barrier.wait()
+        found.append(save_shared_result(dict(state)))
+
+    threads = [threading.Thread(target=run) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(found) == 8
+    assert len(set(found)) == 1
+    assert len(_token_files(tmp_path)) == 1
