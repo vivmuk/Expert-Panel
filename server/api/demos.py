@@ -360,6 +360,7 @@ def _hero_actions(demo):
             f'<button type="button" class="btn ghost" data-download="pptx">{icon("download")}Download .pptx</button>'
             f'<a class="btn ghost" href="#top5">{icon("trophy")}Jump to the Top 5</a>'
             f'<button type="button" class="btn ghost" data-download="kit">{icon("package")}Harness kit</button>'
+            f'<button type="button" class="btn ghost" data-share="link">{icon("link")}Copy link</button>'
         )
     slug = escape(demo["slug"])
     return (

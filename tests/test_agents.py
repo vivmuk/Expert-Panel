@@ -76,6 +76,7 @@ def test_mcp_handshake_and_start_job(keyed):
         "list_artifacts",
         "generate_artifact",
         "get_skill_pack",
+        "get_report",
     ]
     called = keyed.post(
         "/mcp",

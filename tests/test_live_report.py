@@ -51,6 +51,8 @@ def test_view_returns_the_full_report_and_five_deliverables(client, state):
     assert report.count('class="swim-row"') == len(state["chart"]["future"])
     assert report.count('data-card="') == 5
     assert 'data-download="pptx"' in report
+    assert 'data-share="link"' in report
+    assert "Copy link" in report
     assert "Not commissioned" not in report
     ids = [d["id"] for d in data["deliverables"]]
     assert ids == ["deck", "exec-memo", "work-chart", "research-brief", "roadmap"]

@@ -471,6 +471,32 @@ def save_json(kind, item_key, body):
         connection.commit()
 
 
+def claim_json(kind, item_key, body):
+    """Insert this body when the key is new. Return the body that won the key."""
+    from psycopg.types.json import Jsonb
+
+    with connect() as connection:
+        row = connection.execute(
+            """WITH ins AS (
+                   INSERT INTO stored_json (kind, item_key, body, updated_at)
+                   VALUES (%s, %s, %s, now())
+                   ON CONFLICT (kind, item_key) DO NOTHING
+                   RETURNING body
+               )
+               SELECT body FROM ins
+               UNION ALL
+               SELECT body FROM stored_json
+               WHERE kind = %s AND item_key = %s
+                 AND NOT EXISTS (SELECT 1 FROM ins)""",
+            (kind, item_key, Jsonb(body), kind, item_key),
+        ).fetchone()
+        connection.commit()
+    if row is None:
+        return None
+    found = row["body"]
+    return found if isinstance(found, dict) else None
+
+
 def load_json(kind, item_key):
     with connect() as connection:
         row = connection.execute(

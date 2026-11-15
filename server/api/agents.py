@@ -10,8 +10,9 @@ import uuid
 from flask import Blueprint, Response, jsonify, request, send_file
 
 from .. import mcpjobs
+from ..artifact_doc import as_html
 from ..artifacts import ArtifactError, generate_artifact
-from ..catalog import groups
+from ..catalog import by_id, groups
 from ..chatjob import handle_turn
 from ..spendguard import SpendClosed
 from ..chatmemory import recall, remember
@@ -82,6 +83,19 @@ TOOLS = [
         ("artifact_id",),
     ),
     _job_tool("get_skill_pack", "Build the skill pack from the job and return a download URL."),
+    {
+        "name": "get_report",
+        "description": (
+            "Return the permanent unlisted report link for a finished job, plus links to the report, deck, kit, "
+            "skill pack, and HTML deliverables. Does not call the model. Requires job_id. Refuses a job that is not done."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"job_id": _JOB["job_id"]},
+            "required": ["job_id"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 
@@ -164,7 +178,16 @@ def _tool(name, arguments):
         mcpjobs.save(_owner(), job_id, result.get("state") or {})
         return _ok({**result, "job_id": job_id})
     if name == "chat_turn":
+        prior = state.get("phase") if isinstance(state, dict) else None
         result = _turn(arguments.get("message") or "", state)
+        finished = result.get("state") if isinstance(result, dict) else None
+        if prior != "done" and isinstance(finished, dict) and finished.get("phase") == "done" and not result.get("error"):
+            from .results import share_report
+
+            try:
+                result = {**result, "url": share_report(finished, job_id)["url"]}
+            except ValueError:
+                pass
         return _kept(result, job_id) if job_id else _ok(result)
     if name == "get_work_chart":
         chart = state.get("chart") if isinstance(state, dict) else None
@@ -178,13 +201,26 @@ def _tool(name, arguments):
     if name == "list_artifacts":
         return _ok({"groups": groups()})
     if name == "generate_artifact":
+        artifact_id = arguments.get("artifact_id") or ""
         try:
-            result = _generate(state, arguments.get("artifact_id") or "")
+            result = _generate(state, artifact_id)
         except ArtifactError as exc:
             return _err(str(exc))
         except SpendClosed as exc:
             return _err(exc.message)
+        entry = by_id(artifact_id.strip()) if isinstance(artifact_id, str) else None
+        if entry and isinstance(result.get("markdown"), str):
+            result = {**result, "html": as_html(entry["title"], result["markdown"])}
         return _kept(result, job_id) if job_id else _ok(result)
+    if name == "get_report":
+        if not isinstance(job_id, str) or not job_id.strip():
+            return _err("Pass job_id from start_job.")
+        from .results import share_report
+
+        try:
+            return _ok(share_report(state, job_id))
+        except ValueError:
+            return _err("This job is not finished. The report link is available when the phase is done.")
     return _err(f"Unknown tool {name}.")
 
 
