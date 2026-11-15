@@ -94,5 +94,12 @@ def test_payment_from_event_keeps_a_missing_amount_null():
     assert payment["price_id"] == "price_abc"
     event["data"]["object"]["payment_status"] = "unpaid"
     assert payment_from_event(event) == "ignore"
+    event["type"] = "checkout.session.async_payment_succeeded"
+    event["data"]["object"]["payment_status"] = "paid"
+    event["id"] = "evt_async"
+    delayed = payment_from_event(event)
+    assert delayed["event_id"] == "evt_async"
+    assert delayed["user_id"] == "user_1"
+    assert delayed["price_id"] == "price_abc"
     event["type"] = "charge.refunded"
     assert payment_from_event(event) == "ignore"

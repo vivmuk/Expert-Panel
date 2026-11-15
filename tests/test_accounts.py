@@ -410,3 +410,34 @@ def test_checkout_records_one_payment_and_a_repeat_event_does_not_grant_again(wo
     with world["authority"].application.test_request_context():
         assert usage_report()["users"][0]["questions_granted"] == 5
         assert len(usage_report()["payments"]) == 2
+    delayed = {
+        "id": "evt_async_paid",
+        "type": "checkout.session.async_payment_succeeded",
+        "data": {
+            "object": {
+                "id": "cs_async",
+                "payment_status": "paid",
+                "client_reference_id": user["id"],
+                "metadata": {"user_id": user["id"], "price_id": "price_pilot_placeholder"},
+                "amount_total": 2500,
+                "currency": "usd",
+            }
+        },
+    }
+    delayed_payload = json.dumps(delayed).encode()
+    delayed_sig = sign_payload("whsec_test_placeholder_value", delayed_payload, int(time.time()))
+    delayed_response = world["authority"].post(
+        "/api/billing/webhook",
+        data=delayed_payload,
+        headers={"Stripe-Signature": delayed_sig, "Content-Type": "application/json"},
+    )
+    assert delayed_response.status_code == 200
+    assert delayed_response.get_json()["duplicate"] is False
+    repeat = world["authority"].post(
+        "/api/billing/webhook",
+        data=delayed_payload,
+        headers={"Stripe-Signature": delayed_sig, "Content-Type": "application/json"},
+    )
+    assert repeat.get_json()["duplicate"] is True
+    with world["authority"].application.test_request_context():
+        assert usage_report()["users"][0]["questions_granted"] == 6

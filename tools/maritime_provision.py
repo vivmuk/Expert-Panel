@@ -264,11 +264,29 @@ def _spec(env, external_id, kit):
         "kit": kit,
         "venice_key_state": "set" if _secret(env, "VENICE_API_KEY") else "missing",
         "venice_base": _secret(env, "VENICE_BASE_URL") or DEFAULT_VENICE_BASE,
+        "signing": signing_env(env),
         "spend_cap_cents": spend_cap(env),
     }
 
 
+def signing_env(env):
+    items = []
+    plural = _secret(env, "AI_PARTNER_SIGNING_SECRETS")
+    single = _secret(env, "AI_PARTNER_SIGNING_SECRET")
+    if plural:
+        items.append(("AI_PARTNER_SIGNING_SECRETS", plural))
+    if single:
+        items.append(("AI_PARTNER_SIGNING_SECRET", single))
+    return items
+
+
 def _create_body(spec, venice_key):
+    env_vars = [
+        {"key": "VENICE_API_KEY", "value": venice_key, "isSecret": True},
+        {"key": "VENICE_BASE_URL", "value": spec["venice_base"], "isSecret": False},
+    ]
+    for key, value in spec["signing"]:
+        env_vars.append({"key": key, "value": value, "isSecret": True})
     return {
         "name": spec["name"],
         "externalId": spec["external_id"],
@@ -276,10 +294,7 @@ def _create_body(spec, venice_key):
         "branch": spec["branch"],
         "framework": "custom",
         "healthCheckPath": "/health",
-        "initialEnvVars": [
-            {"key": "VENICE_API_KEY", "value": venice_key, "isSecret": True},
-            {"key": "VENICE_BASE_URL", "value": spec["venice_base"], "isSecret": False},
-        ],
+        "initialEnvVars": env_vars,
     }
 
 
@@ -293,8 +308,9 @@ def provision(env, external_id, kit, apply, transport=None):
         "github_repo": spec["github_repo"],
         "branch": spec["branch"],
         "framework": spec["framework"],
-        "env": ["VENICE_API_KEY", "VENICE_BASE_URL"],
+        "env": ["VENICE_API_KEY", "VENICE_BASE_URL", *[key for key, _value in spec["signing"]]],
         "venice_key": spec["venice_key_state"],
+        "signing_secret": "set" if spec["signing"] else "missing",
         "kit": kit,
         "spend_cap_cents": spec["spend_cap_cents"],
         "spend_cap_note": (
@@ -313,6 +329,8 @@ def provision(env, external_id, kit, apply, transport=None):
         raise MaritimeError("Set MARITIME_API_KEY.")
     if not venice_key:
         raise MaritimeError("Set VENICE_API_KEY.")
+    if not spec["signing"]:
+        raise MaritimeError("Set AI_PARTNER_SIGNING_SECRETS or AI_PARTNER_SIGNING_SECRET.")
     client = Client(api_key, transport or urllib_transport)
     found = client.list_agents(spec["external_id"])
     if found:
@@ -324,6 +342,8 @@ def provision(env, external_id, kit, apply, transport=None):
     agent_id = agent["id"]
     client.set_env(agent_id, "VENICE_API_KEY", venice_key, True)
     client.set_env(agent_id, "VENICE_BASE_URL", spec["venice_base"], False)
+    for key, value in spec["signing"]:
+        client.set_env(agent_id, key, value, True)
     client.reload_env(agent_id)
     cap_applied = None
     if spec["spend_cap_cents"] is not None:
@@ -406,7 +426,16 @@ def execute(argv, env, transport=None):
 
 def main(argv=None, env=None, transport=None, out=None):
     env = os.environ if env is None else env
-    secrets = [_secret(env, name) for name in ("MARITIME_API_KEY", "VENICE_API_KEY", "STRIPE_SECRET_KEY")]
+    secrets = [
+        _secret(env, name)
+        for name in (
+            "MARITIME_API_KEY",
+            "VENICE_API_KEY",
+            "STRIPE_SECRET_KEY",
+            "AI_PARTNER_SIGNING_SECRETS",
+            "AI_PARTNER_SIGNING_SECRET",
+        )
+    ]
     try:
         result = execute(list(sys.argv[1:] if argv is None else argv), env, transport)
     except MaritimeError as exc:

@@ -124,9 +124,12 @@ def _cents(value):
     return value
 
 
+PAID_EVENTS = ("checkout.session.completed", "checkout.session.async_payment_succeeded")
+
+
 def payment_from_event(event):
     """Return a payment dict, 'ignore', or 'reject'."""
-    if not isinstance(event, dict) or event.get("type") != "checkout.session.completed":
+    if not isinstance(event, dict) or event.get("type") not in PAID_EVENTS:
         return "ignore"
     data = event.get("data")
     obj = data.get("object") if isinstance(data, dict) else None

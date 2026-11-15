@@ -196,7 +196,7 @@ Set these three variables on the Railway service, which is the only process that
 
 `POST /api/billing/checkout` needs a signed-in session. It returns a Checkout Session URL for `STRIPE_PRICE_ID`.
 
-Point the Stripe webhook at `https://ai-partner.up.railway.app/api/billing/webhook`. The route checks `Stripe-Signature`. The same event id does not grant a second question. An event whose price is not `STRIPE_PRICE_ID` is ignored.
+Point the Stripe webhook at `https://ai-partner.up.railway.app/api/billing/webhook`. The route checks `Stripe-Signature`. It grants a question for a paid `checkout.session.completed` event and for `checkout.session.async_payment_succeeded`. The same event id does not grant a second question. An event whose price is not `STRIPE_PRICE_ID` is ignored.
 
 ### One agent per customer
 
@@ -212,7 +212,7 @@ python tools/maritime_provision.py teardown --external-id CUSTOMER_ID --apply
 
 `provision` and `teardown` make no Maritime call unless you pass `--apply`. `list` only reads. `--apply` creates the agent, or reuses the agent that already has that `externalId`, then uploads `kit.zip` to the agent's data volume.
 
-`MARITIME_API_KEY` is required for list and for any `--apply` command. `VENICE_API_KEY` is required for `provision --apply`. Set `MARITIME_LLM_SPEND_CAP_CENTS` to send a per-agent monthly cap to `PUT /api/agents/{id}/llm-spend-limit`. Maritime documents that cap for its own model proxy. A Venice key on the agent is not metered by that cap. Leave the variable unset and the script skips the call. `AI_PARTNER_GITHUB_REPO` and `AI_PARTNER_GITHUB_BRANCH` override the build. The defaults are `https://github.com/vivmuk/Expert-Panel` and `master`.
+`MARITIME_API_KEY` is required for list and for any `--apply` command. `VENICE_API_KEY` is required for `provision --apply`. So is `AI_PARTNER_SIGNING_SECRETS` or `AI_PARTNER_SIGNING_SECRET`. Chat answers 503 until one of those is on the agent. The script copies the value you already use and does not print it. Set `MARITIME_LLM_SPEND_CAP_CENTS` to send a per-agent monthly cap to `PUT /api/agents/{id}/llm-spend-limit`. Maritime documents that cap for its own model proxy. A Venice key on the agent is not metered by that cap. Leave the variable unset and the script skips the call. `AI_PARTNER_GITHUB_REPO` and `AI_PARTNER_GITHUB_BRANCH` override the build. The defaults are `https://github.com/vivmuk/Expert-Panel` and `master`.
 
 ## Brand Studio
 

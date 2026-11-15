@@ -9,6 +9,7 @@ from tools.maritime_provision import execute, main
 
 VENICE = "vk-live-test-value"
 MARITIME = "mk_live_test_value_xxxxxxxx"
+SIGNING = "v1:sign-test-value-xxxx"
 
 
 class Fake:
@@ -76,6 +77,7 @@ def _env(**extra):
         "MARITIME_API_KEY": MARITIME,
         "VENICE_API_KEY": VENICE,
         "VENICE_BASE_URL": "https://api.venice.ai/api/v1",
+        "AI_PARTNER_SIGNING_SECRETS": SIGNING,
     }
     env.update(extra)
     return env
@@ -99,8 +101,10 @@ def test_dry_run_makes_no_calls_and_hides_the_keys(tmp_path, capsys):
     assert plan["dry_run"] is True
     assert plan["github_repo"] == "https://github.com/vivmuk/Expert-Panel"
     assert plan["framework"] == "custom"
-    assert plan["env"] == ["VENICE_API_KEY", "VENICE_BASE_URL"]
+    assert plan["env"] == ["VENICE_API_KEY", "VENICE_BASE_URL", "AI_PARTNER_SIGNING_SECRETS"]
     assert plan["venice_key"] == "set"
+    assert plan["signing_secret"] == "set"
+    assert SIGNING not in printed
     assert plan["spend_cap_cents"] is None
 
 
@@ -126,12 +130,16 @@ def test_apply_is_idempotent_and_uploads_the_kit(tmp_path):
     venice = [item for item in body["initialEnvVars"] if item["key"] == "VENICE_API_KEY"][0]
     assert venice["value"] == VENICE
     assert venice["isSecret"] is True
+    signing = [item for item in body["initialEnvVars"] if item["key"] == "AI_PARTNER_SIGNING_SECRETS"][0]
+    assert signing["value"] == SIGNING
+    assert signing["isSecret"] is True
     assert "unit_amount" not in json.dumps(body)
     assert fake.uploaded is not None
     assert b"dest_dir" in fake.uploaded and b"/data" in fake.uploaded
     text = json.dumps(second)
     assert VENICE not in text
     assert MARITIME not in text
+    assert SIGNING not in text
     listed = execute(["list", "--external-id", "pilot_1"], env, fake)
     assert listed["agents"] == [{
         "id": "agt_pilot_1",
