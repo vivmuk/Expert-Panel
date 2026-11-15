@@ -1,8 +1,8 @@
 """Provision one Maritime agent per pilot customer.
 
-The agent builds this repo's root Dockerfile, the same web app Maritime already
-runs for AI Partner. Inference is Venice. The script reads MARITIME_API_KEY and
-VENICE_API_KEY from the environment and does not print them.
+The script reads MARITIME_API_KEY and VENICE_API_KEY from the environment and
+does not print them. It mints a new AI_PARTNER_SIGNING_SECRET for a new agent
+and does not print that either.
 
 Dry-run is the default. --apply performs the calls.
 """
@@ -11,7 +11,9 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -22,10 +24,18 @@ DEFAULT_BRANCH = "master"
 DEFAULT_VENICE_BASE = "https://api.venice.ai/api/v1"
 EXTERNAL_ID = re.compile(r"^[A-Za-z0-9_@.:+-]{1,128}$")
 KIT_LIMIT = 100 * 1024 * 1024
+DEFAULT_PORT = 18789
+USER_AGENT = "Mozilla/5.0 (compatible; ai-partner-provisioner/1.0)"
+PAUSE_SECONDS = 2
+WAIT_ATTEMPTS = 90
+READY_STATUS = {"active", "running", "sleeping"}
+FAILED_STATUS = {"error", "failed", "create_failed", "start_failed"}
 
 
 class MaritimeError(RuntimeError):
-    pass
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
 
 
 def agent_name(external_id):
@@ -42,6 +52,18 @@ def _secret(env, name):
     if not text or any(ch.isspace() for ch in text):
         return ""
     return text
+
+
+def exposed_port(env):
+    raw = env.get("AI_PARTNER_PORT", "")
+    if not isinstance(raw, str):
+        raw = ""
+    raw = raw.strip()
+    if not raw:
+        return DEFAULT_PORT
+    if not raw.isdigit() or not 1 <= int(raw) <= 65535:
+        raise MaritimeError("AI_PARTNER_PORT must be a port number.")
+    return int(raw)
 
 
 def spend_cap(env):
@@ -133,6 +155,11 @@ class Client:
     def __init__(self, api_key, transport):
         self.api_key = api_key
         self.transport = transport
+        self.hidden = [api_key] if api_key else []
+
+    def hide(self, secret):
+        if isinstance(secret, str) and secret:
+            self.hidden.append(secret)
 
     def call(self, method, path, *, query=None, body=None, raw=None, content_type=None):
         status, payload = self.transport(
@@ -146,7 +173,10 @@ class Client:
         )
         if status >= 400:
             detail = payload if isinstance(payload, str) else json.dumps(payload or {})
-            raise MaritimeError(f"Maritime answered {status} for {method} {path}. {_redact(detail, [self.api_key])}")
+            raise MaritimeError(
+                f"Maritime answered {status} for {method} {path}. {_redact(detail, self.hidden)}",
+                status=status,
+            )
         return payload
 
     def list_agents(self, external_id=None):
@@ -157,16 +187,38 @@ class Client:
         try:
             payload = self.call("POST", "/api/agents", body=body)
         except MaritimeError as exc:
-            if "answered 409" not in str(exc):
+            if exc.status != 409 and "answered 409" not in str(exc):
                 raise
             found = self.list_agents(body["externalId"])
             if not found:
                 raise
-            return found[0]
+            return found[0], False
         agents = _agents(payload)
         if not agents or not agents[0].get("id"):
             raise MaritimeError("Maritime did not return an agent id.")
+        return agents[0], True
+
+    def get(self, agent_id):
+        payload = self.call("GET", f"/api/agents/{urllib.parse.quote(agent_id, safe='')}")
+        if isinstance(payload, dict) and payload.get("id"):
+            return payload
+        agents = _agents(payload)
+        if not agents:
+            raise MaritimeError("Maritime did not return the agent.")
         return agents[0]
+
+    def publish(self, agent_id, port):
+        quoted = urllib.parse.quote(agent_id, safe="")
+        self.call(
+            "PUT",
+            f"/api/agents/{quoted}",
+            body={"exposedPort": port, "healthCheckPath": "/health"},
+        )
+        self.call(
+            "PUT",
+            f"/api/agents/{quoted}/visibility",
+            body={"visibility": "public"},
+        )
 
     def set_env(self, agent_id, key, value, secret):
         self.call(
@@ -250,7 +302,7 @@ def _read_kit(path):
     return content
 
 
-def _spec(env, external_id, kit):
+def _spec(env, external_id, kit, rotate):
     if not EXTERNAL_ID.fullmatch(external_id or ""):
         raise MaritimeError("externalId must be 1 to 128 letters, digits, or _ @ . : + -.")
     repo = _secret(env, "AI_PARTNER_GITHUB_REPO") or DEFAULT_REPO
@@ -264,29 +316,13 @@ def _spec(env, external_id, kit):
         "kit": kit,
         "venice_key_state": "set" if _secret(env, "VENICE_API_KEY") else "missing",
         "venice_base": _secret(env, "VENICE_BASE_URL") or DEFAULT_VENICE_BASE,
-        "signing": signing_env(env),
+        "port": exposed_port(env),
+        "rotate": bool(rotate),
         "spend_cap_cents": spend_cap(env),
     }
 
 
-def signing_env(env):
-    items = []
-    plural = _secret(env, "AI_PARTNER_SIGNING_SECRETS")
-    single = _secret(env, "AI_PARTNER_SIGNING_SECRET")
-    if plural:
-        items.append(("AI_PARTNER_SIGNING_SECRETS", plural))
-    if single:
-        items.append(("AI_PARTNER_SIGNING_SECRET", single))
-    return items
-
-
-def _create_body(spec, venice_key):
-    env_vars = [
-        {"key": "VENICE_API_KEY", "value": venice_key, "isSecret": True},
-        {"key": "VENICE_BASE_URL", "value": spec["venice_base"], "isSecret": False},
-    ]
-    for key, value in spec["signing"]:
-        env_vars.append({"key": key, "value": value, "isSecret": True})
+def _create_body(spec, venice_key, signing_secret):
     return {
         "name": spec["name"],
         "externalId": spec["external_id"],
@@ -294,12 +330,106 @@ def _create_body(spec, venice_key):
         "branch": spec["branch"],
         "framework": "custom",
         "healthCheckPath": "/health",
-        "initialEnvVars": env_vars,
+        "exposedPort": spec["port"],
+        "publicWeb": True,
+        "initialEnvVars": [
+            {"key": "VENICE_API_KEY", "value": venice_key, "isSecret": True},
+            {"key": "VENICE_BASE_URL", "value": spec["venice_base"], "isSecret": False},
+            {"key": "AI_PARTNER_SIGNING_SECRET", "value": signing_secret, "isSecret": True},
+        ],
     }
 
 
-def provision(env, external_id, kit, apply, transport=None):
-    spec = _spec(env, external_id, kit)
+def _mint(client, redact):
+    secret = secrets.token_urlsafe(32)
+    client.hide(secret)
+    if redact is not None:
+        redact.append(secret)
+    return secret
+
+
+def _restarting(exc):
+    return isinstance(exc, MaritimeError) and exc.status == 409 and "restart" in str(exc).lower()
+
+
+def _retry(action, sleep, attempts):
+    for _ in range(attempts):
+        try:
+            return action()
+        except MaritimeError as exc:
+            if not _restarting(exc):
+                raise
+            sleep(PAUSE_SECONDS)
+    raise MaritimeError("Maritime is still restarting the agent.")
+
+
+def _wait_ready(client, agent_id, sleep, attempts):
+    seen = ""
+    for _ in range(attempts):
+        agent = client.get(agent_id)
+        seen = str(agent.get("status") or "").lower()
+        if seen in FAILED_STATUS:
+            raise MaritimeError(f"Agent status is {seen}.")
+        if seen in READY_STATUS:
+            return agent
+        sleep(PAUSE_SECONDS)
+    raise MaritimeError(f"The agent did not become active in time. Last status was {seen or 'unknown'}.")
+
+
+def _wait_url(client, agent_id, sleep, attempts):
+    for _ in range(attempts):
+        agent = client.get(agent_id)
+        url = agent.get("webUrl")
+        if isinstance(url, str) and url.startswith("https://"):
+            return url
+        sleep(PAUSE_SECONDS)
+    raise MaritimeError("The agent has no web URL.")
+
+
+def health_request(url):
+    return urllib.request.Request(
+        url,
+        method="GET",
+        headers={"User-Agent": USER_AGENT, "Accept": "*/*"},
+    )
+
+
+def urllib_health(url, opener=None):
+    request = health_request(url)
+    open_fn = opener or urllib.request.urlopen
+    try:
+        with open_fn(request, timeout=30) as response:
+            response.read()
+            return response.status
+    except urllib.error.HTTPError as exc:
+        return exc.code
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return 0
+
+
+def _health_pending(status):
+    return status in (0, 403, 429) or (isinstance(status, int) and status >= 500)
+
+
+def _wait_health(url, health, sleep, attempts):
+    target = url.rstrip("/") + "/health"
+    last = None
+    for _ in range(attempts):
+        last = health(target)
+        if last == 200:
+            return target
+        if not _health_pending(last):
+            raise MaritimeError(f"Health check returned {last}.")
+        sleep(PAUSE_SECONDS)
+    raise MaritimeError(f"Health check returned {last}.")
+
+
+def _set_env(client, agent_id, key, value, secret, sleep, attempts):
+    _retry(lambda: client.set_env(agent_id, key, value, secret), sleep, attempts)
+
+
+def provision(env, external_id, kit, apply, transport=None, *, rotate=False, health=None, sleep=None, attempts=None, redact=None):
+    spec = _spec(env, external_id, kit, rotate)
     plan = {
         "action": "provision",
         "dry_run": not apply,
@@ -308,9 +438,11 @@ def provision(env, external_id, kit, apply, transport=None):
         "github_repo": spec["github_repo"],
         "branch": spec["branch"],
         "framework": spec["framework"],
-        "env": ["VENICE_API_KEY", "VENICE_BASE_URL", *[key for key, _value in spec["signing"]]],
+        "env": ["VENICE_API_KEY", "VENICE_BASE_URL", "AI_PARTNER_SIGNING_SECRET"],
         "venice_key": spec["venice_key_state"],
-        "signing_secret": "set" if spec["signing"] else "missing",
+        "signing_secret": "rotated" if spec["rotate"] else "per-agent",
+        "exposed_port": spec["port"],
+        "visibility": "public",
         "kit": kit,
         "spend_cap_cents": spec["spend_cap_cents"],
         "spend_cap_note": (
@@ -329,32 +461,50 @@ def provision(env, external_id, kit, apply, transport=None):
         raise MaritimeError("Set MARITIME_API_KEY.")
     if not venice_key:
         raise MaritimeError("Set VENICE_API_KEY.")
-    if not spec["signing"]:
-        raise MaritimeError("Set AI_PARTNER_SIGNING_SECRETS or AI_PARTNER_SIGNING_SECRET.")
+    health = urllib_health if health is None else health
+    sleep = time.sleep if sleep is None else sleep
+    attempts = WAIT_ATTEMPTS if attempts is None else attempts
     client = Client(api_key, transport or urllib_transport)
     found = client.list_agents(spec["external_id"])
+    secret = None
     if found:
         agent = found[0]
         created = False
     else:
-        agent = client.create(_create_body(spec, venice_key))
-        created = True
+        secret = _mint(client, redact)
+        agent, created = client.create(_create_body(spec, venice_key, secret))
+        if not created:
+            secret = None
     agent_id = agent["id"]
-    client.set_env(agent_id, "VENICE_API_KEY", venice_key, True)
-    client.set_env(agent_id, "VENICE_BASE_URL", spec["venice_base"], False)
-    for key, value in spec["signing"]:
-        client.set_env(agent_id, key, value, True)
-    client.reload_env(agent_id)
+    _set_env(client, agent_id, "VENICE_API_KEY", venice_key, True, sleep, attempts)
+    _set_env(client, agent_id, "VENICE_BASE_URL", spec["venice_base"], False, sleep, attempts)
+    if created and secret:
+        _set_env(client, agent_id, "AI_PARTNER_SIGNING_SECRET", secret, True, sleep, attempts)
+        outcome = "rotated" if spec["rotate"] else "generated"
+    elif spec["rotate"]:
+        secret = _mint(client, redact)
+        _set_env(client, agent_id, "AI_PARTNER_SIGNING_SECRET", secret, True, sleep, attempts)
+        outcome = "rotated"
+    else:
+        outcome = "kept"
+    _retry(lambda: client.publish(agent_id, spec["port"]), sleep, attempts)
+    _wait_ready(client, agent_id, sleep, attempts)
+    _retry(lambda: client.reload_env(agent_id), sleep, attempts)
     cap_applied = None
     if spec["spend_cap_cents"] is not None:
         cap_applied = client.set_spend_cap(agent_id, spec["spend_cap_cents"]) is not False
     root = client.volume_root(agent_id)
-    client.upload(agent_id, "kit.zip", content, root)
+    _retry(lambda: client.upload(agent_id, "kit.zip", content, root), sleep, attempts)
+    web_url = _wait_url(client, agent_id, sleep, attempts)
+    _wait_health(web_url, health, sleep, attempts)
     plan.update({
         "dry_run": False,
         "created": created,
         "id": agent_id,
         "kit_path": root.rstrip("/") + "/kit.zip",
+        "signing_secret": outcome,
+        "web_url": web_url,
+        "health": 200,
         "spend_cap_applied": cap_applied,
         "exit_code": 0,
     })
@@ -404,13 +554,14 @@ def teardown(env, external_id, apply, transport=None):
     }
 
 
-def execute(argv, env, transport=None):
+def execute(argv, env, transport=None, *, health=None, sleep=None, attempts=None, redact=None):
     parser = argparse.ArgumentParser(prog="maritime_provision")
     sub = parser.add_subparsers(dest="command", required=True)
     provision_cmd = sub.add_parser("provision")
     provision_cmd.add_argument("--external-id", required=True)
     provision_cmd.add_argument("--kit", required=True)
     provision_cmd.add_argument("--apply", action="store_true")
+    provision_cmd.add_argument("--rotate-secret", action="store_true")
     list_cmd = sub.add_parser("list")
     list_cmd.add_argument("--external-id")
     teardown_cmd = sub.add_parser("teardown")
@@ -418,15 +569,26 @@ def execute(argv, env, transport=None):
     teardown_cmd.add_argument("--apply", action="store_true")
     args = parser.parse_args(argv)
     if args.command == "provision":
-        return provision(env, args.external_id, args.kit, args.apply, transport)
+        return provision(
+            env,
+            args.external_id,
+            args.kit,
+            args.apply,
+            transport,
+            rotate=args.rotate_secret,
+            health=health,
+            sleep=sleep,
+            attempts=attempts,
+            redact=redact,
+        )
     if args.command == "list":
         return list_agents(env, args.external_id, transport)
     return teardown(env, args.external_id, args.apply, transport)
 
 
-def main(argv=None, env=None, transport=None, out=None):
+def main(argv=None, env=None, transport=None, out=None, *, health=None, sleep=None, attempts=None):
     env = os.environ if env is None else env
-    secrets = [
+    redact = [
         _secret(env, name)
         for name in (
             "MARITIME_API_KEY",
@@ -437,11 +599,19 @@ def main(argv=None, env=None, transport=None, out=None):
         )
     ]
     try:
-        result = execute(list(sys.argv[1:] if argv is None else argv), env, transport)
+        result = execute(
+            list(sys.argv[1:] if argv is None else argv),
+            env,
+            transport,
+            health=health,
+            sleep=sleep,
+            attempts=attempts,
+            redact=redact,
+        )
     except MaritimeError as exc:
-        result = {"ok": False, "error": _redact(str(exc), secrets), "exit_code": 2}
+        result = {"ok": False, "error": _redact(str(exc), redact), "exit_code": 2}
     text = json.dumps(result, indent=2)
-    if any(secret and len(secret) >= 8 and secret in text for secret in secrets):
+    if any(secret and len(secret) >= 8 and secret in text for secret in redact):
         raise RuntimeError("refusing to print a secret")
     print(text, file=out or sys.stdout)
     return result["exit_code"]

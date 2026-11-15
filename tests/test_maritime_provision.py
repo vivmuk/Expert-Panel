@@ -1,11 +1,11 @@
-"""Per-customer Maritime provisioning with a fake API. No network."""
 import io
 import json
+import urllib.error
 import zipfile
 
 import pytest
 
-from tools.maritime_provision import execute, main
+from tools.maritime_provision import USER_AGENT, MaritimeError, execute, main, urllib_health
 
 VENICE = "vk-live-test-value"
 MARITIME = "mk_live_test_value_xxxxxxxx"
@@ -20,6 +20,24 @@ class Fake:
         self.cap = None
         self.uploaded = None
         self.reload_conflicts = 0
+        self.reload_detail = "already being restarted"
+        self.pending_gets = 0
+
+    def _sync(self, agent):
+        if agent.get("exposedPort") and agent.get("visibility") == "public":
+            agent["webUrl"] = "https://" + agent["id"] + ".mtm.test"
+        else:
+            agent["webUrl"] = None
+
+    def _view(self, agent):
+        if self.pending_gets:
+            self.pending_gets -= 1
+            shown = dict(agent)
+            shown["status"] = "restarting"
+            return shown
+        if agent.get("status") in ("deploying", "restarting", "starting"):
+            agent["status"] = "active"
+        return agent
 
     def __call__(self, method, path, *, query=None, body=None, raw=None, content_type=None, api_key):
         self.calls.append({"method": method, "path": path, "body": body, "raw": raw, "query": query})
@@ -36,16 +54,43 @@ class Fake:
                 "name": body["name"],
                 "externalId": body["externalId"],
                 "status": "deploying",
+                "visibility": "public" if body.get("publicWeb") else "private",
+                "exposedPort": body.get("exposedPort"),
+                "webUrl": None,
                 "env": body.get("initialEnvVars"),
             }
+            self._sync(agent)
             self.agents.append(agent)
             return 201, agent
+        if method == "GET" and path.startswith("/api/agents/") and path.count("/") == 3:
+            agent_id = path.rsplit("/", 1)[-1]
+            found = [agent for agent in self.agents if agent["id"] == agent_id]
+            if not found:
+                return 404, {"error": "missing"}
+            return 200, self._view(found[0])
+        if method == "PUT" and path.endswith("/visibility"):
+            agent_id = path.split("/")[3]
+            found = [agent for agent in self.agents if agent["id"] == agent_id]
+            if not found:
+                return 404, {"error": "missing"}
+            found[0]["visibility"] = body["visibility"]
+            self._sync(found[0])
+            return 200, found[0]
+        if method == "PUT" and path.startswith("/api/agents/") and path.count("/") == 3:
+            agent_id = path.rsplit("/", 1)[-1]
+            found = [agent for agent in self.agents if agent["id"] == agent_id]
+            if not found:
+                return 404, {"error": "missing"}
+            if body.get("exposedPort") is not None:
+                found[0]["exposedPort"] = body["exposedPort"]
+            self._sync(found[0])
+            return 200, found[0]
         if method == "POST" and path.endswith("/env"):
             return 200, {"key": body["key"], "isSecret": body["isSecret"]}
         if method == "POST" and path.endswith("/reload-env"):
             if self.reload_conflicts:
                 self.reload_conflicts -= 1
-                return 409, {"detail": "already being restarted"}
+                return 409, {"detail": self.reload_detail}
             return 200, {}
         if method == "PUT" and path.endswith("/llm-spend-limit"):
             self.cap = body
@@ -74,6 +119,10 @@ def _kit(tmp_path):
     path = tmp_path / "kit.zip"
     path.write_bytes(buffer.getvalue())
     return str(path)
+
+
+def _local():
+    return {"health": lambda url: 200, "sleep": lambda _seconds: None, "attempts": 8}
 
 
 def _env(**extra):
@@ -119,8 +168,8 @@ def test_apply_is_idempotent_and_uploads_the_kit(tmp_path):
     fake = Fake()
     env = _env(MARITIME_LLM_SPEND_CAP_CENTS="500")
     kit = _kit(tmp_path)
-    first = execute(["provision", "--external-id", "pilot_1", "--kit", kit, "--apply"], env, fake)
-    second = execute(["provision", "--external-id", "pilot_1", "--kit", kit, "--apply"], env, fake)
+    first = execute(["provision", "--external-id", "pilot_1", "--kit", kit, "--apply"], env, fake, **_local())
+    second = execute(["provision", "--external-id", "pilot_1", "--kit", kit, "--apply"], env, fake, **_local())
     assert first["created"] is True
     assert second["created"] is False
     assert first["id"] == second["id"] == "agt_pilot_1"
@@ -154,7 +203,7 @@ def test_apply_is_idempotent_and_uploads_the_kit(tmp_path):
         "id": "agt_pilot_1",
         "name": first["name"],
         "externalId": "pilot_1",
-        "status": "deploying",
+        "status": "active",
     }]
     assert VENICE not in json.dumps(listed)
     dry = execute(["teardown", "--external-id", "pilot_1"], env, fake)
@@ -173,6 +222,7 @@ def test_a_missing_spend_cap_endpoint_still_uploads(tmp_path):
         ["provision", "--external-id", "pilot_2", "--kit", _kit(tmp_path), "--apply"],
         _env(MARITIME_LLM_SPEND_CAP_CENTS="100"),
         fake,
+        **_local(),
     )
     assert result["spend_cap_applied"] is False
     assert result["kit_path"] == "/data/kit.zip"
@@ -221,16 +271,27 @@ def test_bad_external_id_is_refused(tmp_path):
 def test_a_restart_conflict_still_uploads_the_kit(tmp_path):
     fake = Fake()
     fake.reload_conflicts = 1
+    fake.pending_gets = 1
+    seen = []
+
+    def health(url):
+        seen.append(url)
+        return 200
+
     result = execute(
         ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
         _env(),
         fake,
+        health=health,
+        sleep=lambda _seconds: None,
+        attempts=8,
     )
     assert result["exit_code"] == 0
     assert result["kit_path"] == "/data/kit.zip"
     assert fake.uploaded is not None
     assert result["web_url"].startswith("https://")
     assert result["health"] == 200
+    assert seen == [result["web_url"].rstrip("/") + "/health"]
 
 
 def test_apply_does_not_require_or_copy_the_production_signing_secret(tmp_path, capsys):
@@ -242,6 +303,7 @@ def test_apply_does_not_require_or_copy_the_production_signing_secret(tmp_path, 
         ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
         env=env,
         transport=fake,
+        **_local(),
     )
     printed = capsys.readouterr().out
     assert code == 0
@@ -269,6 +331,7 @@ def test_an_existing_agent_is_published_without_rotating_its_secret(tmp_path):
         ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
         _env(),
         fake,
+        **_local(),
     )
     assert result["created"] is False
     assert result["signing_secret"] == "kept"
@@ -286,11 +349,12 @@ def test_an_existing_agent_is_published_without_rotating_its_secret(tmp_path):
 def test_rotate_secret_replaces_the_agent_secret_without_printing_it(tmp_path, capsys):
     fake = Fake()
     kit = _kit(tmp_path)
-    first = execute(["provision", "--external-id", "pilot_1", "--kit", kit, "--apply"], _env(), fake)
+    first = execute(["provision", "--external-id", "pilot_1", "--kit", kit, "--apply"], _env(), fake, **_local())
     code = main(
         ["provision", "--external-id", "pilot_1", "--kit", kit, "--apply", "--rotate-secret"],
         env=_env(),
         transport=fake,
+        **_local(),
     )
     printed = capsys.readouterr().out
     assert code == 0
@@ -307,3 +371,119 @@ def test_rotate_secret_replaces_the_agent_secret_without_printing_it(tmp_path, c
     assert values[0] not in printed
     assert values[1] not in printed
     assert SIGNING not in printed
+
+
+def test_apply_without_either_signing_secret_still_provisions(tmp_path):
+    fake = Fake()
+    env = _env()
+    del env["AI_PARTNER_SIGNING_SECRETS"]
+    result = execute(
+        ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
+        env,
+        fake,
+        **_local(),
+    )
+    assert result["signing_secret"] == "generated"
+    assert result["kit_path"] == "/data/kit.zip"
+
+
+def test_upload_waits_until_the_agent_is_active(tmp_path):
+    fake = Fake()
+    fake.pending_gets = 20
+    with pytest.raises(MaritimeError) as caught:
+        execute(
+            ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
+            _env(),
+            fake,
+            health=lambda url: 200,
+            sleep=lambda _seconds: None,
+            attempts=3,
+        )
+    assert fake.uploaded is None
+    assert "did not become active" in str(caught.value)
+
+
+def test_a_non_restart_409_is_not_retried(tmp_path):
+    fake = Fake()
+    fake.reload_conflicts = 9
+    fake.reload_detail = "name taken"
+    with pytest.raises(MaritimeError) as caught:
+        execute(
+            ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
+            _env(),
+            fake,
+            health=lambda url: 200,
+            sleep=lambda _seconds: None,
+            attempts=4,
+        )
+    assert "name taken" in str(caught.value)
+    assert fake.reload_conflicts == 8
+
+
+def test_health_check_sends_a_user_agent_and_no_api_key():
+    seen = {}
+
+    def opener(request, timeout):
+        seen["ua"] = request.get_header("User-agent")
+        seen["auth"] = request.get_header("Authorization")
+        if not seen["ua"]:
+            raise urllib.error.HTTPError(request.full_url, 403, "blocked", hdrs=None, fp=io.BytesIO(b""))
+        class Response:
+            status = 200
+
+            def read(self):
+                return b"ok"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        return Response()
+
+    status = urllib_health("https://agent.example.test/health", opener=opener)
+    assert status == 200
+    assert seen["ua"] == USER_AGENT
+    assert seen["auth"] is None
+
+
+def test_health_retries_a_forbidden_response_until_it_is_200(tmp_path):
+    fake = Fake()
+    calls = {"n": 0}
+
+    def health(url):
+        calls["n"] += 1
+        assert url.endswith("/health")
+        return 403 if calls["n"] == 1 else 200
+
+    result = execute(
+        ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
+        _env(),
+        fake,
+        health=health,
+        sleep=lambda _seconds: None,
+        attempts=4,
+    )
+    assert result["health"] == 200
+    assert calls["n"] == 2
+
+
+def test_exposed_port_honors_ai_partner_port(tmp_path):
+    fake = Fake()
+    result = execute(
+        ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
+        _env(AI_PARTNER_PORT="19001"),
+        fake,
+        **_local(),
+    )
+    assert result["exposed_port"] == 19001
+    created = [call for call in fake.calls if call["method"] == "POST" and call["path"] == "/api/agents"][0]
+    assert created["body"]["exposedPort"] == 19001
+    with pytest.raises(MaritimeError) as caught:
+        execute(
+            ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path)],
+            _env(AI_PARTNER_PORT="nope"),
+            fake,
+        )
+    assert "AI_PARTNER_PORT" in str(caught.value)

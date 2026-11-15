@@ -205,14 +205,29 @@ The agent is this repository. Maritime builds the root `Dockerfile` and runs `py
 ```bash
 python tools/maritime_provision.py provision --external-id CUSTOMER_ID --kit path/to/kit.zip
 python tools/maritime_provision.py provision --external-id CUSTOMER_ID --kit path/to/kit.zip --apply
+python tools/maritime_provision.py provision --external-id CUSTOMER_ID --kit path/to/kit.zip --apply --rotate-secret
 python tools/maritime_provision.py list
 python tools/maritime_provision.py teardown --external-id CUSTOMER_ID
 python tools/maritime_provision.py teardown --external-id CUSTOMER_ID --apply
 ```
 
-`provision` and `teardown` make no Maritime call unless you pass `--apply`. `list` only reads. `--apply` creates the agent, or reuses the agent that already has that `externalId`, then uploads `kit.zip` to the agent's data volume.
+`provision` and `teardown` make no Maritime call unless you pass `--apply`. `list` only reads. `--apply` creates the agent, or reuses the agent that already has that `externalId`. It sets visibility to public and `exposedPort` to the port in `AI_PARTNER_PORT`, or 18789 when that variable is unset. 18789 is the `PORT` Maritime injects into the micro-VM. The command does not set `PORT` on the agent. It waits until the agent status is `active`, `running`, or `sleeping`. When `POST /api/agents/{id}/reload-env` answers 409 because a restart is already in progress, the command retries that call. It then uploads `kit.zip`. It waits until `webUrl` is present and `GET /health` on that URL returns 200. The health request sends a User-Agent. A request with no User-Agent received a Cloudflare 403.
 
-`MARITIME_API_KEY` is required for list and for any `--apply` command. `VENICE_API_KEY` is required for `provision --apply`. So is `AI_PARTNER_SIGNING_SECRETS` or `AI_PARTNER_SIGNING_SECRET`. Chat answers 503 until one of those is on the agent. The script copies the value you already use and does not print it. Set `MARITIME_LLM_SPEND_CAP_CENTS` to send a per-agent monthly cap to `PUT /api/agents/{id}/llm-spend-limit`. Maritime documents that cap for its own model proxy. A Venice key on the agent is not metered by that cap. Leave the variable unset and the script skips the call. `AI_PARTNER_GITHUB_REPO` and `AI_PARTNER_GITHUB_BRANCH` override the build. The defaults are `https://github.com/vivmuk/Expert-Panel` and `master`.
+`MARITIME_API_KEY` is required for list and for any `--apply` command. `VENICE_API_KEY` is required for `provision --apply`. The command does not read `AI_PARTNER_SIGNING_SECRET` or `AI_PARTNER_SIGNING_SECRETS` from the shell. For a new agent it mints `AI_PARTNER_SIGNING_SECRET` with `secrets.token_urlsafe` and stores that value on the agent. A later `--apply` for the same `externalId` leaves the stored secret in place. `--rotate-secret` replaces it. The command never prints the secret. Chat on the agent answers 503 until the variable is set.
+
+The agent signs two values with that secret. `X-AI-Partner-Client` is the browser address on a proxied sign-in request. The job-state field `sig` is the model-call count. Railway checks both with its own `AI_PARTNER_SIGNING_SECRETS`. Railway does not have the pilot agent's secret. Add the pilot secret as another `kid:secret` entry on the Railway service if Railway should accept those proofs. Until then, a sign-in rate limit sees the proxy address. A job state signed by the agent fails on Railway with "The job state did not match its signature." Session cookies are `sess_` rows in the Railway database. They do not use this HMAC. This command does not change Railway variables, and it does not print the secret, so it cannot install the secret on Railway. Do not copy the production signing secret onto the agent.
+
+Set `MARITIME_LLM_SPEND_CAP_CENTS` to send a per-agent monthly cap to `PUT /api/agents/{id}/llm-spend-limit`. Maritime documents that cap for its own model proxy. A Venice key on the agent is not metered by that cap. Leave the variable unset and the script skips the call. `AI_PARTNER_GITHUB_REPO` and `AI_PARTNER_GITHUB_BRANCH` override the build. The defaults are `https://github.com/vivmuk/Expert-Panel` and `master`.
+
+### Replace the shared secret on pilot-test-001
+
+Agent `pilot-test-001` (id `2c028862-4606-417a-9bb7-4ec549f863d8`) currently has the production signing secret, and it was created without a public URL. Run the command below only when you intend to change that live agent. This repository change does not run it.
+
+```bash
+python tools/maritime_provision.py provision --external-id pilot-test-001 --kit path/to/kit.zip --apply --rotate-secret
+```
+
+The command keeps agent `2c028862-4606-417a-9bb7-4ec549f863d8`, writes a new `AI_PARTNER_SIGNING_SECRET`, sets public visibility and exposed port 18789, uploads the kit, and waits until health returns 200. Leave the production secret on Railway. Do not copy it back onto the agent. After the rotation, Railway will not verify IP proofs or job-state signatures from this agent. Sign-in still uses the Railway session token.
 
 ## Brand Studio
 
