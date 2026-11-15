@@ -48,7 +48,7 @@ Restoring an earlier valid copy, copying the file, and deleting the file are sti
 
 ## Email sign-in and three questions
 
-A person signs in with an email magic link. The account is stored in Postgres on the Railway process only. Signing up grants three questions. A question is one signed-in prompt that starts paid provider work: a product-chat turn that leaves intake, a stateless `POST /chat`, or one artifact generation. Intake does not count. The fourth paid prompt is refused. There is no payment flow.
+A person signs in with an email magic link. The account is stored in Postgres on the Railway process only. Signing up grants three questions. A question is one signed-in prompt that starts paid provider work: a product-chat turn that leaves intake, a stateless `POST /chat`, or one artifact generation. Intake does not count. The fourth paid prompt is refused until a Stripe Checkout payment grants another question. The README section Pilot customer agent describes that route. A host with the Stripe variables unset answers 503 and does not call Stripe.
 
 Unsigned paid routes return 403 `sign_in_required`. Maritime and Vercel do not open `DATABASE_URL` and do not call a provider. They forward login, session checks, entitlement, and paid prompts to the Railway backend. The same email has the same three questions on both hosts. Partner API keys still guard onboarding and the usage page.
 

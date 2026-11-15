@@ -180,6 +180,40 @@ and their SSE subscribers must share a process (in-memory run registry). Run
 events are also flushed to SQLite (`run_events`), which is the escape hatch if
 multi-worker is ever needed.
 
+## Pilot customer agent
+
+A pilot customer is a free user who gets one Maritime agent. The account still grants three free questions. A question is one signed-in prompt that starts paid work, and the automatic follow-up turns of that prompt share it. Checkout stays closed while any of those questions remain. One paid Checkout Session grants one more question.
+
+The price is the Stripe Price you put in `STRIPE_PRICE_ID`. The server does not pick a dollar amount. A payment row stores the cents Stripe reports on the event, or null when the event has no amount.
+
+### Stripe
+
+Set these three variables on the Railway service, which is the only process that opens the user database. Leave any of them unset and both routes answer 503. No Stripe call is made in that case.
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_ID`
+
+`POST /api/billing/checkout` needs a signed-in session. It returns a Checkout Session URL for `STRIPE_PRICE_ID`.
+
+Point the Stripe webhook at `https://ai-partner.up.railway.app/api/billing/webhook`. The route checks `Stripe-Signature`. The same event id does not grant a second question. An event whose price is not `STRIPE_PRICE_ID` is ignored.
+
+### One agent per customer
+
+The agent is this repository. Maritime builds the root `Dockerfile` and runs `python start.py`, which is the AI Partner web app. The provisioner sets `VENICE_API_KEY` on that agent so inference goes to Venice. It does not print the key.
+
+```bash
+python tools/maritime_provision.py provision --external-id CUSTOMER_ID --kit path/to/kit.zip
+python tools/maritime_provision.py provision --external-id CUSTOMER_ID --kit path/to/kit.zip --apply
+python tools/maritime_provision.py list
+python tools/maritime_provision.py teardown --external-id CUSTOMER_ID
+python tools/maritime_provision.py teardown --external-id CUSTOMER_ID --apply
+```
+
+`provision` and `teardown` make no Maritime call unless you pass `--apply`. `list` only reads. `--apply` creates the agent, or reuses the agent that already has that `externalId`, then uploads `kit.zip` to the agent's data volume.
+
+`MARITIME_API_KEY` is required for list and for any `--apply` command. `VENICE_API_KEY` is required for `provision --apply`. Set `MARITIME_LLM_SPEND_CAP_CENTS` to send a per-agent monthly cap to `PUT /api/agents/{id}/llm-spend-limit`. Maritime documents that cap for its own model proxy. A Venice key on the agent is not metered by that cap. Leave the variable unset and the script skips the call. `AI_PARTNER_GITHUB_REPO` and `AI_PARTNER_GITHUB_BRANCH` override the build. The defaults are `https://github.com/vivmuk/Expert-Panel` and `master`.
+
 ## Brand Studio
 
 The UI ships with a procedural SVG constellation identity, and the server
