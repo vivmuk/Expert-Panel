@@ -205,6 +205,17 @@ def _render(report):
             lambda item: escape(item["chat_id"] or ""),
         ),
     )
+    payments = _rows(
+        report.get("payments") or [],
+        (
+            lambda item: _when(item["created_at"]),
+            lambda item: escape(item["email"] or ""),
+            lambda item: escape(item["status"] or ""),
+            lambda item: escape(item["price_id"] or ""),
+            lambda item: _money(item["amount_total"]),
+            lambda item: escape(item["currency"] or ""),
+        ),
+    )
     runs = _rows(
         report["runs"],
         (
@@ -258,6 +269,13 @@ def _render(report):
     <table class="usage-table">
       <thead><tr><th>When</th><th>Email</th><th>Route</th><th>Chat</th></tr></thead>
       <tbody>{questions}</tbody>
+    </table>
+  </section>
+  <section aria-labelledby="payments-title">
+    <h2 id="payments-title">Payments</h2>
+    <table class="usage-table">
+      <thead><tr><th>When</th><th>Email</th><th>Status</th><th>Price</th><th>Amount</th><th>Currency</th></tr></thead>
+      <tbody>{payments}</tbody>
     </table>
   </section>
   <section aria-labelledby="runs-title">

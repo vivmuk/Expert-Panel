@@ -272,3 +272,141 @@ def test_usage_page_requires_the_partner_key_and_hides_emails_until_then(world):
     assert "ada@example.com" in page
     assert 'class="usage-count">1<' in page
     assert "Questions" in page
+
+
+def test_checkout_records_one_payment_and_a_repeat_event_does_not_grant_again(world, monkeypatch):
+    import json
+    import time
+
+    from server.billing import sign_payload
+
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_placeholder_value")
+    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_placeholder_value")
+    monkeypatch.setenv("STRIPE_PRICE_ID", "price_pilot_placeholder")
+    seen = {}
+
+    def fake_post(secret, fields):
+        seen["secret"] = secret
+        seen["fields"] = dict(fields)
+        assert secret == "sk_test_placeholder_value"
+        assert fields["line_items[0][price]"] == "price_pilot_placeholder"
+        assert fields["line_items[0][quantity]"] == "1"
+        assert not any("amount" in key for key in fields)
+        return {"id": "cs_test", "url": "https://checkout.stripe.test/c/cs_test"}
+
+    monkeypatch.setattr("server.api.billing.stripe_post", fake_post)
+    world["proxy"].post("/api/auth/request", json={"email": "ada@example.com"})
+    token = _token(world["mail"].outbox[0])
+    signed = world["proxy"].get("/api/auth/verify?token=" + token)
+    assert signed.status_code == 302
+    session = world["proxy"].get_cookie("ai_partner_session").value
+    early = world["authority"].post("/api/billing/checkout", headers={"X-AI-Partner-Session": session})
+    assert early.status_code == 409
+    assert early.get_json()["error"]["code"] == "free_questions_open"
+    assert "fields" not in seen
+    proxy_checkout = world["proxy"].post("/api/billing/checkout", headers={"X-AI-Partner-Session": session})
+    assert proxy_checkout.status_code == 503
+    assert proxy_checkout.get_json()["error"]["code"] == "paid_host_closed"
+    for index in range(3):
+        paid = world["proxy"].post("/api/chat", json=_paid_state(f"bill-{index}", f"Question {index}"))
+        assert paid.status_code == 200, paid.get_data(as_text=True)
+    opened = world["authority"].post("/api/billing/checkout", headers={"X-AI-Partner-Session": session})
+    assert opened.status_code == 200, opened.get_data(as_text=True)
+    assert opened.get_json() == {"id": "cs_test", "url": "https://checkout.stripe.test/c/cs_test"}
+    assert "sk_test_placeholder_value" not in opened.get_data(as_text=True)
+    with world["authority"].application.test_request_context():
+        user = usage_report()["users"][0]
+    assert user["questions_remaining"] == 0
+    event = {
+        "id": "evt_paid_1",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_test",
+                "payment_status": "paid",
+                "client_reference_id": user["id"],
+                "metadata": {"user_id": user["id"], "price_id": "price_pilot_placeholder"},
+                "amount_total": 2500,
+                "currency": "usd",
+            }
+        },
+    }
+    payload = json.dumps(event).encode()
+    signature = sign_payload("whsec_test_placeholder_value", payload, int(time.time()))
+    headers = {"Stripe-Signature": signature, "Content-Type": "application/json"}
+    recorded = world["authority"].post("/api/billing/webhook", data=payload, headers=headers)
+    assert recorded.status_code == 200
+    assert recorded.get_json()["duplicate"] is False
+    again = world["authority"].post("/api/billing/webhook", data=payload, headers=headers)
+    assert again.status_code == 200
+    assert again.get_json()["duplicate"] is True
+    with world["authority"].application.test_request_context():
+        report = usage_report()
+    assert report["users"][0]["questions_granted"] == 4
+    assert report["users"][0]["questions_remaining"] == 1
+    assert report["payments"] == [{
+        "stripe_event_id": "evt_paid_1",
+        "created_at": report["payments"][0]["created_at"],
+        "status": "paid",
+        "price_id": "price_pilot_placeholder",
+        "amount_total": 2500,
+        "currency": "usd",
+        "email": "ada@example.com",
+    }]
+    page = world["authority"].get("/admin/usage", headers={"Authorization": "Bearer partner-test-key"})
+    assert "price_pilot_placeholder" in page.get_data(as_text=True)
+    bare = {
+        "id": "evt_paid_2",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_bare",
+                "payment_status": "paid",
+                "client_reference_id": user["id"],
+                "metadata": {"user_id": user["id"], "price_id": "price_pilot_placeholder"},
+            }
+        },
+    }
+    bare_payload = json.dumps(bare).encode()
+    bare_sig = sign_payload("whsec_test_placeholder_value", bare_payload, int(time.time()))
+    bare_headers = {"Stripe-Signature": bare_sig, "Content-Type": "application/json"}
+    second = world["authority"].post("/api/billing/webhook", data=bare_payload, headers=bare_headers)
+    assert second.status_code == 200
+    assert second.get_json()["duplicate"] is False
+    with world["authority"].application.test_request_context():
+        after = usage_report()
+    assert after["users"][0]["questions_granted"] == 5
+    stored = [row for row in after["payments"] if row["stripe_event_id"] == "evt_paid_2"][0]
+    assert stored["amount_total"] is None
+    bad = world["authority"].post(
+        "/api/billing/webhook",
+        data=bare_payload,
+        headers={"Stripe-Signature": "t=1,v1=nope", "Content-Type": "application/json"},
+    )
+    assert bad.status_code == 400
+    other_price = {
+        "id": "evt_other_price",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_other",
+                "payment_status": "paid",
+                "client_reference_id": user["id"],
+                "metadata": {"user_id": user["id"], "price_id": "price_someone_else"},
+                "amount_total": 100,
+                "currency": "usd",
+            }
+        },
+    }
+    other_payload = json.dumps(other_price).encode()
+    other_sig = sign_payload("whsec_test_placeholder_value", other_payload, int(time.time()))
+    ignored = world["authority"].post(
+        "/api/billing/webhook",
+        data=other_payload,
+        headers={"Stripe-Signature": other_sig, "Content-Type": "application/json"},
+    )
+    assert ignored.status_code == 200
+    assert ignored.get_json()["ignored"] is True
+    with world["authority"].application.test_request_context():
+        assert usage_report()["users"][0]["questions_granted"] == 5
+        assert len(usage_report()["payments"]) == 2

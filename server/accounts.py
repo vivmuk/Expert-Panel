@@ -87,6 +87,16 @@ CREATE TABLE IF NOT EXISTS stored_json (
     updated_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (kind, item_key)
 );
+CREATE TABLE IF NOT EXISTS payment (
+    stripe_event_id text PRIMARY KEY,
+    user_id text NOT NULL REFERENCES app_user (id),
+    stripe_session_id text,
+    price_id text,
+    amount_total bigint,
+    currency text,
+    status text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
 """
 
 
@@ -346,6 +356,39 @@ def set_run_costs(run_id, *, reserved=None, calculated=None, billed=None, provid
         connection.commit()
 
 
+def record_checkout_payment(user_id, event_id, session_id, price_id, amount_total, currency):
+    """Insert one Stripe event and grant one question. A repeated event id does nothing."""
+    if not user_id or not event_id:
+        return None
+    if amount_total is not None and (isinstance(amount_total, bool) or not isinstance(amount_total, int) or amount_total < 0):
+        raise ValueError("amount must be a non-negative integer or null")
+    with connect() as connection:
+        locked = connection.execute(
+            "SELECT id FROM app_user WHERE id = %s FOR UPDATE",
+            (user_id,),
+        ).fetchone()
+        if locked is None:
+            connection.rollback()
+            return None
+        inserted = connection.execute(
+            """INSERT INTO payment (
+                   stripe_event_id, user_id, stripe_session_id, price_id, amount_total, currency, status
+               ) VALUES (%s, %s, %s, %s, %s, %s, 'paid')
+               ON CONFLICT (stripe_event_id) DO NOTHING
+               RETURNING stripe_event_id""",
+            (event_id, user_id, session_id, price_id, amount_total, currency),
+        ).fetchone()
+        if inserted is None:
+            connection.commit()
+            return {"duplicate": True, "user_id": user_id}
+        connection.execute(
+            "UPDATE app_user SET questions_granted = questions_granted + 1 WHERE id = %s",
+            (user_id,),
+        )
+        connection.commit()
+        return {"duplicate": False, "user_id": user_id}
+
+
 def runs_for_user(user_id):
     with connect() as connection:
         rows = connection.execute(
@@ -376,6 +419,12 @@ def usage_report():
                FROM provider_run LEFT JOIN app_user ON app_user.id = provider_run.user_id
                ORDER BY provider_run.created_at"""
         ).fetchall()
+        payments = connection.execute(
+            """SELECT payment.stripe_event_id, payment.created_at, payment.status, payment.price_id,
+                      payment.amount_total, payment.currency, app_user.email
+               FROM payment JOIN app_user ON app_user.id = payment.user_id
+               ORDER BY payment.created_at"""
+        ).fetchall()
     people = []
     for row in users:
         used = int(row["questions_used"])
@@ -393,6 +442,7 @@ def usage_report():
         "users": people,
         "questions": [dict(row) for row in questions],
         "runs": [dict(row) for row in runs],
+        "payments": [dict(row) for row in payments],
         **connection_report(),
     }
 
