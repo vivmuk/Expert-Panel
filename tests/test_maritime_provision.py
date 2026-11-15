@@ -19,6 +19,7 @@ class Fake:
         self.spend_status = 200
         self.cap = None
         self.uploaded = None
+        self.reload_conflicts = 0
 
     def __call__(self, method, path, *, query=None, body=None, raw=None, content_type=None, api_key):
         self.calls.append({"method": method, "path": path, "body": body, "raw": raw, "query": query})
@@ -42,6 +43,9 @@ class Fake:
         if method == "POST" and path.endswith("/env"):
             return 200, {"key": body["key"], "isSecret": body["isSecret"]}
         if method == "POST" and path.endswith("/reload-env"):
+            if self.reload_conflicts:
+                self.reload_conflicts -= 1
+                return 409, {"detail": "already being restarted"}
             return 200, {}
         if method == "PUT" and path.endswith("/llm-spend-limit"):
             self.cap = body
@@ -101,9 +105,12 @@ def test_dry_run_makes_no_calls_and_hides_the_keys(tmp_path, capsys):
     assert plan["dry_run"] is True
     assert plan["github_repo"] == "https://github.com/vivmuk/Expert-Panel"
     assert plan["framework"] == "custom"
-    assert plan["env"] == ["VENICE_API_KEY", "VENICE_BASE_URL", "AI_PARTNER_SIGNING_SECRETS"]
+    assert plan["env"] == ["VENICE_API_KEY", "VENICE_BASE_URL", "AI_PARTNER_SIGNING_SECRET"]
     assert plan["venice_key"] == "set"
-    assert plan["signing_secret"] == "set"
+    assert plan["signing_secret"] == "per-agent"
+    assert plan["exposed_port"] == 18789
+    assert plan["visibility"] == "public"
+    assert "AI_PARTNER_SIGNING_SECRETS" not in plan["env"]
     assert SIGNING not in printed
     assert plan["spend_cap_cents"] is None
 
@@ -130,9 +137,11 @@ def test_apply_is_idempotent_and_uploads_the_kit(tmp_path):
     venice = [item for item in body["initialEnvVars"] if item["key"] == "VENICE_API_KEY"][0]
     assert venice["value"] == VENICE
     assert venice["isSecret"] is True
-    signing = [item for item in body["initialEnvVars"] if item["key"] == "AI_PARTNER_SIGNING_SECRETS"][0]
-    assert signing["value"] == SIGNING
+    signing = [item for item in body["initialEnvVars"] if item["key"] == "AI_PARTNER_SIGNING_SECRET"][0]
+    assert signing["value"] != SIGNING
     assert signing["isSecret"] is True
+    assert body["exposedPort"] == 18789
+    assert body["publicWeb"] is True
     assert "unit_amount" not in json.dumps(body)
     assert fake.uploaded is not None
     assert b"dest_dir" in fake.uploaded and b"/data" in fake.uploaded
@@ -207,3 +216,94 @@ def test_bad_external_id_is_refused(tmp_path):
     with pytest.raises(Exception) as caught:
         execute(["provision", "--external-id", "has space", "--kit", _kit(tmp_path)], _env(), None)
     assert "externalId" in str(caught.value)
+
+
+def test_a_restart_conflict_still_uploads_the_kit(tmp_path):
+    fake = Fake()
+    fake.reload_conflicts = 1
+    result = execute(
+        ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
+        _env(),
+        fake,
+    )
+    assert result["exit_code"] == 0
+    assert result["kit_path"] == "/data/kit.zip"
+    assert fake.uploaded is not None
+    assert result["web_url"].startswith("https://")
+    assert result["health"] == 200
+
+
+def test_apply_does_not_require_or_copy_the_production_signing_secret(tmp_path, capsys):
+    fake = Fake()
+    env = _env()
+    del env["AI_PARTNER_SIGNING_SECRETS"]
+    env["AI_PARTNER_SIGNING_SECRET"] = SIGNING
+    code = main(
+        ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
+        env=env,
+        transport=fake,
+    )
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert SIGNING not in printed
+    bodies = [call["body"] for call in fake.calls if call["body"] is not None]
+    assert SIGNING not in json.dumps(bodies)
+    created = [call for call in fake.calls if call["method"] == "POST" and call["path"] == "/api/agents"][0]
+    minted = [item for item in created["body"]["initialEnvVars"] if item["key"] == "AI_PARTNER_SIGNING_SECRET"][0]
+    assert minted["value"] not in printed
+    assert minted["value"] != SIGNING
+
+
+def test_an_existing_agent_is_published_without_rotating_its_secret(tmp_path):
+    fake = Fake()
+    fake.agents.append({
+        "id": "agt_pilot_1",
+        "name": "ai-partner-pilot-1",
+        "externalId": "pilot_1",
+        "status": "active",
+        "visibility": "private",
+        "exposedPort": None,
+        "webUrl": None,
+    })
+    result = execute(
+        ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply"],
+        _env(),
+        fake,
+    )
+    assert result["created"] is False
+    assert result["signing_secret"] == "kept"
+    assert result["web_url"].startswith("https://")
+    puts = [call for call in fake.calls if call["method"] == "PUT"]
+    assert {"visibility": "public"} in [call["body"] for call in puts]
+    assert any(call["body"].get("exposedPort") == 18789 for call in puts)
+    signing_writes = [
+        call for call in fake.calls
+        if call["method"] == "POST" and str(call["path"]).endswith("/env") and call["body"]["key"] == "AI_PARTNER_SIGNING_SECRET"
+    ]
+    assert signing_writes == []
+
+
+def test_rotate_secret_replaces_the_agent_secret_without_printing_it(tmp_path, capsys):
+    fake = Fake()
+    kit = _kit(tmp_path)
+    first = execute(["provision", "--external-id", "pilot_1", "--kit", kit, "--apply"], _env(), fake)
+    code = main(
+        ["provision", "--external-id", "pilot_1", "--kit", kit, "--apply", "--rotate-secret"],
+        env=_env(),
+        transport=fake,
+    )
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert first["signing_secret"] == "generated"
+    rotated = json.loads(printed)
+    assert rotated["signing_secret"] == "rotated"
+    values = [
+        call["body"]["value"]
+        for call in fake.calls
+        if call["method"] == "POST" and str(call["path"]).endswith("/env") and call["body"]["key"] == "AI_PARTNER_SIGNING_SECRET"
+    ]
+    assert len(values) == 2
+    assert values[0] != values[1]
+    assert values[0] not in printed
+    assert values[1] not in printed
+    assert SIGNING not in printed
