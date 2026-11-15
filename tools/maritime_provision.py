@@ -267,7 +267,17 @@ class Client:
         try:
             self.call("DELETE", f"/api/agents/{urllib.parse.quote(agent_id, safe='')}")
         except MaritimeError as exc:
-            if "answered 404" not in str(exc):
+            if exc.status != 404 and "answered 404" not in str(exc):
+                raise
+
+    def delete_env(self, agent_id, key):
+        try:
+            self.call(
+                "DELETE",
+                f"/api/agents/{urllib.parse.quote(agent_id, safe='')}/env/{urllib.parse.quote(key, safe='')}",
+            )
+        except MaritimeError as exc:
+            if exc.status != 404 and "answered 404" not in str(exc):
                 raise
 
 
@@ -487,6 +497,12 @@ def provision(env, external_id, kit, apply, transport=None, *, rotate=False, hea
         outcome = "rotated"
     else:
         outcome = "kept"
+    if spec["rotate"]:
+        _retry(
+            lambda: client.delete_env(agent_id, "AI_PARTNER_SIGNING_SECRETS"),
+            sleep,
+            attempts,
+        )
     _retry(lambda: client.publish(agent_id, spec["port"]), sleep, attempts)
     _wait_ready(client, agent_id, sleep, attempts)
     _retry(lambda: client.reload_env(agent_id), sleep, attempts)

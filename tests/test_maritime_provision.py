@@ -22,6 +22,7 @@ class Fake:
         self.reload_conflicts = 0
         self.reload_detail = "already being restarted"
         self.pending_gets = 0
+        self.env_delete_status = 204
 
     def _sync(self, agent):
         if agent.get("exposedPort") and agent.get("visibility") == "public":
@@ -102,7 +103,11 @@ class Fake:
         if method == "POST" and path.endswith("/files/upload"):
             self.uploaded = raw
             return 200, {"ok": True, "path": "/data/kit.zip"}
-        if method == "DELETE" and path.startswith("/api/agents/"):
+        if method == "DELETE" and "/env/" in path:
+            if self.env_delete_status >= 400:
+                return self.env_delete_status, {"error": "missing"}
+            return 204, None
+        if method == "DELETE" and path.startswith("/api/agents/") and path.count("/") == 3:
             agent_id = path.rsplit("/", 1)[-1]
             before = len(self.agents)
             self.agents = [agent for agent in self.agents if agent["id"] != agent_id]
@@ -344,6 +349,9 @@ def test_an_existing_agent_is_published_without_rotating_its_secret(tmp_path):
         if call["method"] == "POST" and str(call["path"]).endswith("/env") and call["body"]["key"] == "AI_PARTNER_SIGNING_SECRET"
     ]
     assert signing_writes == []
+    assert not any(
+        call["method"] == "DELETE" and "/env/" in call["path"] for call in fake.calls
+    )
 
 
 def test_rotate_secret_replaces_the_agent_secret_without_printing_it(tmp_path, capsys):
@@ -371,6 +379,36 @@ def test_rotate_secret_replaces_the_agent_secret_without_printing_it(tmp_path, c
     assert values[0] not in printed
     assert values[1] not in printed
     assert SIGNING not in printed
+    removed = [
+        call for call in fake.calls
+        if call["method"] == "DELETE" and call["path"].endswith("/env/AI_PARTNER_SIGNING_SECRETS")
+    ]
+    assert len(removed) == 1
+
+
+def test_rotate_succeeds_when_the_plural_secret_is_already_gone(tmp_path):
+    fake = Fake()
+    fake.env_delete_status = 404
+    fake.agents.append({
+        "id": "agt_pilot_1",
+        "name": "ai-partner-pilot-1",
+        "externalId": "pilot_1",
+        "status": "active",
+        "visibility": "public",
+        "exposedPort": 18789,
+        "webUrl": "https://agt_pilot_1.mtm.test",
+    })
+    result = execute(
+        ["provision", "--external-id", "pilot_1", "--kit", _kit(tmp_path), "--apply", "--rotate-secret"],
+        _env(),
+        fake,
+        **_local(),
+    )
+    assert result["signing_secret"] == "rotated"
+    assert any(
+        call["method"] == "DELETE" and call["path"].endswith("/env/AI_PARTNER_SIGNING_SECRETS")
+        for call in fake.calls
+    )
 
 
 def test_apply_without_either_signing_secret_still_provisions(tmp_path):
